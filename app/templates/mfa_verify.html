@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}MFA Verify - URL Shortener/Redirector{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-xl shadow p-8 mt-12">
+  <h2 class="text-2xl font-bold mb-2 text-blue-700 dark:text-blue-300 flex items-center gap-2">
+    <i class="fa-solid fa-shield-halved"></i> Two-Step Verification
+  </h2>
+  <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Enter the 6-digit code from your authenticator app, a backup code, or use your passkey.</p>
+
+  {% if error %}
+  <div class="bg-red-100 border border-red-300 text-red-800 dark:bg-red-900 dark:text-red-200 px-4 py-2 rounded mb-4">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="post" id="mfa-verify-form" class="space-y-4">
+    <label class="block text-sm font-semibold">TOTP code or backup code</label>
+    <input type="text" name="token" id="totp-token" inputmode="numeric" pattern="[0-9A-Z-]*" placeholder="123456 or XXXX-XXXX" class="w-full border rounded px-3 py-3 text-center font-mono text-xl tracking-widest" required autofocus>
+    <input type="hidden" name="passkey_credential" id="passkey_credential">
+    <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-bold flex items-center justify-center gap-2">
+      <i class="fa-solid fa-check"></i> Verify
+    </button>
+  </form>
+
+  {% if has_passkeys %}
+  <div class="mt-6 pt-6 border-t text-center">
+    <button id="passkey-verify-btn" class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 font-bold flex items-center justify-center gap-2">
+      <i class="fa-solid fa-fingerprint"></i> Verify with Passkey
+    </button>
+    <p class="text-xs text-gray-500 mt-2">Use Face ID / Touch ID / Windows Hello</p>
+  </div>
+  <script>
+    document.getElementById('passkey-verify-btn').addEventListener('click', async () => {
+      if (!window.PublicKeyCredential) { alert('Passkeys not supported'); return; }
+      try {
+        const challenge = new Uint8Array(32);
+        crypto.getRandomValues(challenge);
+        const cred = await navigator.credentials.get({
+          publicKey: {
+            challenge,
+            timeout: 60000,
+            userVerification: "preferred"
+          }
+        });
+        if (cred) {
+          const credId = btoa(String.fromCharCode(...new Uint8Array(cred.rawId))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+          document.getElementById('passkey_credential').value = credId;
+          document.getElementById('totp-token').value = credId; // also fill token for fallback server check
+          document.getElementById('mfa-verify-form').submit();
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Passkey failed: ' + e.message);
+      }
+    });
+  </script>
+  {% endif %}
+
+  <div class="mt-6 text-center text-xs text-gray-500">
+    <p>Backup codes are one-time use. Each is 8 hex chars like <span class="font-mono">AB12-34CD</span>.</p>
+    <a href="/admin-login" class="underline hover:text-blue-600">Back to login</a>
+  </div>
+</div>
+{% endblock %}

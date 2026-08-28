@@ -149,6 +149,12 @@ class Config:
             },
             "upstream_cache": {
                 "enabled": True
+            },
+            "mfa": {
+                "enabled": False,
+                "secret": None,
+                "backup_codes": [],
+                "passkeys": []
             }
         }
         # Sort the dictionary by keys (case-insensitive)

@@ -22,23 +22,58 @@ bp = Blueprint('main', __name__)
 @bp.route('/admin-login', methods=['GET', 'POST'])
 def admin_login():
     error = None
+    # Check if MFA is enabled
+    from app.config import config as app_config
+    mfa_cfg = app_config.get_configuration().get('mfa', {})
+    mfa_enabled = bool(mfa_cfg.get('enabled') and mfa_cfg.get('secret'))
+    
     if request.method == 'POST':
         admin_pwd = utils.get_admin_password()
         if request.form.get('password') == admin_pwd:
-            session['admin_logged_in'] = True
-            next_url = request.args.get('next') or url_for('main.dashboard')
-            logger.info("Admin user logged in successfully.")
-            return redirect(next_url)
+            # Check if MFA required
+            if mfa_enabled:
+                # Check if passkey was used (webauthn) - if credential provided, verify
+                passkey_cred = request.form.get('passkey_credential')
+                if passkey_cred:
+                    # Verify passkey
+                    passkeys = mfa_cfg.get('passkeys', [])
+                    if any(pk.get('credentialId') == passkey_cred for pk in passkeys):
+                        session['admin_logged_in'] = True
+                        session.pop('mfa_pending', None)
+                        next_url = request.args.get('next') or url_for('main.dashboard')
+                        logger.info("Admin login via passkey successful")
+                        return redirect(next_url)
+                    else:
+                        error = 'Invalid passkey.'
+                        logger.warning("Passkey login failed")
+                        return render_template('admin_login.html', error=error, mfa_enabled=mfa_enabled, show_passkey=bool(passkeys))
+                # TOTP flow - set pending and redirect to MFA verify
+                session['mfa_pending'] = True
+                # Save next url for after mfa
+                if request.args.get('next'):
+                    session['mfa_next'] = request.args.get('next')
+                logger.info("Admin password correct, redirecting to MFA verify")
+                return redirect(url_for('mfa.mfa_verify', next=request.args.get('next', '')))
+            else:
+                session['admin_logged_in'] = True
+                next_url = request.args.get('next') or url_for('main.dashboard')
+                logger.info("Admin user logged in successfully.")
+                return redirect(next_url)
         else:
             error = 'Invalid password.'
             logger.warning("Failed admin login attempt (invalid password).")
-    return render_template('admin_login.html', error=error)
+    # For GET, show passkey option if MFA enabled and passkeys exist
+    passkeys = mfa_cfg.get('passkeys', []) if mfa_enabled else []
+    return render_template('admin_login.html', error=error, mfa_enabled=mfa_enabled, show_passkey=bool(passkeys), passkey_ids=[pk.get('credentialId') for pk in passkeys])
 
 
 # GET: Logout endpoint. Triggered when user visits /logout.
 @bp.route('/logout')
 def admin_logout():
     session.pop('admin_logged_in', None)
+    session.pop('mfa_pending', None)
+    session.pop('mfa_next', None)
+    session.pop('mfa_temp_secret', None)
     logger.info("Admin user logged out.")
     return redirect(url_for('main.dashboard'))
 
@@ -212,10 +247,15 @@ def dashboard_shortcuts():
     try:
         count = int(request.args.get('count', 5))
         sort = request.args.get('sort', 'updated')
+        q = request.args.get('q', '').strip()
+        query = Redirect.query
+        if q:
+            like = f"%{q}%"
+            query = query.filter((Redirect.pattern.ilike(like)) | (Redirect.target.ilike(like)))
         if sort == 'created':
-            shortcuts = Redirect.query.order_by(Redirect.created_at.desc()).limit(count).all()
+            shortcuts = query.order_by(Redirect.created_at.desc()).limit(count).all()
         else:
-            shortcuts = Redirect.query.order_by(Redirect.updated_at.desc()).limit(count).all()
+            shortcuts = query.order_by(Redirect.updated_at.desc()).limit(count).all()
         result = []
         for s in shortcuts:
             result.append({

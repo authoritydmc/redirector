@@ -30,9 +30,14 @@
         <label class="block mb-1 font-semibold dark:text-gray-200">Target URL <span class="text-gray-500 dark:text-gray-400">(use {name} for dynamic)</span></label>
         <input type="text" name="target" id="target" class="border rounded px-3 py-2 w-full dark:bg-gray-900 dark:text-gray-100" placeholder="Target URL" required />
       </div>
-      {% if type == 'user-dynamic' and param_names %}
+      <div id="user-dynamic-params" class="hidden mt-4 p-3 border rounded bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700">
+        <label class="block mb-2 font-semibold dark:text-gray-200">Parameter Descriptions <span class="text-xs font-normal text-gray-500">(required for [vars])</span></label>
+        <div id="user-dynamic-params-list"></div>
+        {% if error %}<div class="text-red-600 text-sm mt-2">{{ error }}</div>{% endif %}
+      </div>
+      {% if type is defined and type == 'user-dynamic' and param_names %}
       <div class="mt-4">
-        <label class="block mb-1 font-semibold dark:text-gray-200">Parameter Descriptions</label>
+        <label class="block mb-1 font-semibold dark:text-gray-200">Parameter Descriptions (server)</label>
         {% for name in param_names %}
         <div class="mb-2">
           <span class="font-mono">[{{ name }}]</span>:
@@ -40,7 +45,6 @@
           {% if missing_desc and name in missing_desc %}<span class="text-red-600 text-xs ml-2">Required</span>{% endif %}
         </div>
         {% endfor %}
-        {% if error %}<div class="text-red-600 text-sm mt-2">{{ error }}</div>{% endif %}
       </div>
       {% endif %}
       <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full" type="submit">Create Shortcut</button>
@@ -53,13 +57,50 @@
 {% endblock %}
 {% block scripts %}
 <script>
+  function extractBracketParams(val){
+    const re = /\[([^\]]+)\]/g;
+    const seen = new Set();
+    const out = [];
+    let m;
+    while((m=re.exec(val))!==null){
+      const name=m[1].trim();
+      if(name && !seen.has(name)){ seen.add(name); out.push(name); }
+    }
+    return out;
+  }
+  function renderUserDynamicParams(){
+    const targetVal = document.getElementById("target").value;
+    const params = extractBracketParams(targetVal);
+    const container = document.getElementById("user-dynamic-params");
+    const list = document.getElementById("user-dynamic-params-list");
+    if(!container || !list) return;
+    if(params.length===0){
+      container.classList.add("hidden");
+      list.innerHTML='';
+      return;
+    }
+    container.classList.remove("hidden");
+    // preserve existing values
+    const existing = {};
+    list.querySelectorAll('input').forEach(inp=>{
+      const key = inp.name.replace('param_desc_','');
+      existing[key]=inp.value;
+    });
+    list.innerHTML = params.map(name=>{
+      const val = existing[name] || '';
+      return `<div class="mb-2 flex items-center gap-2">`+
+        `<span class="font-mono text-sm">[${name}]</span>`+
+        `<input type="text" name="param_desc_${name}" class="border rounded px-2 py-1 flex-1 dark:bg-gray-900 dark:text-gray-100" placeholder="Description for ${name} (e.g., Your username)" value="${val.replace(/"/g,'&quot;')}" required />`+
+        `</div>`;
+    }).join('');
+  }
   function suggestTypeAndUrl() {
     const targetInput = document.getElementById("target");
     const typeSelect = document.getElementById("type");
     let val = targetInput.value.trim();
-    if (val && !/^https?:\/\//i.test(val)) {
-      targetInput.value = "https://" + val;
-      val = targetInput.value;
+    if (val && !/^https?:\/\//i.test(val) && val.includes('.')) {
+      // only auto-prefix if looks like URL, not when user types placeholder
+      // keep simple: don't auto-prefix if contains brackets or braces already?
     }
     const suggestion = document.getElementById("suggestion");
     if (val.includes("[")) {
@@ -75,8 +116,11 @@
       suggestion.innerHTML =
         '<div class="bg-green-100 border border-green-300 text-green-800 dark:bg-green-900 dark:text-green-200 px-4 py-2 rounded mb-2">This will be a <b>Static</b> shortcut. The URL will always redirect to the same address.</div>';
     }
+    renderUserDynamicParams();
   }
   suggestTypeAndUrl();
+  document.getElementById('target').addEventListener('input', suggestTypeAndUrl);
+  document.getElementById('target').addEventListener('change', suggestTypeAndUrl);
 
   // Pattern edit logic
   const patternInput = document.getElementById('pattern');

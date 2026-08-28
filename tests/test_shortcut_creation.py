@@ -125,14 +125,24 @@ def test_redirect_user_dynamic(client):
     data = {
         'pattern': 'redir-udyn/[foo]',
         'type': 'user-dynamic',
-        'target': 'https://example.com/udyn/[foo]'
+        'target': 'https://example.com/udyn/[foo]',
+        'param_desc_foo': 'desc'
     }
     client.post('/edit/', data=data, follow_redirects=True)
     from model.user_param import UserParam
     from app import db
-    param = UserParam(shortcut_pattern='redir-udyn/[foo]', param_name='foo', description='desc', required=True)
-    db.session.add(param)
-    db.session.commit()
+    # Ensure param exists (created by POST already); upsert if needed
+    param = UserParam.query.filter_by(shortcut_pattern='redir-udyn/[foo]', param_name='foo').first()
+    if not param:
+        param = UserParam(shortcut_pattern='redir-udyn/[foo]', param_name='foo', description='desc', required=True)
+        db.session.add(param)
+        db.session.commit()
+    else:
+        # Ensure description/required as expected
+        if param.description != 'desc':
+            param.description = 'desc'
+            param.required = True
+            db.session.commit()
     resp = client.get('/redir-udyn/bar', follow_redirects=False)
     assert resp.status_code in (302, 200)
     if resp.status_code == 302 and 'Location' in resp.headers:

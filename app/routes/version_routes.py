@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, session
+from flask import Blueprint, render_template, request, session, jsonify
 import subprocess
 import socket
 from app.utils.utils import  get_port
@@ -115,6 +115,94 @@ def system_info_page():
         config_data = {}
     return render_template('system_info.html', version=semver, commit_count=commit_count, commit_hash=commit_hash, commit_date=commit_date, urls=urls, config_data=config_data, config_update_success=config_update_success, config_update_error=config_update_error)
 
+# Health & readiness endpoints for K8s/Docker probes
+@bp.route('/health')
+def health_check():
+    """Liveness probe - checks DB and Redis connectivity."""
+    from app.config import config
+    from model import db
+    status = {"status": "ok", "version": get_semver(), "checks": {}}
+    # DB check
+    try:
+        with current_app.app_context():
+            db.session.execute(db.text("SELECT 1"))
+        status["checks"]["database"] = "up"
+    except Exception as e:
+        status["checks"]["database"] = f"down: {e}"
+        status["status"] = "degraded"
+    # Redis check
+    if config.redis_enabled:
+        try:
+            if config.redis_client:
+                config.redis_client.ping()
+                status["checks"]["redis"] = "up"
+            else:
+                status["checks"]["redis"] = "disabled/disconnected"
+        except Exception as e:
+            status["checks"]["redis"] = f"down: {e}"
+            status["status"] = "degraded"
+    else:
+        status["checks"]["redis"] = "disabled"
+    code = 200 if status["status"] == "ok" else 503
+    return jsonify(status), code
+
+@bp.route('/ready')
+def readiness_check():
+    """Readiness probe - stricter check."""
+    return health_check()
+
+@bp.route('/api/metrics')
+def api_metrics():
+    """Prometheus-like metrics (lightweight)."""
+    from model.redirect import Redirect
+    from model.upstream_cache import UpstreamCache
+    try:
+        total = Redirect.query.count()
+        upstream_cached = UpstreamCache.query.count()
+        from app.config import config
+        redis_status = 1 if (config.redis_enabled and config.redis_client and config.redis_client.ping()) else 0
+        lines = [
+            "# HELP redirector_shortcuts_total Total shortcuts",
+            "# TYPE redirector_shortcuts_total gauge",
+            f"redirector_shortcuts_total {total}",
+            "# HELP redirector_upstream_cache_total Total upstream cached entries",
+            "# TYPE redirector_upstream_cache_total gauge",
+            f"redirector_upstream_cache_total {upstream_cached}",
+            "# HELP redirector_redis_up Redis status (1=up,0=down/disabled)",
+            "# TYPE redirector_redis_up gauge",
+            f"redirector_redis_up {redis_status}",
+            "# HELP redirector_version_info Version info",
+            "# TYPE redirector_version_info gauge",
+            f'redirector_version_info{{version="{get_semver()}"}} 1',
+        ]
+        return "\n".join(lines) + "\n", 200, {"Content-Type": "text/plain; version=0.0.4"}
+    except Exception as e:
+        logger.exception("Metrics collection failed")
+        return f"# error collecting metrics: {e}\n", 500, {"Content-Type": "text/plain"}
+
+# Changelog page + API (like Tax_Scripts)
+@bp.route('/changelog')
+def changelog_page():
+    """Render changelog HTML page."""
+    return render_template('changelog.html', version=get_semver())
+
+@bp.route('/api/changelog')
+def api_changelog():
+    """Return raw CHANGELOG.md content for frontend parsing."""
+    import os
+    # version_routes.py is at app/routes/version_routes.py -> project root is 3 levels up
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    changelog_path = os.path.join(root, "CHANGELOG.md")
+    if os.path.isfile(changelog_path):
+        try:
+            with open(changelog_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            return jsonify({"changelog": content})
+        except Exception as e:
+            logger.error(f"Failed to read changelog: {e}")
+            return jsonify({"changelog": "", "error": str(e)}), 500
+    return jsonify({"changelog": "Changelog not found."}), 404
+
 # Simple in-memory cache for version check
 _version_check_cache = {
     'timestamp': 0,
@@ -129,7 +217,7 @@ def api_latest_version():
     now = time.time()
     cache_valid = (
         _version_check_cache['result'] is not None and
-        (now - _version_check_cache['timestamp'] < 3600) and
+        (now - _version_check_cache['timestamp'] < 86400) and  # 24h cache - once per day
         not _version_check_cache['error']
     )
     if cache_valid:

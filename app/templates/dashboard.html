@@ -12,6 +12,13 @@
     {% endif %}
   </div>
   <div class="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
+    <div class="flex-1 flex items-center gap-2">
+      <div class="relative flex-1 max-w-md">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+        <input id="shortcut-search" type="text" placeholder="Search shortcuts... (pattern, target)" class="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+      </div>
+      <span id="search-count" class="text-xs text-gray-500 dark:text-gray-400 hidden"></span>
+    </div>
     <label class="text-sm font-semibold text-gray-700 dark:text-gray-200">Show
       <select id="shortcut-count" class="ml-2 px-2 py-1 rounded border border-gray-300 dark:bg-gray-800 dark:text-gray-100">
         <option value="5">5</option>
@@ -119,6 +126,80 @@
     // Set initial values from server
     countSelect.value = "{{ count|default(5) }}";
     sortSelect.value = "{{ sort|default('updated') }}";
+
+    // Search filtering (client-side)
+    const searchInput = document.getElementById('shortcut-search');
+    const searchCount = document.getElementById('search-count');
+    function filterTable(){
+      const q = searchInput.value.toLowerCase().trim();
+      const rows = document.querySelectorAll('#shortcuts-tbody tr');
+      let visible=0;
+      rows.forEach(row=>{
+        const text = row.innerText.toLowerCase();
+        const show = !q || text.includes(q);
+        row.style.display = show ? '' : 'none';
+        if(show) visible++;
+      });
+      if(q){
+        searchCount.textContent = visible + ' match' + (visible!==1?'es':'');
+        searchCount.classList.remove('hidden');
+      } else {
+        searchCount.classList.add('hidden');
+      }
+    }
+    searchInput.addEventListener('input', filterTable);
+    // Also hook into reload to re-apply filter after fetch
+    const origReload = reloadShortcuts;
+    reloadShortcuts = function(){
+      const count = countSelect.value;
+      const sort = sortSelect.value;
+      const q = searchInput.value.trim();
+      // If search query present, include in server fetch for better handling of hierarchical
+      let url = `/dashboard-shortcuts?count=${count}&sort=${sort}`;
+      if(q) url += `&q=${encodeURIComponent(q)}`;
+      fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            const tbody = document.getElementById('shortcuts-tbody');
+            tbody.innerHTML = '';
+            for (const shortcut of data.shortcuts) {
+              // Server already filtered by q, but still render all returned
+              tbody.innerHTML += `
+        <tr class="border-t align-top dark:border-gray-700">
+          <td class="px-4 py-2 font-mono align-top text-gray-800 dark:text-gray-100">
+            <div class="flex items-center gap-2">
+              ${shortcut.type === 'static' ? `<span title="Static shortcut"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"w-5 h-5 text-green-500\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M13.828 14.828a4 4 0 010-5.656m1.415 1.414a2 2 0 010 2.828m-2.829-2.828a6 6 0 018.485 8.485l-3.536 3.535a6 6 0 01-8.485-8.485l3.535-3.535a2 2 0 112.828 2.828l-3.535 3.535a2 2 0 102.828 2.828l3.535-3.535" /></svg></span>` : `<span title="Dynamic shortcut"><svg xmlns=\"http://www.w3.org/2000/svg" class=\"w-5 h-5 text-blue-500\" fill=\"none\" viewBox=\"0 0 24 24" stroke="currentColor"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg></span>`}
+              ${shortcut.pattern}
+            </div>
+            <div class="text-xs text-gray-400 dark:text-gray-300 mt-1 flex items-center gap-4">
+              <span title="Accesses" class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>${shortcut.access_count}</span>
+              <span title="Created" class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>${shortcut.created_at || 'N/A'}</span>
+              <span title="Last updated" class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>${shortcut.updated_at || 'N/A'}</span>
+            </div>
+          </td>
+          <td class="px-4 py-2 break-all align-top text-blue-600 dark:text-blue-400"><a class="underline" href="${shortcut.target}" target="_blank">${shortcut.target}</a></td>
+          <td class="px-4 py-2 align-top">
+            <a class="text-green-600 dark:text-green-400 hover:underline mr-2" href="/${shortcut.pattern}" target="_blank" title="Go"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></a>
+            <a class="text-yellow-600 dark:text-yellow-400 hover:underline mr-2" href="/edit/${shortcut.pattern}" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 11l6 6M3 21h6a2 2 0 002-2v-6a2 2 0 00-2-2H3a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg></a>
+            {% if session.admin_logged_in %}
+            <button class="text-red-600 hover:text-red-800" title="Delete shortcut" onclick="deleteShortcut('${shortcut.pattern}', this)">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+              `;
+            }
+            filterTable();
+          }
+        });
+    }
+    // Re-wire events to new reload
+    countSelect.removeEventListener('change', origReload);
+    sortSelect.removeEventListener('change', origReload);
+    countSelect.addEventListener('change', reloadShortcuts);
+    sortSelect.addEventListener('change', reloadShortcuts);
     // Optionally, trigger initial reload if you want to always use AJAX
     // reloadShortcuts();
   </script>

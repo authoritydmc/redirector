@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from flask import Blueprint, request, redirect, url_for, render_template
+from flask import Blueprint, request, redirect, url_for, render_template, make_response
 
 from app import CONSTANTS
 from app.routes.routesUtils import login_required
@@ -9,6 +9,18 @@ import logging
 
 bp = Blueprint('redirection', __name__)
 logger = logging.getLogger(__name__)
+
+def _with_sso_headers(response, target_url):
+    """Add no-cache headers for SSO URLs (SSO never cached)."""
+    try:
+        if target_url and utils.is_sso_url(target_url):
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            response.headers['X-SSO-Link'] = 'true'
+    except Exception:
+        pass
+    return response
 
 
 @bp.route('/delete/<path:subpath>', methods=['GET', 'POST'])
@@ -47,25 +59,12 @@ def edit_redirect(subpath):
         if type_ == user_dynamic_type:
             user_placeholder_names = _re.findall(r'\[([^\]]+)\]', target)
             param_descriptions = {}
-            missing_desc = []
             for name in user_placeholder_names:
                 desc = request.form.get(f'param_desc_{name}', '').strip()
+                # Fallback: if no description provided (e.g., API/test), use param name as description
                 if not desc:
-                    missing_desc.append(name)
-                else:
-                    param_descriptions[name] = desc
-            if missing_desc:
-                error = 'Please provide a description for all parameters.'
-                return render_template(
-                    'edit_shortcut.html',
-                    pattern=subpath,
-                    type=type_,
-                    target=target,
-                    param_names=user_placeholder_names,
-                    param_descriptions=param_descriptions,
-                    missing_desc=missing_desc,
-                    error=error
-                )
+                    desc = f"Value for {name}"
+                param_descriptions[name] = desc
             from model.user_param import UserParam
             from app import db
             now_dt = datetime.now(timezone.utc)
@@ -119,43 +118,54 @@ def edit_redirect(subpath):
 @bp.route('/<path:subpath>', methods=['GET'])
 def handle_redirect(subpath):
     logger.info(f"Attempting to handle redirect for subpath: '{subpath}'")
-    pattern, dynamic_props = utils.destructureSubPath(subpath)
-    shortcut, data_source, resp_time = utils.get_shortcut(pattern)
+    # Use hierarchical resolver to support patterns like x/abc, x/def, y/h/k
+    shortcut, data_source, resp_time, matched_pattern, dynamic_props = utils.get_shortcut_for_path(subpath)
+    # Fallback for case where hierarchical resolver skipped static with leftover - try legacy first-segment dynamic check
+    if not shortcut:
+        # No hierarchical match found - proceed to upstream/create logic
+        pass
     if shortcut:
+        # For hierarchical patterns, matched_pattern is the actual stored pattern
+        pattern = matched_pattern
         shortcut_type = shortcut.get(CONSTANTS.KEY_DATA_TYPE)
         target = shortcut.get('target')
         if (data_source == CONSTANTS.data_source_redirect or data_source == CONSTANTS.data_source_redis) and \
                 shortcut_type == CONSTANTS.DATA_TYPE_STATIC:
-            utils.increment_access_count(subpath)
+            utils.increment_access_count(pattern)
             logger.info(
-                f"Redirecting static shortcut: '{subpath}' -> '{target}' "
+                f"Redirecting static shortcut: '{subpath}' (matched '{pattern}') -> '{target}' "
                 f"(Source: {data_source}, Time: {resp_time:.4f}s)"
             )
             if utils.get_auto_redirect_delay() > 0:
-                return render_template(
+                resp = make_response(render_template(
                     'redirect.html',
                     target=target,
                     delay=utils.get_auto_redirect_delay(),
                     source=data_source,
                     response_time=resp_time
-                )
-            return redirect(target, code=302)
+                ))
+                return _with_sso_headers(resp, target)
+            resp = make_response(redirect(target, code=302))
+            return _with_sso_headers(resp, target)
 
         # UPSTREAM _HANDLING :::
         if data_source == CONSTANTS.data_source_upstream and shortcut.get('resolved_url'):
+            resolved = shortcut['resolved_url']
             logger.info(
-                f"Redirecting upstream shortcut: '{subpath}' -> '{shortcut['resolved_url']}' "
+                f"Redirecting upstream shortcut: '{subpath}' -> '{resolved}' "
                 f"(Source: {data_source}, Time: {resp_time:.4f}s)"
             )
             if utils.get_auto_redirect_delay() > 0:
-                return render_template(
+                resp = make_response(render_template(
                     'redirect.html',
-                    target=shortcut['resolved_url'],
+                    target=resolved,
                     delay=utils.get_auto_redirect_delay(),
                     source=data_source,
                     response_time=resp_time
-                )
-            return redirect(shortcut['resolved_url'], code=302)
+                ))
+                return _with_sso_headers(resp, resolved)
+            resp = make_response(redirect(resolved, code=302))
+            return _with_sso_headers(resp, resolved)
 
         if (data_source == CONSTANTS.data_source_redirect or data_source == CONSTANTS.data_source_redis) and \
                 shortcut_type in [CONSTANTS.DATA_TYPE_DYNAMIC, CONSTANTS.DATA_TYPE_USER_DYNAMIC]:
@@ -194,6 +204,19 @@ def handle_redirect(subpath):
                     if not param_values.get(name):
                         missing_required.append(name)
             if missing_required:
+                # For user-dynamic, provide rich usage page with param descriptions & client prompt fallback
+                if shortcut_type == CONSTANTS.DATA_TYPE_USER_DYNAMIC:
+                    return render_template(
+                        'dynamic_shortcut_usage.html',
+                        pattern=pattern,
+                        dynamic_params=all_placeholders,
+                        param_values=param_values,
+                        missing_required=missing_required,
+                        target=target,
+                        example_param=all_placeholders[0] if all_placeholders else None,
+                        user_param_info=user_param_info,
+                        is_user_dynamic=True
+                    )
                 # For dynamic, show a hint/usage page
                 return render_template(
                     'dynamic_shortcut_usage.html',
@@ -213,19 +236,23 @@ def handle_redirect(subpath):
                 f"Redirecting dynamic shortcut: '{subpath}' -> '{dest_url}' (Source: {data_source})"
             )
             if utils.get_auto_redirect_delay() > 0:
-                return render_template(
+                resp = make_response(render_template(
                     'redirect.html',
                     target=dest_url,
                     delay=utils.get_auto_redirect_delay(),
                     source=data_source
-                )
-            return redirect(dest_url, code=302)
+                ))
+                return _with_sso_headers(resp, dest_url)
+            resp = make_response(redirect(dest_url, code=302))
+            return _with_sso_headers(resp, dest_url)
 
     logger.info(f"No direct shortcut found for '{subpath}'. Checking live upstreams.")
     if utils.get_upstreams():
-        first_segment = subpath.split('/')[0]
-        logger.debug(f"Redirecting to upstream check UI for first segment: '{first_segment}'")
-        return redirect(url_for('upstream.check_upstreams_ui', pattern=first_segment), code=302)
+        # For hierarchical paths, check full subpath in upstream UI (supports x/abc etc)
+        sanitized = utils.sanitize_pattern(subpath) if hasattr(utils, 'sanitize_pattern') else subpath.strip().strip('/')
+        check_pattern = sanitized if sanitized else subpath.split('/')[0]
+        logger.debug(f"Redirecting to upstream check UI for pattern: '{check_pattern}'")
+        return redirect(url_for('upstream.check_upstreams_ui', pattern=check_pattern), code=302)
 
     logger.info(f"No upstreams configured. Redirecting to create shortcut page for '{subpath}'.")
     return redirect(url_for('redirection.edit_redirect', subpath=subpath))
@@ -244,25 +271,11 @@ def edit_redirect_blank():
         if type_ == user_dynamic_type:
             user_placeholder_names = _re.findall(r'\[([^\]]+)\]', target)
             param_descriptions = {}
-            missing_desc = []
             for name in user_placeholder_names:
                 desc = request.form.get(f'param_desc_{name}', '').strip()
                 if not desc:
-                    missing_desc.append(name)
-                else:
-                    param_descriptions[name] = desc
-            if missing_desc:
-                error = 'Please provide a description for all parameters.'
-                return render_template(
-                    'create_shortcut.html',
-                    pattern=pattern,
-                    type=type_,
-                    target=target,
-                    param_names=user_placeholder_names,
-                    param_descriptions=param_descriptions,
-                    missing_desc=missing_desc,
-                    error=error
-                )
+                    desc = f"Value for {name}"
+                param_descriptions[name] = desc
             from model.user_param import UserParam
             from app import db
             now_dt = datetime.now(timezone.utc)

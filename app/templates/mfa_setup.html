@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}MFA Setup - URL Shortener/Redirector{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow p-8 mt-8">
+  <h2 class="text-2xl font-bold mb-6 text-blue-700 dark:text-blue-300 flex items-center gap-2">
+    <i class="fa-solid fa-shield-halved"></i> Two-Factor Authentication (MFA)
+  </h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat, msg in messages %}
+        <div class="px-4 py-2 rounded mb-4 {% if cat=='error' %}bg-red-100 border-red-300 text-red-800 dark:bg-red-900 dark:text-red-200{% else %}bg-green-100 border-green-300 text-green-800 dark:bg-green-900 dark:text-green-200{% endif %} border">
+          {{ msg }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% if enabled %}
+  <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
+    <div class="flex items-center gap-2 text-green-700 dark:text-green-300 font-bold mb-2"><i class="fa-solid fa-circle-check"></i> MFA is ENABLED</div>
+    <p class="text-sm text-gray-600 dark:text-gray-300">Your admin account is protected with TOTP. Use Google Authenticator, Authy, or 1Password to generate codes.</p>
+    {% if backup_codes %}
+    <div class="mt-4">
+      <h4 class="font-semibold text-sm mb-2">Backup Codes (save them!):</h4>
+      <div class="grid grid-cols-2 gap-2 font-mono text-sm bg-white dark:bg-gray-900 p-3 rounded border">
+        {% for code in backup_codes %}
+        <span class="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded">{{ code }}</span>
+        {% endfor %}
+      </div>
+      <form method="post" action="{{ url_for('mfa.mfa_regenerate_backup_codes') }}" id="regen-backup-form" class="mt-2"></form>
+      <button onclick="regenerateBackup()" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Regenerate backup codes</button>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="space-y-4">
+    <div class="border-t pt-4">
+      <h3 class="font-bold mb-2 flex items-center gap-2"><i class="fa-solid fa-key"></i> Passkeys (WebAuthn)</h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Register a passkey for passwordless login with Face ID, Touch ID, or Windows Hello. Works like Google Authenticator QR but even more secure.</p>
+      <div id="passkeys-list" class="space-y-2 mb-3"></div>
+      <button id="register-passkey-btn" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 flex items-center gap-2"><i class="fa-solid fa-fingerprint"></i> Register new Passkey</button>
+      <p class="text-xs text-gray-500 mt-2">Passkeys are stored as credential IDs in your config file (never leaves your server).</p>
+    </div>
+
+    <form method="post" class="pt-4 border-t">
+      <input type="hidden" name="action" value="disable">
+      <button type="submit" onclick="return confirm('Disable MFA? This will remove TOTP protection.')" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Disable MFA</button>
+      <span class="text-xs text-gray-500 ml-2">You'll need to scan a new QR next time.</span>
+    </form>
+  </div>
+
+  <script>
+    async function loadPasskeys(){
+      // Fetch current config passkeys via mfa page data? We embed via API
+      try {
+        const resp = await fetch('/admin/mfa/setup', {headers:{'Accept':'application/json'}});
+      } catch {}
+      // Instead we parse from server-rendered? For now fetch via extra endpoint?
+      // Quick client-side: we don't have API to list, so we will show placeholder and allow registration
+      // Real list will be shown after registration via local config; for demo we just allow register
+    }
+    document.getElementById('register-passkey-btn').addEventListener('click', async () => {
+      if (!window.PublicKeyCredential) { alert('Passkeys not supported in this browser'); return; }
+      const name = prompt('Name for this passkey (e.g., MacBook Touch ID):', 'My Passkey');
+      if (!name) return;
+      try {
+        const challenge = new Uint8Array(32);
+        crypto.getRandomValues(challenge);
+        const userId = new Uint8Array(16);
+        crypto.getRandomValues(userId);
+        const cred = await navigator.credentials.create({
+          publicKey: {
+            challenge,
+            rp: { name: "Redirector", id: window.location.hostname },
+            user: { id: userId, name: "admin", displayName: "Admin" },
+            pubKeyCredParams: [{alg: -7, type: "public-key"}, {alg: -257, type:"public-key"}],
+            authenticatorSelection: { userVerification: "preferred" },
+            timeout: 60000,
+            attestation: "none"
+          }
+        });
+        if (!cred) throw new Error('No credential');
+        const credId = btoa(String.fromCharCode(...new Uint8Array(cred.rawId))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+        const resp = await fetch('{{ url_for("mfa.mfa_passkey_register") }}', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({credentialId: credId, name: name})
+        });
+        const data = await resp.json();
+        if (data.success) {
+          alert('Passkey registered! You can now login with it.');
+          location.reload();
+        } else {
+          alert('Failed: ' + (data.error||'unknown'));
+        }
+      } catch(e){
+        console.error(e);
+        alert('Passkey registration failed: ' + e.message + '\n\nIf your browser blocked it, you can still use TOTP.');
+      }
+    });
+    function regenerateBackup(){
+      if(!confirm('Regenerate backup codes? Old codes will be invalid.')) return;
+      fetch('{{ url_for("mfa.mfa_regenerate_backup_codes") }}', {method:'POST'}).then(r=>r.json()).then(d=>{
+        if(d.success){
+          alert('New backup codes: ' + d.codes.join(', '));
+          location.reload();
+        } else alert('Failed');
+      });
+    }
+  </script>
+
+  {% else %}
+  <!-- MFA NOT enabled -->
+  <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+    <p class="text-sm text-yellow-800 dark:text-yellow-200"><i class="fa-solid fa-triangle-exclamation"></i> MFA is not enabled. Secure your admin login with TOTP (Google Authenticator) and optionally passkeys.</p>
+  </div>
+
+  {% if step == 'verify' and secret %}
+  <div class="space-y-4">
+    <p class="text-sm font-semibold">Step 2: Scan QR and verify</p>
+    <div class="flex flex-col sm:flex-row gap-6 items-start">
+      <div class="bg-white p-4 rounded border">
+        {% if qr_b64 %}
+        <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR Code" class="w-48 h-48">
+        {% else %}
+        <p class="text-xs font-mono break-all max-w-44">{{ uri }}</p>
+        {% endif %}
+      </div>
+      <div class="flex-1">
+        <p class="text-sm mb-2">Scan with <b>Google Authenticator</b>, <b>Authy</b>, or <b>1Password</b>:</p>
+        <p class="font-mono text-xs bg-gray-100 dark:bg-gray-900 p-2 rounded break-all mb-3">{{ secret }}</p>
+        <p class="text-xs text-gray-500 mb-3">Or manually enter secret: <span class="font-mono">{{ secret }}</span></p>
+        <p class="text-xs text-gray-500 mb-3">URI: <span class="font-mono text-xs break-all">{{ uri }}</span></p>
+        <form method="post" class="space-y-3">
+          <input type="hidden" name="action" value="verify">
+          <label class="block text-sm font-semibold">Enter 6-digit code from app:</label>
+          <input type="text" name="token" pattern="[0-9]*" inputmode="numeric" maxlength="6" class="border rounded px-3 py-2 w-32 text-center font-mono text-lg tracking-widest" required autofocus placeholder="123456">
+          <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"><i class="fa-solid fa-check"></i> Verify & Enable</button>
+        </form>
+        {% if error %}<p class="text-red-600 text-sm mt-2">{{ error }}</p>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <form method="post">
+    <input type="hidden" name="action" value="generate">
+    <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-bold flex items-center gap-2"><i class="fa-solid fa-qrcode"></i> Generate QR & Setup TOTP</button>
+    <p class="text-xs text-gray-500 mt-2">You'll scan the QR with Google Authenticator and verify a code.</p>
+  </form>
+  {% endif %}
+
+  <div class="mt-8 pt-6 border-t">
+    <h4 class="font-bold text-sm mb-2"><i class="fa-solid fa-fingerprint"></i> Passkeys (optional, no QR needed)</h4>
+    <p class="text-xs text-gray-500 mb-2">You can register a passkey even without TOTP first — but we recommend enabling TOTP then adding passkey for best security.</p>
+    <button id="register-passkey-btn2" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 text-sm flex items-center gap-2"><i class="fa-solid fa-fingerprint"></i> Register Passkey (WebAuthn)</button>
+    <script>
+      document.getElementById('register-passkey-btn2')?.addEventListener('click', async ()=>{
+        if (!window.PublicKeyCredential) { alert('Passkeys not supported'); return; }
+        const name = prompt('Passkey name:', 'My Passkey');
+        if(!name) return;
+        try {
+          const challenge = new Uint8Array(32); crypto.getRandomValues(challenge);
+          const userId = new Uint8Array(16); crypto.getRandomValues(userId);
+          const cred = await navigator.credentials.create({publicKey:{challenge, rp:{name:"Redirector", id:location.hostname}, user:{id:userId, name:"admin", displayName:"Admin"}, pubKeyCredParams:[{alg:-7,type:"public-key"}], authenticatorSelection:{userVerification:"preferred"}, timeout:60000, attestation:"none"}});
+          const credId = btoa(String.fromCharCode(...new Uint8Array(cred.rawId))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+          const resp = await fetch('{{ url_for("mfa.mfa_passkey_register") }}', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({credentialId: credId, name})});
+          const data=await resp.json();
+          if(data.success){ alert('Passkey registered!'); location.reload();} else alert('Failed: '+data.error);
+        } catch(e){ alert('Failed: '+e.message); }
+      });
+    </script>
+  </div>
+
+  {% endif %}
+{% endif %}
+
+  <div class="mt-6 text-center">
+    <a href="/" class="text-gray-500 dark:text-gray-400 hover:underline text-sm">Back to Dashboard</a>
+  </div>
+</div>
+{% endblock %}

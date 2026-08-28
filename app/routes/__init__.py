@@ -6,6 +6,7 @@ from .redirection_routes import bp as redirection_bp
 from .routes import bp as route_bp
 from .upstream_routes import bp as upstream_bp
 from .version_routes import bp as system_info_bp
+from .mfa_routes import bp as mfa_bp
 from .. import CONSTANTS
 from ..config import config
 
@@ -16,7 +17,8 @@ ALL_APP_BLUEPRINTS = [
     system_info_bp,
     error_bp,
     redirection_bp,
-    upstream_bp
+    upstream_bp,
+    mfa_bp
 
 ]
 

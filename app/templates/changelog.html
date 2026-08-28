@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}Changelog - URL Shortener/Redirector{% endblock %}
+{% block head %}
+<style>
+  .changelog-prose code { background: rgba(59,130,246,0.1); padding: 0.15rem 0.4rem; border-radius: 0.3rem; font-size: 0.85em; border: 1px solid rgba(59,130,246,0.2); }
+  .changelog-prose a { color: #3b82f6; text-decoration: underline; }
+  .changelog-prose strong { font-weight: 700; color: inherit; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+  <div class="flex items-center gap-4 mb-8">
+    <div class="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/25 text-blue-500 flex items-center justify-center shadow">
+      <i class="fa-solid fa-file-lines text-2xl"></i>
+    </div>
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 dark:text-white">Changelog & Updates</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Recent improvements, fixes, and feature additions — <span class="font-mono">{{ version }}</span></p>
+    </div>
+    <div class="ml-auto hidden sm:flex items-center gap-2">
+      <span id="release-count" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 border text-xs font-bold"><i class="fa-solid fa-tag"></i> <span id="release-count-num">—</span> releases</span>
+    </div>
+  </div>
+
+  <div id="changelog-loading" class="flex flex-col items-center justify-center py-16 text-gray-400">
+    <i class="fa-solid fa-spinner fa-spin text-3xl mb-3 text-blue-500"></i>
+    <p class="text-sm font-medium">Loading changelog...</p>
+  </div>
+
+  <div id="changelog-error" class="hidden bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-center">
+    <i class="fa-solid fa-triangle-exclamation text-red-500 text-2xl mb-2"></i>
+    <p class="text-red-700 dark:text-red-300 font-semibold">Failed to load changelog</p>
+    <p id="changelog-error-msg" class="text-xs text-red-600 dark:text-red-400 mt-1"></p>
+  </div>
+
+  <div id="changelog-entries" class="space-y-8 hidden"></div>
+
+  <div class="mt-10 flex justify-center gap-3">
+    <a href="/" class="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-semibold flex items-center gap-2"><i class="fa-solid fa-house"></i> Dashboard</a>
+    <a href="/system-info" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold flex items-center gap-2"><i class="fa-solid fa-server"></i> System Info</a>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const sectionMeta = {
+    added: { label: 'Added', icon: 'fa-plus', cls: 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800', dot: 'bg-green-500' },
+    fixed: { label: 'Fixed', icon: 'fa-wrench', cls: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800', dot: 'bg-red-500' },
+    changed: { label: 'Changed', icon: 'fa-arrows-rotate', cls: 'bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800', dot: 'bg-yellow-500' },
+    performance: { label: 'Performance', icon: 'fa-gauge', cls: 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800', dot: 'bg-amber-500' },
+    deployment: { label: 'Deployment', icon: 'fa-server', cls: 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800', dot: 'bg-blue-500' },
+    security: { label: 'Security', icon: 'fa-shield-halved', cls: 'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800', dot: 'bg-purple-500' },
+  };
+
+  function parseChangelog(md){
+    const entries=[];
+    const versionRegex=/^## \[([^\]]+)\](?: - (.+))?$/;
+    let lastVersion=null, lastDate='', lastSection=null;
+    const sections={};
+    const initSections=()=>{ ['added','fixed','changed','performance','deployment','security'].forEach(k=>sections[k]=[]); };
+    initSections();
+    const lines=md.split('\n');
+    for(const raw of lines){
+      const line=raw.trimEnd();
+      const vm=line.match(versionRegex);
+      if(vm){
+        if(lastVersion && Object.values(sections).some(v=>v.length>0)){
+          entries.push({version:lastVersion, date:lastDate, sections:{...sections}});
+          // deep copy reset
+          Object.keys(sections).forEach(k=>sections[k]=[]);
+        } else if(lastVersion){
+          // even if no section parsed, still push if has date?
+          if(Object.values(sections).some(v=>v.length>0)){
+            entries.push({version:lastVersion, date:lastDate, sections:{...sections}});
+          }
+          Object.keys(sections).forEach(k=>sections[k]=[]);
+        }
+        lastVersion=vm[1];
+        lastDate=vm[2]||'';
+        lastSection=null;
+        continue;
+      }
+      const sm=line.match(/^### (.+)$/);
+      if(sm){
+        const s=sm[1].toLowerCase().trim();
+        // map common aliases
+        if(s in sections) lastSection=s;
+        else if(s==='added' || s==='fixed' || s==='changed') lastSection=s;
+        else if(s.includes('performance')) lastSection='performance';
+        else if(s.includes('security')) lastSection='security';
+        else lastSection=null;
+        continue;
+      }
+      if(lastSection && line.trim().startsWith('- ')){
+        sections[lastSection].push(line.trim().substring(2));
+      }
+    }
+    if(lastVersion){
+      entries.push({version:lastVersion, date:lastDate, sections:{...sections}});
+    }
+    return entries.filter(e=> Object.values(e.sections).some(v=>v.length>0) || e.version.toLowerCase().includes('unreleased'));
+  }
+
+  function formatDate(d){
+    if(!d || d.toLowerCase()==='unreleased') return 'Unreleased';
+    try { const dt=new Date(d); if(!isNaN(dt)) return dt.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}); } catch{}
+    return d;
+  }
+
+  function renderMarkdownInline(text){
+    // simple inline: **bold**, `code`, [link](url)
+    return text
+      .replace(/\*\*(.+?)\*\*/g,'<strong class="font-bold text-gray-900 dark:text-white">$1</strong>')
+      .replace(/`(.+?)`/g,'<code class="font-mono text-xs px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">$1</code>')
+      .replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2" target="_blank" rel="noopener" class="underline text-blue-600 dark:text-blue-400">$1</a>');
+  }
+
+  async function load(){
+    const loading=document.getElementById('changelog-loading');
+    const errBox=document.getElementById('changelog-error');
+    const entriesBox=document.getElementById('changelog-entries');
+    try{
+      const res=await fetch('/api/changelog');
+      const data=await res.json();
+      if(!res.ok) throw new Error(data.error||'Failed to fetch');
+      const md=data.changelog||'';
+      const entries=parseChangelog(md);
+      document.getElementById('release-count-num').textContent=entries.length;
+      loading.classList.add('hidden');
+      if(entries.length===0){
+        errBox.classList.remove('hidden');
+        document.getElementById('changelog-error-msg').textContent='No releases found.';
+        return;
+      }
+      entriesBox.classList.remove('hidden');
+      entriesBox.innerHTML=entries.map((entry, idx)=>{
+        const sectionsHtml=Object.entries(entry.sections).filter(([,v])=>v.length>0).map(([key, items])=>{
+          const meta=sectionMeta[key]||{label:key, icon:'fa-tag', cls:'bg-gray-100 text-gray-700 border-gray-300', dot:'bg-gray-500'};
+          return `
+            <div class="">
+              <div class="flex items-center gap-2 mb-3">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider border ${meta.cls}">
+                  <i class="fa-solid ${meta.icon} text-xs"></i> ${meta.label}
+                </span>
+                <span class="h-px flex-1 bg-gray-200 dark:bg-gray-700"></span>
+              </div>
+              <ul class="space-y-2.5">
+                ${items.map(it=>`
+                  <li class="flex items-start gap-3 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                    <span class="mt-1.5 h-1.5 w-1.5 rounded-full ${meta.dot} shrink-0"></span>
+                    <span class="min-w-0 changelog-prose">${renderMarkdownInline(it)}</span>
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
+          `;
+        }).join('');
+        const tagsHtml=Object.entries(entry.sections).filter(([,v])=>v.length>0).map(([k,v])=>{
+          const meta=sectionMeta[k]||{label:k, cls:'bg-gray-100 text-gray-700 border-gray-300'};
+          return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${meta.cls}"><i class="fa-solid ${meta.icon} text-xs"></i> ${meta.label} <span class="font-mono opacity-70">${v.length}</span></span>`;
+        }).join('');
+
+        return `
+          <section class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div class="px-6 py-5 bg-gradient-to-r from-blue-500/10 via-white dark:via-gray-800 to-transparent border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-300 flex items-center justify-center">
+                  <i class="fa-solid fa-tag"></i>
+                </div>
+                <div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-mono text-xl font-black text-gray-900 dark:text-white">${entry.version}</span>
+                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400"><i class="fa-regular fa-calendar"></i> ${formatDate(entry.date)}</span>
+                  </div>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Release notes</p>
+                </div>
+              </div>
+              <div class="flex flex-wrap gap-1.5">${tagsHtml}</div>
+            </div>
+            <div class="p-6">
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6">
+                ${sectionsHtml}
+              </div>
+            </div>
+          </section>
+        `;
+      }).join('');
+    } catch(e){
+      loading.classList.add('hidden');
+      errBox.classList.remove('hidden');
+      document.getElementById('changelog-error-msg').textContent=e.message;
+    }
+  }
+  load();
+</script>
+{% endblock %}

@@ -52,11 +52,12 @@
                   </span>
                 </span>
               </button>
-              <div id="admin-tools-dropdown" class="hidden absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50">
+              <div id="admin-tools-dropdown" class="hidden absolute left-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50">
                 <a href="/admin/upstreams" class="block px-4 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up"></i> Upstreams</a>
                 <a href="/admin/upstream-logs" class="block px-4 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 flex items-center gap-2"><i class="fa-solid fa-list-alt"></i> Upstream Logs</a>
                 <a href="/admin/import-redirects" class="block px-4 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 flex items-center gap-2"><i class="fa-solid fa-file-arrow-up"></i> Import/Export</a>
                 <a href="/admin/redis-cache" class="block px-4 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 flex items-center gap-2"><i class="fa-solid fa-database"></i> Redis Cache</a>
+                <a href="/admin/mfa/setup" class="block px-4 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 flex items-center gap-2"><i class="fa-solid fa-shield-halved"></i> MFA / Passkeys</a>
                 <a href="/admin/config" class="block px-4 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 flex items-center gap-2 relative" title="Config (Experimental WIP)">
                   <i class="fa-solid fa-sliders fa-lg"></i>
                   <span class="text-xs group-hover:underline sm:block">Config</span>
@@ -114,6 +115,10 @@
             <i class="fab fa-github fa-lg"></i>
             <span class="text-xs mt-1 group-hover:underline hidden sm:block">GitHub</span>
           </a>
+          <a href="/changelog" class="flex flex-col items-center text-blue-700 dark:text-blue-300 group" title="Changelog">
+            <i class="fa-solid fa-file-lines fa-lg"></i>
+            <span class="text-xs mt-1 group-hover:underline hidden sm:block">Changelog</span>
+          </a>
           <a href="/tutorial" class="flex flex-col items-center text-blue-700 dark:text-blue-300 group" title="How to Create Shortcuts">
             <i class="fa-solid fa-graduation-cap fa-lg"></i>
             <span class="text-xs mt-1 group-hover:underline hidden sm:block">Tutorial</span>
@@ -155,10 +160,16 @@
         <span>by</span>
         <a href="https://rajlabs.in" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">rajlabs.in</a>
       </div>
-      <!-- Center: Copyright + GitHub -->
+      <!-- Center: Copyright + GitHub + Changelog -->
       <div class="text-center flex flex-col items-center">
         <span>&copy; {{ now().year }} URL Shortener/Redirector</span>
-  
+        <div class="flex gap-3 text-xs mt-1">
+          <a href="/changelog" class="hover:underline flex items-center gap-1"><i class="fa-solid fa-file-lines text-xs"></i> Changelog</a>
+          <span class="opacity-30">|</span>
+          <a href="https://github.com/authoritydmc/redirector" target="_blank" class="hover:underline flex items-center gap-1"><i class="fab fa-github text-xs"></i> GitHub</a>
+          <span class="opacity-30">|</span>
+          <a href="/health" class="hover:underline flex items-center gap-1"><i class="fa-solid fa-heart-pulse text-xs"></i> Health</a>
+        </div>
       </div>
       <!-- Right: Version -->
       <div id="footer-version-info" class="text-xs text-right font-mono text-gray-400 dark:text-gray-500 flex items-center gap-1">
@@ -211,49 +222,101 @@
   }
   updateToggleIcon();
 
-  // Version check logic
-  (function() {
-    const version = '{{ version if version is defined else "unknown" }}';
-    fetch('/api/latest-version').then r => r.json()).then(data => {
-      if (data.success && data.latest && data.latest !== version) {
-        const notice = document.getElementById('upgrade-notice');
-        notice.textContent = `Upgrade available: v${data.latest}`;
-        notice.style.display = '';
-      }
-    });
-  })();
+  // Version check logic (deprecated - use footer checkVersionFooter instead)
+  // kept for backward compat: no-op
 
-  // Version check logic for footer
+  // Version check logic for footer - checks once per day via localStorage + GitHub VERSION file
   function parseBaseVersion(ver) {
-  // Extracts major.minor.patch from a version string like 2.1.0+5.gabc1234
-  if (!ver) return '';
-  let m = ver.match(/(\d+\.\d+\.\d+)/);
-  return m ? m[1] : ver;
-}
-async function checkVersionFooter() {
-  const iconSpan = document.getElementById('footer-version-icon');
-  const versionSpan = document.getElementById('footer-version-string');
-  let current = '{{ version if version is defined else "unknown" }}';
-  try {
-    const resp = await fetch('/api/latest-version');
-    const data = await resp.json();
-    if (!data.success) throw new Error(data.error || 'Unknown error');
-    const latest = data.latest;
-    current = data.current || current;
-    versionSpan.textContent = `Version: ${current}`;
-    const baseCurrent = parseBaseVersion(current);
-    const baseLatest = parseBaseVersion(latest);
-    if (baseLatest && baseCurrent && baseLatest === baseCurrent) {
-      iconSpan.innerHTML = '<i class="fa-solid fa-circle-check text-green-500" title="You are running the latest version (v' + current + ')."></i>';
-    } else if (baseLatest && baseCurrent && baseLatest > baseCurrent) {
-      iconSpan.innerHTML = '<i class="fa-solid fa-circle-exclamation text-yellow-400" title="A newer version (v' + latest + ') is available! You are running v' + current + '."></i>';
-    } else {
-      iconSpan.innerHTML = '<i class="fa-solid fa-circle-question text-gray-400" title="Version status unknown. Current: v' + current + ', Latest: v' + latest + '"></i>';
-    }
-  } catch (e) {
-    iconSpan.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500" title="Could not check for updates. Current version: v' + current + '"></i>';
+    if (!ver) return '';
+    let m = ver.match(/(\d+\.\d+\.\d+)/);
+    return m ? m[1] : ver;
   }
-}
+  async function checkVersionFooter() {
+    const iconSpan = document.getElementById('footer-version-icon');
+    const versionSpan = document.getElementById('footer-version-string');
+    let current = '{{ version if version is defined else "unknown" }}';
+    const CACHE_KEY = 'version_check_cache';
+    const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+    // Try cached value first
+    try {
+      const cachedRaw = localStorage.getItem(CACHE_KEY);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        if (cached.timestamp && (Date.now() - cached.timestamp < CACHE_TTL) && cached.data) {
+          const data = cached.data;
+          versionSpan.textContent = `Version: ${data.current || current}`;
+          const baseCurrent = parseBaseVersion(data.current || current);
+          const baseLatest = parseBaseVersion(data.latest);
+          if (baseLatest && baseCurrent && baseLatest === baseCurrent) {
+            iconSpan.innerHTML = '<i class="fa-solid fa-circle-check text-green-500" title="You are running the latest version (v' + (data.current||current) + '). Last checked: ' + new Date(cached.timestamp).toLocaleString() + '"></i>';
+          } else if (baseLatest && baseCurrent && baseLatest > baseCurrent) {
+            iconSpan.innerHTML = '<i class="fa-solid fa-circle-exclamation text-yellow-400" title="A newer version (v' + data.latest + ') is available! You are running v' + (data.current||current) + '."></i>';
+          } else {
+            iconSpan.innerHTML = '<i class="fa-solid fa-circle-question text-gray-400" title="Version status unknown. Current: v' + (data.current||current) + ', Latest: v' + data.latest + '"></i>';
+          }
+          // Still try background refresh if stale > 12h but don't block UI
+          if (Date.now() - cached.timestamp > 12*60*60*1000) {
+            // background refresh without UI flicker
+            fetchVersionAndCache(true);
+          }
+          return;
+        }
+      }
+    } catch {}
+    await fetchVersionAndCache(false);
+  }
+
+  async function fetchVersionAndCache(isBackground){
+    const iconSpan = document.getElementById('footer-version-icon');
+    const versionSpan = document.getElementById('footer-version-string');
+    let current = '{{ version if version is defined else "unknown" }}';
+    try {
+      // Primary: backend API (checks GitHub releases + VERSION file)
+      let resp = await fetch('/api/latest-version');
+      let data = await resp.json();
+      if (!data.success) throw new Error(data.error || 'Unknown error');
+      // Also try to fetch raw VERSION file from GitHub as fallback / cross-check (public file)
+      try {
+        const rawResp = await fetch('https://raw.githubusercontent.com/authoritydmc/redirector/main/VERSION', {cache: 'no-store'});
+        if (rawResp.ok) {
+          const rawVer = (await rawResp.text()).trim();
+          if (rawVer && /^\d+\.\d+\.\d+/.test(rawVer)) {
+            // If raw VERSION is newer than API latest, prefer it (covers edge where release not yet created)
+            if (rawVer !== data.latest) {
+              console.log('Raw VERSION file:', rawVer, 'API latest:', data.latest);
+            }
+          }
+        }
+      } catch {}
+      const latest = data.latest;
+      current = data.current || current;
+      versionSpan.textContent = `Version: ${current}`;
+      const baseCurrent = parseBaseVersion(current);
+      const baseLatest = parseBaseVersion(latest);
+      if (baseLatest && baseCurrent && baseLatest === baseCurrent) {
+        iconSpan.innerHTML = '<i class="fa-solid fa-circle-check text-green-500" title="You are running the latest version (v' + current + ')."></i>';
+      } else if (baseLatest && baseCurrent && baseLatest > baseCurrent) {
+        iconSpan.innerHTML = '<i class="fa-solid fa-circle-exclamation text-yellow-400" title="A newer version (v' + latest + ') is available! You are running v' + current + '. Click changelog to see what is new."></i>';
+        if(!isBackground){
+          // Show subtle notification dot
+          const notice = document.createElement('div');
+          notice.id='update-notice';
+          notice.className='fixed bottom-4 right-4 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold flex items-center gap-2 z-50';
+          notice.innerHTML='<i class="fa-solid fa-circle-arrow-up"></i> Update available: v'+latest+' <a href="/changelog" class="underline ml-2">View changelog</a> <button onclick="this.parentElement.remove()" class="ml-2 text-white/80 hover:text-white">&times;</button>';
+          document.body.appendChild(notice);
+          setTimeout(()=>{ try{notice.remove();}catch{} }, 15000);
+        }
+      } else {
+        iconSpan.innerHTML = '<i class="fa-solid fa-circle-question text-gray-400" title="Version status unknown. Current: v' + current + ', Latest: v' + latest + '"></i>';
+      }
+      try {
+        localStorage.setItem('version_check_cache', JSON.stringify({timestamp: Date.now(), data: data}));
+      } catch {}
+    } catch (e) {
+      iconSpan.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500" title="Could not check for updates. Current version: v' + current + '"></i>';
+      console.warn('Version check failed:', e);
+    }
+  }
 checkVersionFooter();
 
   // Version check popup for dev mode

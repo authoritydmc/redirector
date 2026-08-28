@@ -58,9 +58,36 @@ def create_app():
     # Register application routes
     register_blueprints(app)
 
-    # Set the app port inside context
+    # Set the app port inside context and purge SSO caches
     with app.app_context():
         app.config['port'] = get_port()
+        # Purge any stale SSO entries from cache (SSO never cached)
+        try:
+            from app.utils.utils import purge_sso_upstream_cache
+            purged = purge_sso_upstream_cache()
+            if purged:
+                logger.info(f"🧹 Purged {purged} SSO cache entries on startup (SSO never cached)")
+        except Exception as e:
+            logger.warning(f"SSO cache purge on startup failed: {e}")
+
+    # Security headers middleware
+    @app.after_request
+    def add_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        # For SSO redirects, ensure no caching
+        if response.status_code in (301, 302, 303, 307, 308):
+            location = response.headers.get('Location', '')
+            try:
+                from app.utils.utils import is_sso_url
+                if location and is_sso_url(location):
+                    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+                    response.headers['Pragma'] = 'no-cache'
+            except Exception:
+                pass
+        return response
 
     return app
 
