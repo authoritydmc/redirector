@@ -254,6 +254,28 @@ def api_changelog():
             return jsonify({"changelog": "", "error": "Failed to read changelog"}), 500
     return jsonify({"changelog": "Changelog not found."}), 404
 
+@bp.route('/upgrade')
+@bp.route('/docs/upgrade')
+def upgrade_guide():
+    """Upgrade guide page — where to find update instructions."""
+    return render_template('upgrade.html', version=get_semver())
+
+@bp.route('/api/upgrade-guide')
+def api_upgrade_guide():
+    """Return_upgrade.md raw for API."""
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    p = os.path.join(root, "docs", "UPGRADE.md")
+    if not os.path.isfile(p):
+        p = os.path.join(root, "UPGRADE.md")
+    if os.path.isfile(p):
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                return jsonify({"guide": f.read()})
+        except Exception:
+            logger.exception("Failed to read upgrade guide")
+            return jsonify({"guide": "" , "error": "Failed"}), 500
+    return jsonify({"guide": "Upgrade guide not found. See https://github.com/authoritydmc/redirector/blob/main/docs/UPGRADE.md"}), 404
+
 # Simple in-memory cache for version check
 _version_check_cache = {
     'timestamp': 0,
