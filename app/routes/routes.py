@@ -315,6 +315,32 @@ def api_check_shortcut_exists(pattern):
     logger.debug(f"API check for shortcut '{pattern}' exists: {exists}")
     return jsonify({'exists': exists})
 
+# API: Check if r/ hostname is working (for guide)
+@bp.route('/api/r-status', methods=['GET'])
+def api_r_status():
+    import socket
+    status = {"resolves": False, "ip": None, "reachable": False, "is_local": False}
+    try:
+        ip = socket.gethostbyname('r')
+        status["ip"] = ip
+        status["resolves"] = True
+        status["is_local"] = (ip == "127.0.0.1")
+    except Exception as e:
+        status["error"] = str(e)
+    # Check if we can reach ourselves via r/ (only if resolves to local)
+    if status["is_local"]:
+        try:
+            import requests as req
+            # Try to hit r/ via HTTP (short timeout, internal)
+            # Use Host header trick: request to 127.0.0.1 with Host: r
+            r = req.get("http://127.0.0.1/", headers={"Host": "r"}, timeout=2)
+            status["reachable"] = r.status_code < 500
+            status["http_status"] = r.status_code
+        except Exception as e:
+            status["reachable"] = False
+            status["http_error"] = str(e)[:100]
+    return jsonify(status)
+
 # GET: Instructions page for enabling r/ shortcuts
 @bp.route('/enable-r-instructions', methods=['GET'])
 def enable_r_instructions():

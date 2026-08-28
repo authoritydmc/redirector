@@ -3,169 +3,87 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}URL Shortener/Redirector{% endblock %}{% if redis_connected %} ⚡{% endif %}</title>
-  <meta name="description" content="A modern, self-hostable URL shortener and redirector with Docker, beautiful UI, and secure config management.">
+  <title>{% block title %}Redirector — r/ for Teams{% endblock %}{% if redis_connected %} ⚡{% endif %}</title>
+  <meta name="description" content="Redirector — team r/ links, self-hosted go/links for your company. Fast, secure, and private.">
   <link rel="icon"  href="{{ url_for('static', filename='favicon.ico') }}">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
-      theme: {
-        extend: {},
-      },
+      theme: { extend: { colors: { brand: { 50: '#eff6ff', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' } } } }
     }
-    // Force dark mode by default
-    if (!document.documentElement.classList.contains('dark')) {
-      document.documentElement.classList.add('dark');
-    }
-
-    
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light') document.documentElement.classList.remove('dark');
+    else if (saved === 'dark') document.documentElement.classList.add('dark');
+    else if (!document.documentElement.classList.contains('dark')) document.documentElement.classList.add('dark');
   </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
   {% block head %}{% endblock %}
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-blue-200 dark:bg-gradient-to-br dark:from-gray-900 dark:to-gray-800 min-h-screen flex flex-col">
-
-  <!-- Header -->
-  <header class="bg-white dark:bg-gray-900 shadow sticky top-0 z-10">
-    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <a href="/" class="flex items-center gap-3">
-          <img src="{{ url_for('static', filename='assets/logo.png') }}" alt="Logo" class="w-8 h-8 rounded shadow">
-          <span class="text-xl font-bold text-blue-700 dark:text-blue-300">URL Shortener/Redirector{% if redis_connected %} <i class="fa-solid fa-bolt text-yellow-400" title="Redist connected at {{ redis_connected_location}}"></i>{% endif %}</span>
-        </a>
-      </div>
-      <nav class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 py-3 px-4 flex items-center justify-between">
-        <div class="flex items-center gap-6">
-          <a href="/system-info" class="text-blue-700 dark:text-blue-300 flex flex-col items-center group" title="System Info & Config">
-            <i class="fa-solid fa-server fa-lg"></i>
-            <span class="text-xs mt-1 group-hover:underline hidden sm:block">System Info</span>
-          </a>
-          {% if session.admin_logged_in %}
-            <div class="relative" id="admin-tools-wrapper">
-              <button id="admin-tools-btn" type="button" class="text-blue-700 dark:text-blue-300 flex flex-col items-center focus:outline-none relative group" title="Admin Tools" aria-haspopup="true" aria-expanded="false">
-                <span class="flex items-center gap-1">
-                  <i class="fa-solid fa-toolbox fa-lg"></i>
-                  <span class="text-xs mt-1 group-hover:underline hidden sm:block">Admin Tools</span>
-                  <span class="transition-transform duration-300 ml-1" id="admin-chevron">
-                    <i class="fa-solid fa-chevron-down"></i>
-                  </span>
-                </span>
-              </button>
-              <div id="admin-tools-dropdown" class="hidden absolute left-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50">
-                <a href="/admin/upstreams" class="block px-4 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up"></i> Upstreams</a>
-                <a href="/admin/upstream-logs" class="block px-4 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 flex items-center gap-2"><i class="fa-solid fa-list-alt"></i> Upstream Logs</a>
-                <a href="/admin/import-redirects" class="block px-4 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 flex items-center gap-2"><i class="fa-solid fa-file-arrow-up"></i> Import/Export</a>
-                <a href="/admin/redis-cache" class="block px-4 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 flex items-center gap-2"><i class="fa-solid fa-database"></i> Redis Cache</a>
-                <a href="/admin/mfa/setup" class="block px-4 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 flex items-center gap-2"><i class="fa-solid fa-shield-halved"></i> MFA / Passkeys</a>
-                <a href="/admin/config" class="block px-4 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 flex items-center gap-2 relative" title="Config (Experimental WIP)">
-                  <i class="fa-solid fa-sliders fa-lg"></i>
-                  <span class="text-xs group-hover:underline sm:block">Config</span>
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-yellow-200 text-yellow-900 text-[10px] font-semibold ml-2 align-middle" style="z-index:1; vertical-align:middle; position:static;" title="Experimental - Work In Progress">
-                    <i class="fa-solid fa-flask"></i> WIP
-                  </span>
-                </a>
-              </div>
-              <script>
-                const btn = document.getElementById('admin-tools-btn');
-                const dropdown = document.getElementById('admin-tools-dropdown');
-                const wrapper = document.getElementById('admin-tools-wrapper');
-                const chevron = document.getElementById('admin-chevron');
-                let dropdownOpen = false;
-                let hoverCloseTimeout = null;
-                function openDropdown() {
-                  if (hoverCloseTimeout) { clearTimeout(hoverCloseTimeout); hoverCloseTimeout = null; }
-                  dropdown.classList.remove('hidden');
-                  btn.setAttribute('aria-expanded', 'true');
-                  chevron.classList.add('rotate-180');
-                  dropdownOpen = true;
-                }
-                function closeDropdown() {
-                  dropdown.classList.add('hidden');
-                  btn.setAttribute('aria-expanded', 'false');
-                  chevron.classList.remove('rotate-180');
-                  dropdownOpen = false;
-                }
-                function toggleDropdown() {
-                  if (dropdownOpen) {
-                    closeDropdown();
-                  } else {
-                    openDropdown();
-                  }
-                }
-                // Show on click and on hover (ensure breadcrumbs/dropdown is showing when clicked or hovered over)
-                btn.addEventListener('click', function(e) {
-                  e.stopPropagation();
-                  toggleDropdown();
-                });
-                // Hover support: open on mouseenter, close on mouseleave (with small delay to allow moving to dropdown)
-                wrapper.addEventListener('mouseenter', openDropdown);
-                wrapper.addEventListener('mouseleave', function() {
-                  hoverCloseTimeout = setTimeout(closeDropdown, 150);
-                });
-                // Keep open when hovering dropdown itself
-                dropdown.addEventListener('mouseenter', function() {
-                  if (hoverCloseTimeout) { clearTimeout(hoverCloseTimeout); hoverCloseTimeout = null; }
-                });
-                dropdown.addEventListener('mouseleave', function() {
-                  hoverCloseTimeout = setTimeout(closeDropdown, 150);
-                });
-                // Focus support for keyboard/accessibility
-                btn.addEventListener('focus', openDropdown);
-                wrapper.addEventListener('focusout', function(e) {
-                  if (!wrapper.contains(e.relatedTarget)) closeDropdown();
-                });
-                // Close dropdown when clicking outside
-                document.addEventListener('click', function(e) {
-                  if (!wrapper.contains(e.target)) {
-                    closeDropdown();
-                  }
-                });
-                // Keyboard accessibility: close on Escape
-                document.addEventListener('keydown', function(e) {
-                  if (e.key === 'Escape') {
-                    closeDropdown();
-                  }
-                });
-              </script>
-            </div>
-          {% endif %}
-          <a href="https://github.com/authoritydmc/redirector" target="_blank" class="flex flex-col items-center text-blue-700 dark:text-blue-300 group" title="GitHub">
-            <i class="fab fa-github fa-lg"></i>
-            <span class="text-xs mt-1 group-hover:underline hidden sm:block">GitHub</span>
-          </a>
-          <a href="/changelog" class="flex flex-col items-center text-blue-700 dark:text-blue-300 group" title="Changelog">
-            <i class="fa-solid fa-file-lines fa-lg"></i>
-            <span class="text-xs mt-1 group-hover:underline hidden sm:block">Changelog</span>
-          </a>
-          <a href="/tutorial" class="flex flex-col items-center text-blue-700 dark:text-blue-300 group" title="How to Create Shortcuts">
-            <i class="fa-solid fa-graduation-cap fa-lg"></i>
-            <span class="text-xs mt-1 group-hover:underline hidden sm:block">Tutorial</span>
-          </a>
+<body class="bg-[#f8fafc] dark:bg-[#0f1221] min-h-screen flex flex-col antialiased">
+  <header class="sticky top-0 z-40 backdrop-blur-xl bg-white/80 dark:bg-[#0f1221]/80 border-b border-gray-200/60 dark:border-white/10">
+    <div class="max-w-6xl mx-auto px-4 h-[64px] flex items-center gap-4">
+      <a href="/" class="flex items-center gap-3 shrink-0">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow">
+          <span class="font-mono font-black text-white text-sm">r/</span>
         </div>
-        <div class="flex items-center gap-4">
-          {% if session.admin_logged_in %}
-            <span class="text-green-700 dark:text-green-300 font-semibold flex items-center gap-2  ml-3"><i class="fa-solid fa-user-shield"></i> Admin</span>
-            <a href="/logout" class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 font-semibold flex items-center gap-2"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
-          {% else %}
-            <a href="/admin-login" class="bg-blue-600 text-white px-3 py-2 ml-2 rounded hover:bg-blue-700 font-semibold flex items-center gap-2"><i class="fa-solid fa-user-shield"></i> Login as Admin</a>
-          {% endif %}
-          <button id="toggle-dark" class="flex items-center justify-center h-9 w-9 transition-colors duration-300 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded focus:outline-none ml-1" title="Toggle dark/light mode" style="margin-top:0;align-self:center;">
-            <span id="toggle-icon" class="transition-transform duration-300 text-xl flex items-center justify-center">
-              <i class="fa-solid fa-moon"></i>
-            </span>
+        <div class="hidden sm:block leading-tight">
+          <p class="font-black text-[15px] tracking-tight text-gray-900 dark:text-white flex items-center gap-1.5">Redirector <span class="hidden lg:inline text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-600 text-white">r/</span>{% if redis_connected %}<i class="fa-solid fa-bolt text-amber-500 text-xs" title="Redis {{ redis_connected_location }}"></i>{% endif %}</p>
+          <p class="text-xs text-gray-500 dark:text-white/50 -mt-0.5">Team go/links</p>
+        </div>
+        <span class="sm:hidden font-black text-gray-900 dark:text-white">Redirector</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-1 ml-6 bg-gray-100 dark:bg-white/5 p-1 rounded-full border border-gray-200 dark:border-white/10">
+        <a href="/system-info" class="px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1.5 hover:bg-white dark:hover:bg-white/10 text-gray-700 dark:text-white/80"> <i class="fa-solid fa-server text-xs"></i> <span class="hidden lg:inline">System</span></a>
+        {% if session.admin_logged_in %}
+        <div class="relative" id="admin-tools-wrapper">
+          <button id="admin-tools-btn" type="button" class="px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1.5 hover:bg-white dark:hover:bg-white/10 text-gray-700 dark:text-white/80" aria-haspopup="true" aria-expanded="false">
+            <i class="fa-solid fa-toolbox text-xs"></i> <span class="hidden lg:inline">Admin</span> <i id="admin-chevron" class="fa-solid fa-chevron-down text-[10px] opacity-60 transition-transform"></i>
           </button>
+          <div id="admin-tools-dropdown" class="hidden absolute left-0 top-full mt-2 w-60 bg-white dark:bg-[#1c1f2e] border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden z-50">
+            <div class="px-3 py-2 text-xs font-bold text-gray-500 dark:text-white/40 uppercase tracking-wider">Admin Tools</div>
+            <a href="/admin/upstreams" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10 text-gray-700 dark:text-white/80"><i class="fa-solid fa-cloud-arrow-up text-blue-500 w-4"></i> Upstreams</a>
+            <a href="/admin/upstream-logs" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10"><i class="fa-solid fa-list-alt w-4 text-gray-400"></i> Upstream Logs</a>
+            <a href="/admin/import-redirects" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10"><i class="fa-solid fa-file-arrow-up w-4 text-gray-400"></i> Import/Export</a>
+            <a href="/admin/redis-cache" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10"><i class="fa-solid fa-database w-4 text-gray-400"></i> Redis Cache</a>
+            <a href="/admin/mfa/setup" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10"><i class="fa-solid fa-shield-halved w-4 text-emerald-500"></i> MFA / Passkeys</a>
+            <a href="/admin/config" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10"><i class="fa-solid fa-sliders w-4"></i> Config <span class="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 border">WIP</span></a>
+          </div>
         </div>
+        {% endif %}
+        <a href="https://github.com/authoritydmc/redirector" target="_blank" class="px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1.5 hover:bg-white dark:hover:bg-white/10 text-gray-700 dark:text-white/80"><i class="fa-brands fa-github"></i> <span class="hidden xl:inline">GitHub</span></a>
+        <a href="/changelog" class="px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1.5 hover:bg-white dark:hover:bg-white/10 text-gray-700 dark:text-white/80"><i class="fa-solid fa-file-lines"></i> <span class="hidden xl:inline">Changelog</span></a>
+        <a href="/tutorial" class="px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1.5 hover:bg-white dark:hover:bg-white/10 text-gray-700 dark:text-white/80"><i class="fa-solid fa-graduation-cap"></i> <span class="hidden xl:inline">Tutorial</span></a>
       </nav>
+      <button id="mobile-menu-btn" class="md:hidden ml-auto w-9 h-9 rounded-xl bg-gray-100 dark:bg-white/10 flex items-center justify-center"><i class="fa-solid fa-bars"></i></button>
+      <div class="hidden md:flex items-center gap-2 ml-auto">
+        {% if session.admin_logged_in %}
+          <span class="hidden lg:flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"><i class="fa-solid fa-circle-check"></i> Admin</span>
+          <a href="/logout" class="bg-red-600 hover:bg-red-700 text-white px-3.5 py-2 rounded-full text-sm font-bold flex items-center gap-1.5 shadow-sm"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+        {% else %}
+          <a href="/admin-login" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-sm flex items-center gap-1.5"><i class="fa-solid fa-user-shield"></i> Login</a>
+        {% endif %}
+        <button id="toggle-dark" class="w-9 h-9 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 flex items-center justify-center transition" title="Toggle theme">
+          <span id="toggle-icon" class="text-sm"><i class="fa-solid fa-moon"></i></span>
+        </button>
+      </div>
+    </div>
+    <div id="mobile-menu" class="hidden md:hidden border-t border-gray-200 dark:border-white/10 bg-white dark:bg-[#0f1221] px-4 py-3 space-y-2">
+      <a href="/system-info" class="flex items-center gap-2 py-2 text-sm font-semibold"><i class="fa-solid fa-server w-4"></i> System Info</a>
+      {% if session.admin_logged_in %}<a href="/admin/upstreams" class="flex items-center gap-2 py-2 text-sm"><i class="fa-solid fa-toolbox w-4"></i> Admin Tools</a>{% endif %}
+      <a href="/changelog" class="flex items-center gap-2 py-2 text-sm"><i class="fa-solid fa-file-lines w-4"></i> Changelog</a>
+      <a href="/tutorial" class="flex items-center gap-2 py-2 text-sm"><i class="fa-solid fa-graduation-cap w-4"></i> Tutorial</a>
+      <div class="pt-2 flex gap-2">
+        {% if session.admin_logged_in %}<a href="/logout" class="flex-1 bg-red-600 text-white py-2 rounded-full text-center font-bold">Logout</a>{% else %}<a href="/admin-login" class="flex-1 bg-blue-600 text-white py-2 rounded-full text-center font-bold">Login as Admin</a>{% endif %}
+      </div>
     </div>
   </header>
 
-  <!-- Breadcrumbs -->
   {% block breadcrumbs %}
-  <nav aria-label="Breadcrumb" id="breadcrumbs" class="max-w-5xl mx-auto w-full px-4 py-3">
-    <ol id="breadcrumb-list" class="flex items-center flex-wrap gap-1 text-sm text-gray-600 dark:text-gray-400">
+  <nav aria-label="Breadcrumb" id="breadcrumbs" class="max-w-6xl mx-auto w-full px-4 py-3">
+    <ol id="breadcrumb-list" class="flex items-center flex-wrap gap-1 text-sm text-gray-600 dark:text-white/60">
       <li class="flex items-center gap-1">
-        <a href="/" class="hover:text-blue-600 dark:hover:text-blue-400 hover:underline flex items-center gap-1 transition-colors" title="Home">
+        <a href="/" class="hover:text-blue-600 dark:hover:text-white hover:underline flex items-center gap-1 transition-colors" title="Home">
           <i class="fa-solid fa-house text-xs"></i> Home
         </a>
       </li>
@@ -173,62 +91,46 @@
   </nav>
   {% endblock %}
 
-  <!-- Main wrapper to push footer down -->
-  <div class="flex flex-col flex-grow max-w-5xl mx-auto w-full px-4 py-8 min-h-[calc(100vh-64px-72px)] bg-white dark:bg-gray-900 rounded-lg shadow">
-    <!-- Main content block -->
+  <div class="flex flex-col flex-grow max-w-6xl mx-auto w-full px-4 py-6 min-h-[calc(100vh-64px-200px)]">
     <main class="flex-grow">
       {% block content %}{% endblock %}
     </main>
   </div>
 
-  <!-- Footer -->
-  <footer class="bg-white dark:bg-gray-900 border-t py-6 mt-auto w-full">
-    <div class="max-w-5xl mx-auto px-4 flex flex-row items-center justify-between text-gray-500 dark:text-gray-400">
-      <!-- Left: Logo + Made with love by rajlabs.in -->
-      <div class="flex items-center gap-2">
+  <footer class="bg-white dark:bg-[#0f1221] border-t border-gray-200 dark:border-white/10 py-6 mt-auto w-full">
+    <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-gray-500 dark:text-white/50">
+      <div class="flex items-center gap-2 text-sm">
         <img src="{{ url_for('static', filename='assets/logo.png') }}" alt="Logo" class="w-6 h-6 rounded shadow-sm">
-        <span>Made with</span>
-        <span class="animate-pulse text-red-500">&#10084;&#65039;</span>
-        <span>by</span>
+        <span>Made with</span><span class="animate-pulse text-red-500">♥</span><span>by</span>
         <a href="https://rajlabs.in" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">rajlabs.in</a>
       </div>
-      <!-- Center: Copyright + GitHub + Changelog -->
       <div class="text-center flex flex-col items-center">
-        <span>&copy; {{ now().year }} URL Shortener/Redirector</span>
+        <span class="text-sm">&copy; {{ now().year }} Redirector — r/ for Teams</span>
         <div class="flex gap-3 text-xs mt-1">
           <a href="/changelog" class="hover:underline flex items-center gap-1"><i class="fa-solid fa-file-lines text-xs"></i> Changelog</a>
           <span class="opacity-30">|</span>
-          <a href="https://github.com/authoritydmc/redirector" target="_blank" class="hover:underline flex items-center gap-1"><i class="fab fa-github text-xs"></i> GitHub</a>
+          <a href="https://github.com/authoritydmc/redirector" target="_blank" class="hover:underline flex items-center gap-1"><i class="fa-brands fa-github text-xs"></i> GitHub</a>
           <span class="opacity-30">|</span>
           <a href="/health" class="hover:underline flex items-center gap-1"><i class="fa-solid fa-heart-pulse text-xs"></i> Health</a>
         </div>
       </div>
-      <!-- Right: Version -->
-      <div id="footer-version-info" class="text-xs text-right font-mono text-gray-400 dark:text-gray-500 flex items-center gap-1">
-        <span id="footer-version-icon" class="inline-block" title="Checking version...">
-          <i class="fa-solid fa-spinner fa-spin"></i>
-        </span>
+      <div id="footer-version-info" class="text-xs text-right font-mono text-gray-400 dark:text-white/40 flex items-center gap-1">
+        <span id="footer-version-icon" class="inline-block" title="Checking version..."><i class="fa-solid fa-spinner fa-spin"></i></span>
         <span id="footer-version-string">Version: {{ version if version is defined else 'unknown' }}</span>
       </div>
     </div>
   </footer>
 <script>
-  // Theme toggle logic with smooth icon animation
   function updateToggleIcon() {
     const icon = document.getElementById('toggle-icon');
     if (document.documentElement.classList.contains('dark')) {
       icon.innerHTML = '<i class="fa-solid fa-sun"></i>';
-      icon.classList.add('rotate-180');
     } else {
       icon.innerHTML = '<i class="fa-solid fa-moon"></i>';
-      icon.classList.remove('rotate-180');
     }
   }
-
   document.getElementById('toggle-dark').onclick = function() {
     const html = document.documentElement;
-    html.classList.add('transition-colors');
-    html.classList.add('duration-500');
     if (html.classList.contains('dark')) {
       html.classList.remove('dark');
       localStorage.setItem('theme', 'light');
@@ -237,39 +139,46 @@
       localStorage.setItem('theme', 'dark');
     }
     updateToggleIcon();
-    setTimeout(() => {
-      html.classList.remove('transition-colors');
-      html.classList.remove('duration-500');
-    }, 600);
   };
-
-  // Initial theme setup
-  if (localStorage.getItem('theme') === 'dark') {
-    document.documentElement.classList.add('dark');
-  } else if (localStorage.getItem('theme') === 'light') {
-    document.documentElement.classList.remove('dark');
-  } else {
-    document.documentElement.classList.add('dark');
-    localStorage.setItem('theme', 'dark');
-  }
+  document.getElementById('mobile-menu-btn')?.addEventListener('click', ()=>{
+    document.getElementById('mobile-menu').classList.toggle('hidden');
+  });
+  // Admin dropdown
+  (function(){
+    const btn=document.getElementById('admin-tools-btn');
+    const dd=document.getElementById('admin-tools-dropdown');
+    const wrap=document.getElementById('admin-tools-wrapper');
+    const chevron=document.getElementById('admin-chevron');
+    if(!btn||!dd||!wrap) return;
+    let open=false;
+    const openDD=()=>{ dd.classList.remove('hidden'); btn.setAttribute('aria-expanded','true'); chevron?.classList.add('rotate-180'); open=true; };
+    const closeDD=()=>{ dd.classList.add('hidden'); btn.setAttribute('aria-expanded','false'); chevron?.classList.remove('rotate-180'); open=false; };
+    btn.addEventListener('click', e=>{ e.stopPropagation(); open?closeDD():openDD(); });
+    wrap.addEventListener('mouseenter', openDD);
+    wrap.addEventListener('mouseleave', ()=> setTimeout(closeDD,150));
+    document.addEventListener('click', e=>{ if(!wrap.contains(e.target)) closeDD(); });
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDD(); });
+  })();
+  if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+  else if (localStorage.getItem('theme') === 'light') document.documentElement.classList.remove('dark');
   updateToggleIcon();
 
-  // Version check logic (deprecated - use footer checkVersionFooter instead)
-  // kept for backward compat: no-op
-
-  // Version check logic for footer - checks once per day via localStorage + GitHub VERSION file
   function parseBaseVersion(ver) {
     if (!ver) return '';
     let m = ver.match(/(\d+\.\d+\.\d+)/);
     return m ? m[1] : ver;
+  }
+  function compareSemver(a,b){
+    const pa=a.split('.').map(Number), pb=b.split('.').map(Number);
+    for(let i=0;i<3;i++){ if((pa[i]||0) > (pb[i]||0)) return 1; if((pa[i]||0) < (pb[i]||0)) return -1; }
+    return 0;
   }
   async function checkVersionFooter() {
     const iconSpan = document.getElementById('footer-version-icon');
     const versionSpan = document.getElementById('footer-version-string');
     let current = '{{ version if version is defined else "unknown" }}';
     const CACHE_KEY = 'version_check_cache';
-    const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-    // Try cached value first
+    const CACHE_TTL = 24 * 60 * 60 * 1000;
     try {
       const cachedRaw = localStorage.getItem(CACHE_KEY);
       if (cachedRaw) {
@@ -279,58 +188,40 @@
           versionSpan.textContent = `Version: ${data.current || current}`;
           const baseCurrent = parseBaseVersion(data.current || current);
           const baseLatest = parseBaseVersion(data.latest);
-          if (baseLatest && baseCurrent && baseLatest === baseCurrent) {
+          const cmp = compareSemver(baseLatest, baseCurrent);
+          if (cmp===0) {
             iconSpan.innerHTML = '<i class="fa-solid fa-circle-check text-green-500" title="You are running the latest version (v' + (data.current||current) + '). Last checked: ' + new Date(cached.timestamp).toLocaleString() + '"></i>';
-          } else if (baseLatest && baseCurrent && baseLatest > baseCurrent) {
+          } else if (cmp>0) {
             iconSpan.innerHTML = '<i class="fa-solid fa-circle-exclamation text-yellow-400" title="A newer version (v' + data.latest + ') is available! You are running v' + (data.current||current) + '."></i>';
           } else {
             iconSpan.innerHTML = '<i class="fa-solid fa-circle-question text-gray-400" title="Version status unknown. Current: v' + (data.current||current) + ', Latest: v' + data.latest + '"></i>';
           }
-          // Still try background refresh if stale > 12h but don't block UI
-          if (Date.now() - cached.timestamp > 12*60*60*1000) {
-            // background refresh without UI flicker
-            fetchVersionAndCache(true);
-          }
+          if (Date.now() - cached.timestamp > 12*60*60*1000) fetchVersionAndCache(true);
           return;
         }
       }
     } catch {}
     await fetchVersionAndCache(false);
   }
-
   async function fetchVersionAndCache(isBackground){
     const iconSpan = document.getElementById('footer-version-icon');
     const versionSpan = document.getElementById('footer-version-string');
     let current = '{{ version if version is defined else "unknown" }}';
     try {
-      // Primary: backend API (checks GitHub releases + VERSION file)
       let resp = await fetch('/api/latest-version');
       let data = await resp.json();
       if (!data.success) throw new Error(data.error || 'Unknown error');
-      // Also try to fetch raw VERSION file from GitHub as fallback / cross-check (public file)
-      try {
-        const rawResp = await fetch('https://raw.githubusercontent.com/authoritydmc/redirector/main/VERSION', {cache: 'no-store'});
-        if (rawResp.ok) {
-          const rawVer = (await rawResp.text()).trim();
-          if (rawVer && /^\d+\.\d+\.\d+/.test(rawVer)) {
-            // If raw VERSION is newer than API latest, prefer it (covers edge where release not yet created)
-            if (rawVer !== data.latest) {
-              console.log('Raw VERSION file:', rawVer, 'API latest:', data.latest);
-            }
-          }
-        }
-      } catch {}
       const latest = data.latest;
       current = data.current || current;
       versionSpan.textContent = `Version: ${current}`;
       const baseCurrent = parseBaseVersion(current);
       const baseLatest = parseBaseVersion(latest);
-      if (baseLatest && baseCurrent && baseLatest === baseCurrent) {
+      const cmp = compareSemver(baseLatest, baseCurrent);
+      if (cmp===0) {
         iconSpan.innerHTML = '<i class="fa-solid fa-circle-check text-green-500" title="You are running the latest version (v' + current + ')."></i>';
-      } else if (baseLatest && baseCurrent && baseLatest > baseCurrent) {
+      } else if (cmp>0) {
         iconSpan.innerHTML = '<i class="fa-solid fa-circle-exclamation text-yellow-400" title="A newer version (v' + latest + ') is available! You are running v' + current + '. Click changelog to see what is new."></i>';
         if(!isBackground){
-          // Show subtle notification dot
           const notice = document.createElement('div');
           notice.id='update-notice';
           notice.className='fixed bottom-4 right-4 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold flex items-center gap-2 z-50';
@@ -341,49 +232,23 @@
       } else {
         iconSpan.innerHTML = '<i class="fa-solid fa-circle-question text-gray-400" title="Version status unknown. Current: v' + current + ', Latest: v' + latest + '"></i>';
       }
-      try {
-        localStorage.setItem('version_check_cache', JSON.stringify({timestamp: Date.now(), data: data}));
-      } catch {}
+      try { localStorage.setItem('version_check_cache', JSON.stringify({timestamp: Date.now(), data: data})); } catch {}
     } catch (e) {
       iconSpan.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500" title="Could not check for updates. Current version: v' + current + '"></i>';
-      console.warn('Version check failed:', e);
     }
   }
-checkVersionFooter();
+  checkVersionFooter();
 
-  // Breadcrumbs logic - ensure breadcrumbs is showing when clicked or hovered over
   (function(){
     const bcNav = document.getElementById('breadcrumbs');
     const bcList = document.getElementById('breadcrumb-list');
     if (!bcNav || !bcList) return;
-    // Build breadcrumbs from current path
     const path = window.location.pathname;
     const segments = path.split('/').filter(s => s.length > 0);
-    // Friendly names map
     const friendly = {
-      'admin': 'Admin',
-      'upstreams': 'Upstreams',
-      'upstream-logs': 'Upstream Logs',
-      'upstream_cache': 'Upstream Cache',
-      'redis-cache': 'Redis Cache',
-      'import-redirects': 'Import/Export',
-      'config': 'Config',
-      'mfa': 'MFA',
-      'setup': 'Setup',
-      'verify': 'Verify',
-      'tutorial': 'Tutorial',
-      'changelog': 'Changelog',
-      'system-info': 'System Info',
-      'enable-r-instructions': 'Enable r/',
-      'edit': 'Edit',
-      'health': 'Health',
-      'version': 'Version'
+      'admin': 'Admin','upstreams': 'Upstreams','upstream-logs': 'Upstream Logs','redis-cache': 'Redis Cache','import-redirects': 'Import/Export','config': 'Config','mfa': 'MFA','setup': 'Setup','verify': 'Verify','tutorial': 'Tutorial','changelog': 'Changelog','system-info': 'System Info','enable-r-instructions': 'Enable r/','edit': 'Edit','health': 'Health','version': 'Version'
     };
-    // Don't show extra crumbs on dashboard (only Home)
-    if (segments.length === 0) {
-      bcNav.style.display = 'none';
-      return;
-    }
+    if (segments.length === 0) { bcNav.style.display = 'none'; return; }
     bcNav.style.display = 'block';
     let href = '';
     const crumbs = [];
@@ -391,12 +256,9 @@ checkVersionFooter();
       href += '/' + seg;
       const isLast = idx === segments.length - 1;
       const label = friendly[seg] || decodeURIComponent(seg);
-      // Capitalize first letter if not in map and not already friendly
       const display = friendly[seg] ? label : label.charAt(0).toUpperCase() + label.slice(1);
       crumbs.push({href: href, label: display, isLast: isLast});
     });
-
-    // If too many crumbs (>4), collapse middle into dropdown
     const MAX_VISIBLE = 4;
     let visibleCrumbs = crumbs;
     let collapsed = [];
@@ -404,28 +266,23 @@ checkVersionFooter();
       collapsed = crumbs.slice(1, crumbs.length - 2);
       visibleCrumbs = [crumbs[0], {isEllipsis:true, collapsed: collapsed}, crumbs[crumbs.length-2], crumbs[crumbs.length-1]];
     }
-
-    // Render
-    visibleCrumbs.forEach((c, idx) => {
+    visibleCrumbs.forEach((c) => {
       const sep = document.createElement('li');
-      sep.className = 'flex items-center text-gray-400 dark:text-gray-500';
+      sep.className = 'flex items-center text-gray-400 dark:text-white/30';
       sep.innerHTML = '<i class="fa-solid fa-chevron-right text-[10px] mx-1"></i>';
       bcList.appendChild(sep);
-
       const li = document.createElement('li');
       li.className = 'flex items-center';
-
       if (c.isEllipsis) {
         li.className += ' relative';
         li.id = 'breadcrumb-ellipsis-wrapper';
         li.innerHTML = `
-          <button id="breadcrumb-ellipsis-btn" type="button" aria-haspopup="true" aria-expanded="false" class="px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-blue-600 dark:hover:text-blue-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500" title="Show hidden breadcrumbs">
+          <button id="breadcrumb-ellipsis-btn" type="button" aria-haspopup="true" aria-expanded="false" class="px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-white/10 hover:text-blue-600 dark:hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500" title="Show hidden breadcrumbs">
             <i class="fa-solid fa-ellipsis"></i>
           </button>
-          <div id="breadcrumb-ellipsis-dropdown" class="hidden absolute left-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50 py-1"></div>
+          <div id="breadcrumb-ellipsis-dropdown" class="hidden absolute left-0 top-full mt-1 w-48 bg-white dark:bg-[#1c1f2e] border border-gray-200 dark:border-white/10 rounded-xl shadow-xl z-50 py-1"></div>
         `;
         bcList.appendChild(li);
-        // Populate dropdown after append
         setTimeout(() => {
           const dd = document.getElementById('breadcrumb-ellipsis-dropdown');
           const btn = document.getElementById('breadcrumb-ellipsis-btn');
@@ -435,7 +292,7 @@ checkVersionFooter();
             const a = document.createElement('a');
             a.href = col.href;
             a.textContent = col.label;
-            a.className = 'block px-3 py-1.5 text-sm text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors';
+            a.className = 'block px-3 py-1.5 text-sm text-blue-700 dark:text-white hover:bg-blue-50 dark:hover:bg-white/10 transition-colors';
             dd.appendChild(a);
           });
           let ellipsisOpen = false;
@@ -466,35 +323,15 @@ checkVersionFooter();
         }, 0);
       } else {
         if (c.isLast) {
-          li.innerHTML = `<span aria-current="page" class="font-semibold text-gray-900 dark:text-gray-100 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800" title="${c.label}">${c.label}</span>`;
+          li.innerHTML = `<span aria-current="page" class="font-semibold text-gray-900 dark:text-white px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/10" title="${c.label}">${c.label}</span>`;
         } else {
-          // Hover and click both show underline/color - ensure visible interaction
-          li.innerHTML = `<a href="${c.href}" class="hover:text-blue-600 dark:hover:text-blue-400 hover:underline hover:bg-gray-50 dark:hover:bg-gray-800 px-1.5 py-0.5 rounded transition-colors" title="${c.label}">${c.label}</a>`;
+          li.innerHTML = `<a href="${c.href}" class="hover:text-blue-600 dark:hover:text-white hover:underline hover:bg-gray-50 dark:hover:bg-white/10 px-1.5 py-0.5 rounded transition-colors" title="${c.label}">${c.label}</a>`;
         }
         bcList.appendChild(li);
       }
     });
-
-    // Ensure hover effects are visible: add group hover underline via CSS is already handled by hover:* classes
   })();
-
-  // Version check popup for dev mode
-  fetch('https://api.github.com/repos/authoritydmc/redirector/releases/latest')
-    .then(r => r.json())
-    .then(data => {
-      const latest = data.tag_name ? data.tag_name.replace(/^v/, '') : null;
-      const current = '{{ __version__ }}';
-      if (latest && current === '3.0.0' && latest !== current) {
-        showDevPopup();
-      }
-    });
-  function showDevPopup() {
-    const popup = document.createElement('div');
-    popup.innerHTML = `<div style="position:fixed;z-index:9999;top:30px;right:30px;background:#2563eb;color:#fff;padding:24px 32px;border-radius:16px;box-shadow:0 4px 32px #0002;font-size:1.3rem;display:flex;align-items:center;gap:16px;"><i class='fa-solid fa-code-branch fa-2x'></i> <b>Ohoo !! Dev mode on</b><br><span style='font-size:1rem;font-weight:400;'>Keep building</span><button onclick='this.parentNode.remove()' style='margin-left:24px;background:transparent;border:none;color:#fff;font-size:1.5rem;cursor:pointer;'>&times;</button></div>`;
-    document.body.appendChild(popup);
-  }
 </script>
-
   {% block scripts %}{% endblock %}
 </body>
 </html>

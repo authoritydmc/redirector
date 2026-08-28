@@ -1,6 +1,10 @@
 from flask import Blueprint, render_template, request, session, jsonify
 import subprocess
 import socket
+import platform
+import sys
+import os
+import re
 from app.utils.utils import  get_port
 import requests
 from app.CONSTANTS import __version__, get_semver

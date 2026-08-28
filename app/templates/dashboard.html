@@ -4,35 +4,35 @@
 
 <!-- Hero stats -->
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-  <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center"><i class="fa-solid fa-link"></i></div>
       <div>
-        <p class="text-xs text-gray-500 dark:text-gray-400">Total shortcuts</p>
+        <p class="text-xs text-gray-500 dark:text-white/60">Total shortcuts</p>
         <p class="text-2xl font-black text-gray-900 dark:text-white">{{ total }}</p>
       </div>
     </div>
-    <p class="text-xs text-gray-400 mt-2"><i class="fa-solid fa-arrow-trend-up text-green-500"></i> {{ trending|length }} trending</p>
+    <p class="text-xs text-gray-400 dark:text-white/40 mt-2"><i class="fa-solid fa-arrow-trend-up text-green-500"></i> {{ trending|length }} trending</p>
   </div>
-  <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 rounded-xl bg-green-500/10 text-green-600 flex items-center justify-center"><i class="fa-solid fa-chart-simple"></i></div>
       <div>
-        <p class="text-xs text-gray-500">Total hits</p>
+        <p class="text-xs text-gray-500 dark:text-white/60">Total hits</p>
         <p class="text-2xl font-black text-gray-900 dark:text-white">{{ total_hits }}</p>
       </div>
     </div>
-    <p class="text-xs text-gray-400 mt-2">Across all shortcuts</p>
+    <p class="text-xs text-gray-400 dark:text-white/40 mt-2">Across all shortcuts</p>
   </div>
-  <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center"><i class="fa-solid fa-fire"></i></div>
       <div>
-        <p class="text-xs text-gray-500">Most popular</p>
+        <p class="text-xs text-gray-500 dark:text-white/60">Most popular</p>
         <p class="text-sm font-bold truncate max-w-24 text-gray-900 dark:text-white">{% if trending %}{{ trending[0].pattern }}{% else %}—{% endif %}</p>
       </div>
     </div>
-    <p class="text-xs text-gray-400 mt-2">{% if trending %}{{ trending[0].access_count }} hits{% else %}No data yet{% endif %}</p>
+    <p class="text-xs text-gray-400 dark:text-white/40 mt-2">{% if trending %}{{ trending[0].access_count }} hits{% else %}No data yet{% endif %}</p>
   </div>
   <div class="bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-4 text-white shadow">
     <p class="text-xs text-white/80">Quick start</p>
@@ -46,17 +46,17 @@
   <a href="/edit/" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl shadow hover:bg-blue-700 font-bold flex items-center gap-2 justify-center">
     <i class="fa-solid fa-plus"></i> New Shortcut
   </a>
-  <a href="/admin/setup" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-5 py-2.5 rounded-xl shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold flex items-center gap-2 justify-center">
+  <a href="/admin/setup" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 px-5 py-2.5 rounded-xl shadow-sm hover:bg-gray-50 dark:hover:bg-white/10 font-semibold flex items-center gap-2 justify-center text-gray-900 dark:text-white">
     <i class="fa-solid fa-wand-magic-sparkles text-purple-500"></i> Starter Pack
   </a>
-  <a href="/qr/docs" target="_blank" class="hidden sm:flex bg-white dark:bg-gray-800 border px-4 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 items-center gap-2"><i class="fa-solid fa-qrcode"></i> QR Demo</a>
+  <a href="/qr/docs" target="_blank" class="hidden sm:flex bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 px-4 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/10 items-center gap-2 text-gray-900 dark:text-white"><i class="fa-solid fa-qrcode"></i> QR Demo</a>
   <div class="ml-auto flex gap-2">
     {% if not r_hostname_enabled %}
     <a href="/enable-r-instructions" class="bg-yellow-500 text-white px-4 py-2.5 rounded-xl shadow hover:bg-yellow-600 font-semibold flex items-center gap-2 text-sm">
       <i class="fa-solid fa-circle-info"></i> Enable r/
     </a>
     {% endif %}
-    <a href="/changelog" class="bg-white dark:bg-gray-800 border px-3 py-2.5 rounded-xl text-sm flex items-center gap-1"><i class="fa-solid fa-file-lines"></i> Changelog</a>
+    <a href="/changelog" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 px-3 py-2.5 rounded-xl text-sm flex items-center gap-1 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-white/10"><i class="fa-solid fa-file-lines"></i> Changelog</a>
   </div>
 </div>
 
@@ -71,66 +71,66 @@
 {% endif %}
 
 <!-- Search + filters -->
-<div class="bg-white dark:bg-gray-800 rounded-2xl shadow border border-gray-200 dark:border-gray-700 p-4 mb-6">
+<div class="bg-white dark:bg-[#1c1f2e] rounded-2xl shadow border border-gray-200 dark:border-white/10 p-4 mb-6">
   <div class="flex flex-col lg:flex-row gap-3">
     <div class="flex-1 relative">
       <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-      <input id="shortcut-search" type="text" placeholder="Search shortcuts… try eng/, docs, or https://figma.com" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 focus:bg-white dark:focus:bg-gray-800 focus:ring-2 focus:ring-blue-500 text-sm">
-      <kbd class="hidden sm:inline absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-gray-100 dark:bg-gray-700 border px-1.5 py-0.5 rounded">/</kbd>
+      <input id="shortcut-search" type="text" placeholder="Search shortcuts… try eng/, docs, or https://figma.com" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 focus:bg-white dark:focus:bg-white/10 focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 dark:text-white placeholder:text-gray-400">
+      <kbd class="hidden sm:inline absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/10 px-1.5 py-0.5 rounded text-gray-600 dark:text-white/60">/</kbd>
     </div>
     <div class="flex gap-2">
-      <select id="filter-type" class="px-3 py-2.5 rounded-xl border bg-white dark:bg-gray-900 text-sm">
+      <select id="filter-type" class="px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0f1221] text-sm text-gray-900 dark:text-white">
         <option value="">All types</option>
         <option value="static">Static</option>
         <option value="dynamic">Dynamic</option>
         <option value="user-dynamic">User</option>
       </select>
-      <select id="shortcut-count" class="px-3 py-2.5 rounded-xl border bg-white dark:bg-gray-900 text-sm">
+      <select id="shortcut-count" class="px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0f1221] text-sm text-gray-900 dark:text-white">
         <option value="5">5</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
       </select>
-      <select id="shortcut-sort" class="px-3 py-2.5 rounded-xl border bg-white dark:bg-gray-900 text-sm hidden sm:block">
+      <select id="shortcut-sort" class="px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0f1221] text-sm text-gray-900 dark:text-white hidden sm:block">
         <option value="updated">Last updated</option><option value="created">Created</option><option value="popular">Most hits</option>
       </select>
     </div>
   </div>
   <div class="flex gap-2 mt-3 flex-wrap">
-    <button class="tag-filter text-xs px-2.5 py-1 rounded-full border bg-gray-50 dark:bg-gray-900 hover:bg-blue-50" data-tag="">All</button>
-    <button class="tag-filter text-xs px-2.5 py-1 rounded-full border hover:bg-blue-50" data-tag="eng">eng</button>
-    <button class="tag-filter text-xs px-2.5 py-1 rounded-full border hover:bg-blue-50" data-tag="hr">hr</button>
-    <button class="tag-filter text-xs px-2.5 py-1 rounded-full border hover:bg-blue-50" data-tag="docs">docs</button>
-    <span id="search-count" class="text-xs text-gray-500 ml-auto hidden"></span>
+    <button class="tag-filter text-xs px-2.5 py-1 rounded-full border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 hover:bg-blue-50 dark:hover:bg-blue-500/20 text-gray-700 dark:text-white/80" data-tag="">All</button>
+    <button class="tag-filter text-xs px-2.5 py-1 rounded-full border border-gray-200 dark:border-white/10 hover:bg-blue-50 dark:hover:bg-blue-500/20 text-gray-700 dark:text-white/70" data-tag="eng">eng</button>
+    <button class="tag-filter text-xs px-2.5 py-1 rounded-full border border-gray-200 dark:border-white/10 hover:bg-blue-50 dark:hover:bg-blue-500/20 text-gray-700 dark:text-white/70" data-tag="hr">hr</button>
+    <button class="tag-filter text-xs px-2.5 py-1 rounded-full border border-gray-200 dark:border-white/10 hover:bg-blue-50 dark:hover:bg-blue-500/20 text-gray-700 dark:text-white/70" data-tag="docs">docs</button>
+    <span id="search-count" class="text-xs text-gray-500 dark:text-white/40 ml-auto hidden"></span>
   </div>
 </div>
 
 <div class="grid lg:grid-cols-3 gap-6">
   <!-- Main table -->
-  <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
-    <div class="px-6 py-4 border-b flex items-center justify-between">
-      <h2 class="font-black text-gray-900 dark:text-white flex items-center gap-2"><i class="fa-solid fa-list"></i> Shortcuts <span class="text-xs font-normal text-gray-500">({{ total }})</span></h2>
+  <div class="lg:col-span-2 bg-white dark:bg-[#1c1f2e] rounded-2xl shadow border border-gray-200 dark:border-white/10 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+      <h2 class="font-black text-gray-900 dark:text-white flex items-center gap-2"><i class="fa-solid fa-list text-blue-500"></i> Shortcuts <span class="text-xs font-normal text-gray-500 dark:text-white/40">({{ total }})</span></h2>
       <div class="flex gap-2">
-        <button onclick="copyAll()" class="text-xs px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-sm">Copy list</button>
+        <button onclick="copyAll()" class="text-xs px-3 py-1.5 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-sm text-gray-700 dark:text-white">Copy list</button>
       </div>
     </div>
     <div class="overflow-x-auto">
       <table class="w-full text-left" id="shortcuts-table">
-        <thead class="bg-gray-50 dark:bg-gray-900/50 text-xs text-gray-500">
+        <thead class="bg-gray-50 dark:bg-white/5 text-xs text-gray-500 dark:text-white/40">
           <tr><th class="px-6 py-3">Shortcut</th><th class="px-4 py-3">Target</th><th class="px-4 py-3 text-right">Actions</th></tr>
         </thead>
-        <tbody id="shortcuts-tbody" class="divide-y divide-gray-100 dark:divide-gray-700">
+        <tbody id="shortcuts-tbody" class="divide-y divide-gray-100 dark:divide-white/10">
         {% for s in shortcuts %}
-          <tr class="hover:bg-blue-50/50 dark:hover:bg-gray-700/30 group" data-type="{{ s.type }}" data-tags="{{ s.tags or '' }}">
+          <tr class="hover:bg-blue-50/50 dark:hover:bg-white/5 group" data-type="{{ s.type }}" data-tags="{{ s.tags or '' }}">
             <td class="px-6 py-3">
               <div class="flex items-center gap-2">
-                {% if s.type=='static' %}<span class="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 flex items-center justify-center text-xs"><i class="fa-solid fa-link"></i></span>
-                {% elif s.type=='dynamic' %}<span class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center text-xs"><i class="fa-solid fa-bolt"></i></span>
-                {% else %}<span class="w-6 h-6 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 flex items-center justify-center text-xs"><i class="fa-solid fa-user"></i></span>{% endif %}
+                {% if s.type=='static' %}<span class="w-6 h-6 rounded-full bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 flex items-center justify-center text-xs"><i class="fa-solid fa-link"></i></span>
+                {% elif s.type=='dynamic' %}<span class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs"><i class="fa-solid fa-bolt"></i></span>
+                {% else %}<span class="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs"><i class="fa-solid fa-user"></i></span>{% endif %}
                 <span class="font-mono font-bold text-sm text-gray-900 dark:text-white">{{ s.pattern }}</span>
-                <button onclick="copyText('r/{{ s.pattern }}')" class="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" title="Copy r/ link"><i class="fa-regular fa-copy text-xs"></i></button>
+                <button onclick="copyText('r/{{ s.pattern }}')" class="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded text-gray-500 dark:text-white/60" title="Copy r/ link"><i class="fa-regular fa-copy text-xs"></i></button>
               </div>
-              <div class="flex items-center gap-3 mt-1 text-xs text-gray-400">
+              <div class="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-white/40">
                 <span><i class="fa-solid fa-eye mr-1"></i>{{ s.access_count }}</span>
                 <span class="hidden sm:inline"><i class="fa-regular fa-clock mr-1"></i>{{ s.updated_at[:10] if s.updated_at else '' }}</span>
-                {% if s.tags %}<span class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-xs">{{ s.tags }}</span>{% endif %}
+                {% if s.tags %}<span class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-xs text-gray-600 dark:text-white/70 border border-gray-200 dark:border-white/10">{{ s.tags }}</span>{% endif %}
               </div>
             </td>
             <td class="px-4 py-3 max-w-48">
@@ -138,11 +138,11 @@
             </td>
             <td class="px-4 py-3">
               <div class="flex justify-end gap-1">
-                <a href="/{{ s.pattern }}" target="_blank" class="w-7 h-7 rounded-lg bg-green-500 text-white flex items-center justify-center hover:bg-green-600" title="Go"><i class="fa-solid fa-arrow-up-right-from-square text-xs"></i></a>
-                <a href="/qr/{{ s.pattern }}" target="_blank" class="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200" title="QR"><i class="fa-solid fa-qrcode text-xs"></i></a>
-                <a href="/edit/{{ s.pattern }}" class="w-7 h-7 rounded-lg bg-yellow-500 text-white flex items-center justify-center hover:bg-yellow-600" title="Edit"><i class="fa-solid fa-pen text-xs"></i></a>
+                <a href="/{{ s.pattern }}" target="_blank" class="w-7 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center" title="Go"><i class="fa-solid fa-arrow-up-right-from-square text-xs"></i></a>
+                <a href="/qr/{{ s.pattern }}" target="_blank" class="w-7 h-7 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/20 flex items-center justify-center text-gray-700 dark:text-white" title="QR"><i class="fa-solid fa-qrcode text-xs"></i></a>
+                <a href="/edit/{{ s.pattern }}" class="w-7 h-7 rounded-lg bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center" title="Edit"><i class="fa-solid fa-pen text-xs"></i></a>
                 {% if session.admin_logged_in %}
-                <button onclick="deleteShortcut('{{ s.pattern }}', this)" class="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 flex items-center justify-center hover:bg-red-100" title="Delete"><i class="fa-solid fa-trash text-xs"></i></button>
+                <button onclick="deleteShortcut('{{ s.pattern }}', this)" class="w-7 h-7 rounded-lg bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center" title="Delete"><i class="fa-solid fa-trash text-xs"></i></button>
                 {% endif %}
               </div>
             </td>
@@ -150,33 +150,33 @@
         {% endfor %}
         {% if not shortcuts %}
           <tr><td colspan="3" class="px-6 py-12 text-center">
-            <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-2xl">🔗</div>
-            <p class="font-bold">No shortcuts yet</p><p class="text-sm text-gray-500">Create your first <span class="font-mono">r/</span> link or install the starter pack.</p>
-            <a href="/admin/setup" class="inline-block mt-3 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm">Install starter pack</a>
+            <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center text-2xl border border-gray-200 dark:border-white/10">🔗</div>
+            <p class="font-bold text-gray-900 dark:text-white">No shortcuts yet</p><p class="text-sm text-gray-500 dark:text-white/60">Create your first <span class="font-mono">r/</span> link or install the starter pack.</p>
+            <a href="/admin/setup" class="inline-block mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold">Install starter pack</a>
           </td></tr>
         {% endif %}
         </tbody>
       </table>
     </div>
-    <div class="px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between text-xs text-gray-500">
-      <span>Press <kbd class="px-1.5 py-0.5 bg-white dark:bg-gray-700 border rounded text-xs">/</kbd> to search, <kbd class="px-1.5 py-0.5 bg-white dark:bg-gray-700 border rounded">n</kbd> for new</span>
-      <a href="/admin/setup" class="hover:underline">Manage starter pack →</a>
+    <div class="px-6 py-3 bg-gray-50 dark:bg-white/5 border-t border-gray-200 dark:border-white/10 flex items-center justify-between text-xs text-gray-500 dark:text-white/40">
+      <span>Press <kbd class="px-1.5 py-0.5 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded text-xs">/</kbd> to search, <kbd class="px-1.5 py-0.5 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded">n</kbd> for new</span>
+      <a href="/admin/setup" class="hover:underline hover:text-blue-600 dark:hover:text-white">Manage starter pack →</a>
     </div>
   </div>
 
   <!-- Sidebar -->
   <div class="space-y-4">
-    <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 border shadow-sm">
-      <h3 class="font-black text-sm mb-3 flex items-center gap-2"><i class="fa-solid fa-fire text-orange-500"></i> Trending</h3>
+    <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-5 border border-gray-200 dark:border-white/10 shadow-sm">
+      <h3 class="font-black text-sm mb-3 flex items-center gap-2 text-gray-900 dark:text-white"><i class="fa-solid fa-fire text-orange-500"></i> Trending</h3>
       {% if trending %}
         {% for t in trending %}
-        <a href="/{{ t.pattern }}" class="flex items-center gap-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 -mx-2 px-2 rounded-xl">
-          <span class="font-mono text-xs font-bold bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">#{{ loop.index }}</span>
-          <span class="font-mono text-sm font-bold flex-1 truncate">{{ t.pattern }}</span>
-          <span class="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 px-2 py-0.5 rounded-full">{{ t.access_count }} hits</span>
+        <a href="/{{ t.pattern }}" class="flex items-center gap-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 -mx-2 px-2 rounded-xl">
+          <span class="font-mono text-xs font-bold bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white px-1.5 py-0.5 rounded">#{{ loop.index }}</span>
+          <span class="font-mono text-sm font-bold flex-1 truncate text-gray-900 dark:text-white">{{ t.pattern }}</span>
+          <span class="text-xs bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">{{ t.access_count }} hits</span>
         </a>
         {% endfor %}
-      {% else %}<p class="text-xs text-gray-400">No hits yet — share a link!</p>{% endif %}
+      {% else %}<p class="text-xs text-gray-500 dark:text-white/40">No hits yet — share a link!</p>{% endif %}
     </div>
 
     <div class="bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-5 text-white shadow">
@@ -191,18 +191,18 @@
       <p class="text-xs text-white/60 mt-2">Tip: use <span class="font-mono bg-white/20 px-1 rounded">jira/{ticket}</span> for dynamic</p>
     </div>
 
-    <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 border shadow-sm">
-      <h3 class="font-black text-sm mb-3">Recent</h3>
+    <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-5 border border-gray-200 dark:border-white/10 shadow-sm">
+      <h3 class="font-black text-sm mb-3 text-gray-900 dark:text-white">Recent</h3>
       {% for r in recent %}
-      <a href="/{{ r.pattern }}" class="flex items-center gap-2 py-1.5 text-sm hover:underline"><span class="w-2 h-2 rounded-full bg-blue-500"></span><span class="font-mono truncate">{{ r.pattern }}</span><span class="ml-auto text-xs text-gray-400">{{ r.created_at[:10] if r.created_at else '' }}</span></a>
-      {% else %}<p class="text-xs text-gray-400">No recent</p>{% endfor %}
-      <a href="/changelog" class="text-xs text-blue-600 hover:underline mt-3 inline-block">See changelog →</a>
+      <a href="/{{ r.pattern }}" class="flex items-center gap-2 py-1.5 text-sm hover:underline text-gray-700 dark:text-white/80"><span class="w-2 h-2 rounded-full bg-blue-500"></span><span class="font-mono truncate">{{ r.pattern }}</span><span class="ml-auto text-xs text-gray-400 dark:text-white/30">{{ r.created_at[:10] if r.created_at else '' }}</span></a>
+      {% else %}<p class="text-xs text-gray-500 dark:text-white/40">No recent</p>{% endfor %}
+      <a href="/changelog" class="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-3 inline-block">See changelog →</a>
     </div>
 
-    <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 border flex items-center gap-3">
+    <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 flex items-center gap-3">
       <img src="{{ url_for('static', filename='assets/logo.png') }}" class="w-8 h-8 rounded">
-      <div class="flex-1"><p class="text-sm font-bold">Need help?</p><p class="text-xs text-gray-500">r/ links work on your office network. Add <span class="font-mono">127.0.0.1 r</span> for local.</p></div>
-      <a href="/enable-r-instructions" class="text-blue-600 text-xs underline">Fix</a>
+      <div class="flex-1"><p class="text-sm font-bold text-gray-900 dark:text-white">Need help?</p><p class="text-xs text-gray-500 dark:text-white/60">r/ links work on your office network. Add <span class="font-mono">127.0.0.1 r</span> for local.</p></div>
+      <a href="/enable-r-instructions" class="text-blue-600 dark:text-blue-400 text-xs underline">Fix</a>
     </div>
   </div>
 </div>
