@@ -66,7 +66,18 @@ class TestUtils(unittest.TestCase):
         mock_config_module.get_configuration.assert_called_once()
         mock_save_config.assert_called_once()
 
+    @patch(f'{UTILS_MODULE_PATH}._save_config')
+    @patch(f'{UTILS_MODULE_PATH}.config')
+    def test_set_config_overwrite(self, mock_config_module, mock_save_config):
+        """Test set_config overwrites existing key and saves."""
+        current_config = {"foo": "bar"}
+        mock_config_module.get_configuration.return_value = current_config
 
+        utils.set_config("foo", "baz")
+
+        self.assertEqual(current_config["foo"], "baz")
+        mock_config_module.get_configuration.assert_called_once()
+        mock_save_config.assert_called_once()
 
     def test_destructure_subpath(self):
         test_cases = [
@@ -84,14 +95,39 @@ class TestUtils(unittest.TestCase):
             with self.subTest(subpath_input=subpath_input):
                 self.assertEqual(utils.destructureSubPath(subpath_input), expected_output)
 
+    def test_destructure_subpath_edge_cases(self):
+        self.assertEqual(utils.destructureSubPath(None), ("", []))
+        self.assertEqual(utils.destructureSubPath(123), ("123", []))
+        self.assertEqual(utils.destructureSubPath("/"), ("", []))
+        self.assertEqual(utils.destructureSubPath(""), ("", []))
+
     def test_replace_placeholders(self):
         self.assertEqual(utils.replacePlaceHolders("api/{id}/data", "123"), "api/123/data")
         self.assertEqual(utils.replacePlaceHolders("api/{id}/{name}", "val"), "api/val/val")
         self.assertEqual(utils.replacePlaceHolders("no_placeholders", "val"), "no_placeholders")
 
+    def test_replace_placeholders_multiple_values(self):
+        self.assertEqual(utils.replacePlaceHolders("api/{id}/{name}", ["123", "bob"]), "api/123/bob")
+        self.assertEqual(utils.replacePlaceHolders("api/{id}/{name}/{id}", ["1", "x"]), "api/1/x/1")
+        # Test repeated use of the last value if there are more placeholders than values
+        self.assertEqual(utils.replacePlaceHolders("api/{id}/{name}/{extra}", ["1", "bob"]), "api/1/bob/bob")
+
     def test_get_placeholder_vars(self):
         self.assertEqual(utils.get_placeholder_vars("api/{id}/data/{name}"), ["id", "name"])
         self.assertEqual(utils.get_placeholder_vars("no_placeholders"), [])
+
+    def test_get_placeholder_vars_brackets(self):
+        self.assertEqual(utils.get_placeholder_vars("api/[foo]/bar/{baz}"), ["foo", "baz"])
+
+    def test_get_config_default_types(self):
+        # Test with int, bool, etc
+        with patch(f'{UTILS_MODULE_PATH}.config') as mock_config_module, \
+             patch(f'{UTILS_MODULE_PATH}._save_config') as mock_save_config:
+            mock_config_module.get_configuration.return_value = {}
+            result = utils.get_config("int_key", 42)
+            self.assertEqual(result, 42)
+            result = utils.get_config("bool_key", True)
+            self.assertEqual(result, True)
 
 
 if __name__ == '__main__':

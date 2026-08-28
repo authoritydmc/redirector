@@ -6,5 +6,6 @@ db = SQLAlchemy()
 from .upstream_check_log import UpstreamCheckLog
 from .redirect import Redirect
 from .upstream_cache import UpstreamCache
+from .user_param import UserParam
 
 

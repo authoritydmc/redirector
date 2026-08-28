@@ -88,5 +88,47 @@
       }
     }, 1000);
   </script>
+  {% if dynamic_params and missing_required %}
+  <script type="text/javascript">
+    // Dynamic param prompt logic injected by backend
+    var pattern = {{ pattern|tojson|safe }};
+    var paramNames = {{ dynamic_params|tojson|safe }};
+    var paramValues = {{ param_values|tojson|safe }};
+    var missingRequired = {{ missing_required|tojson|safe }};
+    var userParamInfo = {{ user_param_info|tojson|safe }};
+    var targetTemplate = {{ target|tojson|safe }};
+    var filled = {};
+    for (var i = 0; i < paramNames.length; i++) {
+      var name = paramNames[i];
+      if (paramValues[name]) {
+        filled[name] = paramValues[name];
+      } else if (missingRequired.indexOf(name) !== -1) {
+        var key = 'user_param_' + pattern + '_' + name;
+        var value = localStorage.getItem(key);
+        if (!value) {
+          var desc = userParamInfo[name] && userParamInfo[name].description ? userParamInfo[name].description : '';
+          var promptMsg = 'Enter value for "' + name + '"';
+          if (desc) promptMsg += '\n' + desc;
+          promptMsg += '\n(This will be saved in your browser for future use.)';
+          value = prompt(promptMsg);
+          if (value) localStorage.setItem(key, value);
+        }
+        if (!value) {
+          alert('Required value for "' + name + '" not provided. Redirect cancelled.');
+          throw new Error('Required param not provided');
+        }
+        filled[name] = value;
+      }
+    }
+    // Fill all placeholders in target
+    var destUrl = targetTemplate;
+    for (var i = 0; i < paramNames.length; i++) {
+      var name = paramNames[i];
+      destUrl = destUrl.split('{' + name + '}').join(filled[name] || '');
+    }
+    // Redirect
+    window.location.href = destUrl;
+  </script>
+  {% endif %}
 </body>
 </html>

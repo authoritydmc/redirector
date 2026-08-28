@@ -1,49 +1,95 @@
 {% extends "base.html" %}
-{% block title %}Tutorial - URL Shortener/Redirector{% endblock %}
+{% block title %}Shortcut Creation Tutorial - URL Shortener/Redirector{% endblock %}
 
 {% block content %}
-<!-- Container to center the card -->
 <div class="flex items-center justify-center min-h-[calc(100vh-160px)] px-4">
-  <!-- Tutorial Card -->
-  <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-8 w-full max-w-2xl text-gray-800 dark:text-gray-200">
-    <h2 class="text-2xl font-bold mb-4 text-blue-700 dark:text-blue-300">How to Create Dynamic Shortcuts</h2>
-
-    <div class="mb-4 space-y-3">
-      <div class="bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-200 px-4 py-2 rounded">
-        <b>New:</b> To create a shortcut, click <b>New Shortcut</b> on the dashboard. The shortcut pattern is now read-only by default—click the <i class="fa-solid fa-pen"></i> pencil icon to edit it. The app will check for duplicates and ensure the pattern is never empty.
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-8 w-full max-w-3xl text-gray-800 dark:text-gray-200">
+    <h2 class="text-3xl font-bold mb-6 text-blue-700 dark:text-blue-300 flex items-center gap-3">
+      <i class="fa-solid fa-graduation-cap text-blue-400"></i> How to Create Shortcuts
+    </h2>
+    <div class="mb-6">
+      <div class="flex gap-2 mb-4">
+        <button class="tab-btn bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 px-4 py-2 rounded font-semibold flex items-center gap-2 active" data-tab="static"><i class="fa-solid fa-link"></i> Static</button>
+        <button class="tab-btn bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 px-4 py-2 rounded font-semibold flex items-center gap-2" data-tab="dynamic"><i class="fa-solid fa-code"></i> Dynamic</button>
+        <button class="tab-btn bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 px-4 py-2 rounded font-semibold flex items-center gap-2" data-tab="user-dynamic"><i class="fa-solid fa-user-gear"></i> User Dynamic</button>
       </div>
-      <div class="bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-200 px-4 py-2 rounded">
-        <b>Dynamic shortcuts</b> use curly braces (e.g. <span class="font-mono">{userId}</span>) in the target URL. When someone visits <span class="font-mono">/yourpattern/123</span>, <span class="font-mono">{userId}</span> is replaced with <span class="font-mono">123</span>.
+      <div class="tab-content" id="tab-static">
+        <div class="bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-200 px-4 py-3 rounded mb-3 flex items-center gap-3">
+          <i class="fa-solid fa-link fa-lg"></i>
+          <div>
+            <b>Static Shortcut:</b> Always redirects to the same URL.
+          </div>
+        </div>
+        <ol class="list-decimal list-inside space-y-2 mb-4">
+          <li>Click <b>New Shortcut</b> on the dashboard.</li>
+          <li>Enter a unique shortcut pattern (e.g. <span class="font-mono">google</span>).</li>
+          <li>Select <b>Static</b> as the type.</li>
+          <li>Enter the target URL (e.g. <span class="font-mono">https://www.google.com</span>).</li>
+          <li>Click <b>Create Shortcut</b>. Now, visiting <span class="font-mono">/google</span> will redirect to Google.</li>
+        </ol>
+        <div class="flex justify-center mt-4">
+          <img src="/static/assets/static-shortcut-example.png" alt="Static Shortcut Example" class="rounded-lg shadow max-w-md w-full border border-green-200 dark:border-green-700">
+        </div>
+      </div>
+      <div class="tab-content hidden" id="tab-dynamic">
+        <div class="bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-200 px-4 py-3 rounded mb-3 flex items-center gap-3">
+          <i class="fa-solid fa-code fa-lg"></i>
+          <div>
+            <b>Dynamic Shortcut:</b> Uses curly braces (<span class="font-mono">{param}</span>) in the target URL. The value is filled in from the URL path.
+          </div>
+        </div>
+        <ol class="list-decimal list-inside space-y-2 mb-4">
+          <li>Click <b>New Shortcut</b> on the dashboard.</li>
+          <li>Enter a unique shortcut pattern (e.g. <span class="font-mono">json</span>).</li>
+          <li>Select <b>Dynamic</b> as the type (or let the app auto-detect curly braces).</li>
+          <li>Enter the target URL with a variable, e.g. <span class="font-mono">https://jsonplaceholder.typicode.com/posts/{id}</span>.</li>
+          <li>Click <b>Create Shortcut</b>. Now, visiting <span class="font-mono">/json/10</span> will redirect to <span class="font-mono">https://jsonplaceholder.typicode.com/posts/10</span>.</li>
+        </ol>
+        <div class="flex justify-center mt-4">
+          <img src="/static/assets/dynamic-shortcut-tutorial.png" alt="Dynamic Shortcut Example" class="rounded-lg shadow max-w-md w-full border border-blue-100 dark:border-blue-700">
+        </div>
+      </div>
+      <div class="tab-content hidden" id="tab-user-dynamic">
+        <div class="bg-yellow-100 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded mb-3 flex items-center gap-3">
+          <i class="fa-solid fa-user-gear fa-lg"></i>
+          <div>
+            <b>User Dynamic Shortcut:</b> Uses square brackets (<span class="font-mono">[param]</span>) in the target URL. The value is prompted for and stored in your browser.
+          </div>
+        </div>
+        <ol class="list-decimal list-inside space-y-2 mb-4">
+          <li>Click <b>New Shortcut</b> on the dashboard.</li>
+          <li>Enter a unique shortcut pattern (e.g. <span class="font-mono">apikey</span>).</li>
+          <li>Select <b>User Dynamic</b> as the type (or let the app auto-detect square brackets).</li>
+          <li>Enter the target URL with a variable, e.g. <span class="font-mono">https://api.example.com/data?key=[apikey]</span>.</li>
+          <li>For each <span class="font-mono">[param]</span>, you will be asked for a description. This helps users know what to enter.</li>
+          <li>Click <b>Create Shortcut</b>. The first time you visit <span class="font-mono">/apikey</span>, you will be prompted for your value, which is saved in your browser for future use.</li>
+        </ol>
+        <div class="flex justify-center mt-4">
+          <img src="/static/assets/user-dynamic-shortcut-example.png" alt="User Dynamic Shortcut Example" class="rounded-lg shadow max-w-md w-full border border-yellow-200 dark:border-yellow-700">
+        </div>
       </div>
     </div>
-
-    <ol class="list-decimal list-inside space-y-2 mb-4">
-      <li><b>Click <span class="font-mono">New Shortcut</span> on the dashboard.</b></li>
-      <li><b>Edit the shortcut pattern</b> by clicking the <i class="fa-solid fa-pen"></i> pencil icon. Enter a unique name (e.g. <span class="font-mono">jsonpost</span>).</li>
-      <li><b>Select <span class="font-mono">Dynamic</span> as the type</b> (or let the app auto-detect based on curly braces in the target URL).</li>
-      <li><b>Enter the target URL</b>. For example:<br>
-        <span class="font-mono">https://jsonplaceholder.typicode.com/posts/{postId}</span>
-      </li>
-      <li><b>Save the shortcut</b>. Now, visiting <span class="font-mono">/jsonpost/1</span> will redirect to <span class="font-mono">https://jsonplaceholder.typicode.com/posts/1</span>.</li>
-    </ol>
-
-    <div class="mb-4">
-      <b>Example: Dynamic shortcut for JSONPlaceholder POST API</b>
-  
-      <div class="flex justify-center mt-4">
-        <img src="{{ url_for('static', filename='assets/dynamic-shortcut-tutorial.png') }}" alt="Dynamic Shortcut Tutorial Example" class="rounded-lg shadow max-w-md w-full border border-blue-100 dark:border-gray-700">
-      </div>
-          <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-4 mt-2 text-sm">
-        <b>Shortcut Pattern:</b> <span class="font-mono">jsonpost</span><br>
-        <b>Type:</b> Dynamic<br>
-        <b>Target URL:</b> <span class="font-mono">https://jsonplaceholder.typicode.com/posts/{postId}</span><br>
-        <b>Usage:</b> Visit <span class="font-mono">/jsonpost/10</span> to go to <span class="font-mono">https://jsonplaceholder.typicode.com/posts/10</span> (shows a fake post from the API).
-      </div>
-    </div>
-
-    <div class="text-center mt-6">
-      <a href="/" class="text-blue-600 dark:text-blue-400 hover:underline">← Back to Dashboard</a>
+    <div class="text-center mt-8">
+      <a href="/" class="text-blue-600 dark:text-blue-400 hover:underline"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
     </div>
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+// Tab switching logic
+const tabBtns = document.querySelectorAll('.tab-btn');
+const tabContents = document.querySelectorAll('.tab-content');
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', function() {
+    tabBtns.forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    const tab = this.getAttribute('data-tab');
+    tabContents.forEach(tc => tc.classList.add('hidden'));
+    document.getElementById('tab-' + tab).classList.remove('hidden');
+  });
+});
+// Set default tab
+if (tabBtns.length) tabBtns[0].click();
+</script>
 {% endblock %}

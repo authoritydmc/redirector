@@ -23,10 +23,11 @@
       <table class="w-full table-fixed text-sm divide-y divide-gray-200 dark:divide-gray-700">
         <thead class="bg-blue-50 dark:bg-gray-800">
           <tr>
-            <th class="py-2 px-2 sm:px-3 text-left text-blue-800 dark:text-blue-200 font-semibold w-[16%]"><i class="fa-solid fa-signature"></i> Name</th>
-            <th class="py-2 px-2 sm:px-3 text-left text-blue-800 dark:text-blue-200 font-semibold w-[24%]"><i class="fa-solid fa-link"></i> Base URL</th>
-            <th class="py-2 px-2 sm:px-3 text-left text-blue-800 dark:text-blue-200 font-semibold w-[24%]"><i class="fa-solid fa-ban"></i> Fail URL</th>
-            <th class="py-2 px-2 sm:px-3 text-left text-blue-800 dark:text-blue-200 font-semibold w-[16%]"><i class="fa-solid fa-xmark-circle"></i> Fail Status</th>
+            <th class="py-2 px-2 sm:px-3 text-left text-blue-800 dark:text-blue-200 font-semibold w-[14%]"><i class="fa-solid fa-signature"></i> Name</th>
+            <th class="py-2 px-2 sm:px-3 text-left text-blue-800 dark:text-blue-200 font-semibold w-[20%]"><i class="fa-solid fa-link"></i> Base URL</th>
+            <th class="py-2 px-2 sm:px-3 text-left text-blue-800 dark:text-blue-200 font-semibold w-[20%]"><i class="fa-solid fa-ban"></i> Fail URL</th>
+            <th class="py-2 px-2 sm:px-3 text-left text-blue-800 dark:text-blue-200 font-semibold w-[12%]"><i class="fa-solid fa-xmark-circle"></i> Fail Status</th>
+            <th class="py-2 px-2 sm:px-3 text-left text-blue-800 dark:text-blue-200 font-semibold w-[14%]"><i class="fa-solid fa-shield-halved"></i> SSO Cache</th>
             <th class="py-2 px-2 sm:px-3 text-left text-blue-800 dark:text-blue-200 font-semibold w-[20%]"><i class="fa-solid fa-gear"></i> Actions</th>
           </tr>
         </thead>
@@ -45,10 +46,22 @@
             <td class="py-2 px-2 sm:px-3">
               <input type="number" name="fail_status_code_{{ loop.index0 }}" value="{{ up.fail_status_code }}" class="w-full rounded px-2 py-1 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border">
             </td>
+            <td class="py-2 px-2 sm:px-3 text-center">
+              <label class="inline-flex items-center gap-1 text-xs" title="Skip caching SSO login pages (accounts.google.com, okta, etc) - recommended for company SSO links">
+                <input type="checkbox" name="skip_sso_cache_{{ loop.index0 }}" {% if up.skip_sso_cache is not defined or up.skip_sso_cache %}checked{% endif %} class="rounded">
+                <span class="hidden sm:inline">Skip SSO</span>
+              </label>
+              <div class="flex justify-center mt-1">
+                <label class="inline-flex items-center gap-1 text-xs" title="Verify SSL certificate">
+                  <input type="checkbox" name="verify_ssl_{{ loop.index0 }}" {% if up.verify_ssl %}checked{% endif %} class="rounded">
+                  <span class="hidden sm:inline">SSL</span>
+                </label>
+              </div>
+            </td>
             <td class="py-2 px-2 sm:px-3">
               <div class="flex flex-col sm:flex-row gap-2">
                 <button type="submit" name="delete" value="{{ loop.index0 }}" class="text-red-600 dark:text-red-400 hover:underline flex items-center gap-1"><i class="fa-solid fa-trash"></i> Delete</button>
-                <a href="{{ url_for('upstream.admin_upstream_cache', upstream=up.name) }}" class="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"><i class="fa-solid fa-database"></i> View Cache</a>
+                <a href="{{ url_for('upstream.admin_upstream_cache', upstream=up.name) }}" class="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"><i class="fa-solid fa-database"></i> Cache</a>
               </div>
             </td>
           </tr>

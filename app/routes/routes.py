@@ -1,16 +1,17 @@
 import io
 import json
 import logging  # Import logging
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, \
     send_file, flash
 from flask import session as flask_session
 
-from app.routes.routesUtils import login_required
+from app.routes.routesUtils import login_required, get_safe_next_url
 from app.utils import utils
 from model.redirect import Redirect  # Import Redirect model for export/import
+from model.user_param import UserParam
 
 # Get a logger instance for this module
 logger = logging.getLogger(__name__)
@@ -21,23 +22,59 @@ bp = Blueprint('main', __name__)
 @bp.route('/admin-login', methods=['GET', 'POST'])
 def admin_login():
     error = None
+    # Check if MFA is enabled
+    from app.config import config as app_config
+    mfa_cfg = app_config.get_configuration().get('mfa', {})
+    mfa_enabled = bool(mfa_cfg.get('enabled') and mfa_cfg.get('secret'))
+    
     if request.method == 'POST':
         admin_pwd = utils.get_admin_password()
         if request.form.get('password') == admin_pwd:
-            session['admin_logged_in'] = True
-            next_url = request.args.get('next') or url_for('main.dashboard')
-            logger.info("Admin user logged in successfully.")
-            return redirect(next_url)
+            # Check if MFA required
+            if mfa_enabled:
+                # Check if passkey was used (webauthn) - if credential provided, verify
+                passkey_cred = request.form.get('passkey_credential')
+                if passkey_cred:
+                    # Verify passkey
+                    passkeys = mfa_cfg.get('passkeys', [])
+                    if any(pk.get('credentialId') == passkey_cred for pk in passkeys):
+                        session['admin_logged_in'] = True
+                        session.pop('mfa_pending', None)
+                        next_url = get_safe_next_url()
+                        logger.info("Admin login via passkey successful")
+                        return redirect(next_url)
+                    else:
+                        error = 'Invalid passkey.'
+                        logger.warning("Passkey login failed")
+                        return render_template('admin_login.html', error=error, mfa_enabled=mfa_enabled, show_passkey=bool(passkeys))
+                # TOTP flow - set pending and redirect to MFA verify
+                session['mfa_pending'] = True
+                # Save next url for after mfa (validated)
+                safe_next = get_safe_next_url(fallback='')
+                if safe_next and safe_next != '/':
+                    session['mfa_next'] = safe_next
+                logger.info("Admin password correct, redirecting to MFA verify")
+                return redirect(url_for('mfa.mfa_verify', next=safe_next))
+            else:
+                session['admin_logged_in'] = True
+                next_url = get_safe_next_url()
+                logger.info("Admin user logged in successfully.")
+                return redirect(next_url)
         else:
             error = 'Invalid password.'
             logger.warning("Failed admin login attempt (invalid password).")
-    return render_template('admin_login.html', error=error)
+    # For GET, show passkey option if MFA enabled and passkeys exist
+    passkeys = mfa_cfg.get('passkeys', []) if mfa_enabled else []
+    return render_template('admin_login.html', error=error, mfa_enabled=mfa_enabled, show_passkey=bool(passkeys), passkey_ids=[pk.get('credentialId') for pk in passkeys])
 
 
 # GET: Logout endpoint. Triggered when user visits /logout.
 @bp.route('/logout')
 def admin_logout():
     session.pop('admin_logged_in', None)
+    session.pop('mfa_pending', None)
+    session.pop('mfa_next', None)
+    session.pop('mfa_temp_secret', None)
     logger.info("Admin user logged out.")
     return redirect(url_for('main.dashboard'))
 
@@ -51,10 +88,12 @@ def dashboard():
             latest_shortcuts = Redirect.query.order_by(Redirect.created_at.desc()).limit(count).all()
         else:
             latest_shortcuts = Redirect.query.order_by(Redirect.updated_at.desc()).limit(count).all()
-        logger.debug(f"Retrieved {len(latest_shortcuts)} latest shortcuts for dashboard.")
+        total = Redirect.query.count()
+        logger.debug(f"Retrieved {len(latest_shortcuts)} latest shortcuts for dashboard (total {total}).")
     except Exception as e:
         logger.exception("Failed to retrieve latest shortcuts for dashboard.")
         latest_shortcuts = []
+        total = 0
     # r/ hostname detection logic
     r_hostname_enabled = False
     # Check config file for r/ hostname
@@ -77,7 +116,9 @@ def dashboard():
                 break
     except Exception:
         pass
-    return render_template('dashboard.html', shortcuts=latest_shortcuts, count=count, sort=sort, r_hostname_enabled=r_hostname_enabled)
+    # Show starter pack banner if DB is empty (first setup)
+    show_starter = (total == 0)
+    return render_template('dashboard.html', shortcuts=latest_shortcuts, count=count, sort=sort, r_hostname_enabled=r_hostname_enabled, total=total, show_starter=show_starter)
 
 
 
@@ -110,7 +151,7 @@ def admin_export_redirects():
 
     buf = io.BytesIO(json.dumps(exported_data, indent=2).encode('utf-8'))
     buf.seek(0)
-    timestamp = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
     filename = f'redirects-{timestamp}.json'
     logger.info(f"Exported {len(exported_data)} redirects to {filename}.")
     return send_file(buf, mimetype='application/json', as_attachment=True, download_name=filename)
@@ -211,10 +252,15 @@ def dashboard_shortcuts():
     try:
         count = int(request.args.get('count', 5))
         sort = request.args.get('sort', 'updated')
+        q = request.args.get('q', '').strip()
+        query = Redirect.query
+        if q:
+            like = f"%{q}%"
+            query = query.filter((Redirect.pattern.ilike(like)) | (Redirect.target.ilike(like)))
         if sort == 'created':
-            shortcuts = Redirect.query.order_by(Redirect.created_at.desc()).limit(count).all()
+            shortcuts = query.order_by(Redirect.created_at.desc()).limit(count).all()
         else:
-            shortcuts = Redirect.query.order_by(Redirect.updated_at.desc()).limit(count).all()
+            shortcuts = query.order_by(Redirect.updated_at.desc()).limit(count).all()
         result = []
         for s in shortcuts:
             result.append({
@@ -268,3 +314,57 @@ def admin_config():
         except Exception as e:
             flash(f'Failed to update configuration: {e}', 'error')
     return render_template('admin_config.html', config_data=config_data)
+
+@bp.route('/admin/setup', methods=['GET'])
+@login_required
+def admin_setup():
+    from app.utils.default_shortcuts import get_defaults_grouped, DEFAULT_SHORTCUTS
+    grouped = get_defaults_grouped()
+    existing = {r.pattern for r in Redirect.query.all()}
+    return render_template('admin_setup.html', grouped=grouped, existing=existing, total_defaults=len(DEFAULT_SHORTCUTS))
+
+@bp.route('/api/install-defaults', methods=['POST'])
+@login_required
+def api_install_defaults():
+    from app.utils.default_shortcuts import get_default_by_pattern
+    data = request.get_json() or {}
+    patterns = data.get('patterns') or request.form.getlist('patterns')
+    # fallback to form checkbox
+    if not patterns and request.form:
+        patterns = [k.split('chk_')[1] for k in request.form.keys() if k.startswith('chk_')]
+    if not patterns:
+        return jsonify({'success': False, 'error': 'No patterns selected'}), 400
+    installed = []
+    skipped = []
+    now = datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')
+    ip = request.remote_addr or 'setup'
+    for pat in patterns:
+        tmpl = get_default_by_pattern(pat)
+        if not tmpl:
+            skipped.append(pat)
+            continue
+        if utils.isPatternExists(pat):
+            skipped.append(pat)
+            continue
+        try:
+            utils.set_shortcut(pattern=tmpl['pattern'], type_=tmpl['type'], target=tmpl['target'], created_at=now, updated_at=now, created_ip=ip, updated_ip=ip)
+            # for user-dynamic, create UserParam
+            if tmpl['type'] == 'user-dynamic' and tmpl.get('params'):
+                for pname, desc in tmpl['params'].items():
+                    existing = UserParam.query.filter_by(shortcut_pattern=pat, param_name=pname).first()
+                    if not existing:
+                        p = UserParam(shortcut_pattern=pat, param_name=pname, description=desc, required=True, created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc))
+                        utils.db.session.add(p)
+                        utils.db.session.commit()
+            installed.append(pat)
+        except Exception as e:
+            logger.exception(f"Failed to install default {pat}: {e}")
+            skipped.append(pat)
+    return jsonify({'success': True, 'installed': installed, 'skipped': skipped, 'count': len(installed)})
+
+@bp.route('/api/param-description/<shortcut_pattern>/<param_name>')
+def api_param_description(shortcut_pattern, param_name):
+    param = UserParam.query.filter_by(shortcut_pattern=shortcut_pattern, param_name=param_name).first()
+    if not param:
+        return jsonify({'success': False, 'error': 'Param not found'}), 404
+    return jsonify({'success': True, 'param_name': param.param_name, 'description': param.description, 'required': param.required})

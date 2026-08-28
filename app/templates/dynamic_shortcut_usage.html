@@ -4,19 +4,150 @@
 {% block content %}
 <div class="flex items-center justify-center min-h-[60vh]">
   <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-8 w-full max-w-lg flex flex-col items-center justify-center">
-    <div class="bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-4 py-2 rounded mb-4 text-center">
-      <b>This is a dynamic shortcut:</b> <span class="font-mono">/{{ pattern }}/&#123;{{ var_name }}&#125;</span><br>
-      <span class="text-gray-700 dark:text-gray-200">To use it, add a value after <span class="font-mono">/{{ pattern }}/</span>.</span><br>
-      <div class="mt-2 text-gray-700 dark:text-gray-200">
-        Example: <span class="font-mono">/{{ pattern }}/yourvalue</span> will redirect to
-        <span class="font-mono">{{ example_target }}</span> (where
-        <span class="font-mono">&#123;{{ var_name }}&#125;</span> is replaced by
-        <span class="font-mono">yourvalue</span>).
+    {% if is_user_dynamic is defined and is_user_dynamic %}
+    <div class="bg-yellow-100 border border-yellow-300 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-4 py-3 rounded mb-4 text-left w-full">
+      <b class="block mb-2 text-center">User-specific shortcut: <span class="font-mono">/{{ pattern }}</span></b>
+      <p class="text-sm mb-3">This link needs values that are stored <b>in your browser only</b>. They will be remembered for next time.</p>
+      {% for pname in dynamic_params %}
+      <div class="mb-2">
+        <label class="block text-xs font-semibold mb-1"><span class="font-mono">[{{ pname }}]</span> {% if user_param_info and user_param_info[pname] %}— {{ user_param_info[pname].description }}{% endif %}</label>
+        <div class="flex gap-2">
+          <input id="param-{{ pname }}" type="text" class="border rounded px-3 py-2 w-full dark:bg-gray-900 dark:text-gray-100" placeholder="Enter {{ pname }}" value="{{ param_values[pname] if param_values[pname] else '' }}" />
+          <button type="button" onclick="clearStoredParam('{{ pattern }}','{{ pname }}')" class="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300" title="Clear saved value">Clear</button>
+        </div>
+        {% if pname in missing_required %}<span class="text-red-600 text-xs">Required — will be saved in localStorage</span>{% endif %}
       </div>
+      {% endfor %}
+      <button id="user-dynamic-go" class="mt-3 w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded font-semibold">Go</button>
+      <p class="text-xs mt-2 text-gray-600 dark:text-gray-300">Values are saved as <code>localStorage['user_param_{{ pattern }}_&lt;name&gt;']</code>. Use "Clear" to reset.</p>
+      {% set all_filled = missing_required|length == 0 %}
+      {% if not all_filled %}
+      <div class="mt-2 text-xs">Example: <span class="font-mono">/{{ pattern }}/{% for p in dynamic_params %}{{ p }}=yourvalue{% if not loop.last %}/{% endif %}{% endfor %}</span></div>
+      {% endif %}
     </div>
-    <div class="mt-6 text-center">
+    {% else %}
+    <div class="bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-4 py-3 rounded mb-4 text-center w-full">
+      <b>This is a dynamic shortcut:</b> <span class="font-mono">/{{ pattern }}/&#123;{{ example_param }}&#125;</span><br>
+      <span class="text-gray-700 dark:text-gray-200">To use it, add a value after <span class="font-mono">/{{ pattern }}/</span>.</span><br>
+      <div class="mt-3">
+        <label class="block text-sm font-semibold mb-1">Enter value for <span class="font-mono">{{ example_param }}</span>:</label>
+        <div class="flex gap-2">
+          <input id="dynamic-input" type="text" class="border rounded px-3 py-2 flex-1 dark:bg-gray-900 dark:text-gray-100" placeholder="yourvalue" />
+          <button id="dynamic-go" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Go</button>
+        </div>
+        <div class="mt-2 text-xs text-gray-600 dark:text-gray-300">
+          Example: <span class="font-mono">/{{ pattern }}/yourvalue</span> → <span class="font-mono">{{ target.replace('{' ~ example_param ~ '}', 'yourvalue') if example_param else target }}</span>
+        </div>
+      </div>
+      {% if dynamic_params and dynamic_params|length > 1 %}
+      <div class="mt-3 text-xs text-left">
+        <b>Multiple params:</b> <span class="font-mono">/{{ pattern }}/{% for p in dynamic_params %}{{ '{' + p + '}' }}{% if not loop.last %}/{% endif %}{% endfor %}</span><br>
+        Target: <span class="font-mono break-all">{{ target }}</span>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+    <div class="mt-4 text-xs text-gray-500 dark:text-gray-400 w-full">
+      <details>
+        <summary class="cursor-pointer hover:underline">Show details</summary>
+        <div class="mt-2 font-mono break-all">Target: {{ target }}<br>Pattern: {{ pattern }}<br>Missing: {{ missing_required|join(', ') if missing_required else 'none' }}</div>
+      </details>
+    </div>
+    <div class="mt-6 flex gap-4">
       <a href="/" class="text-blue-600 dark:text-blue-400 hover:underline">Back to Dashboard</a>
+      <a href="/edit/{{ pattern }}" class="text-gray-500 dark:text-gray-300 hover:underline">Edit Shortcut</a>
     </div>
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+  // User-dynamic handling
+  (function() {
+    const isUserDynamic = {{ 'true' if is_user_dynamic is defined and is_user_dynamic else 'false' }};
+    const pattern = {{ pattern|tojson }};
+    const dynamicParams = {{ dynamic_params|tojson }};
+    const paramValues = {{ param_values|tojson }};
+    const missingRequired = {{ missing_required|tojson }};
+    const userParamInfo = {{ user_param_info|tojson if user_param_info is defined else '{}'|safe }};
+    const targetTemplate = {{ target|tojson }};
+
+    function getStorageKey(pname){ return 'user_param_' + pattern + '_' + pname; }
+    window.clearStoredParam = function(pat, pname){
+      localStorage.removeItem(getStorageKey(pname));
+      const el = document.getElementById('param-' + pname);
+      if(el) el.value='';
+      alert('Cleared saved value for ['+pname+']');
+    };
+
+    if(isUserDynamic){
+      // Prefill from localStorage for missing
+      dynamicParams.forEach(pname=>{
+        if(!paramValues[pname]){
+          const stored = localStorage.getItem(getStorageKey(pname));
+          if(stored) {
+            const el = document.getElementById('param-' + pname);
+            if(el && !el.value) el.value = stored;
+            paramValues[pname] = stored;
+          }
+        }
+      });
+      const btn = document.getElementById('user-dynamic-go');
+      if(btn){
+        btn.addEventListener('click', function(){
+          const filled = {...paramValues};
+          let hasMissing=false;
+          dynamicParams.forEach(pname=>{
+            const el = document.getElementById('param-' + pname);
+            const val = el ? el.value.trim() : (filled[pname]||'');
+            if(!val && missingRequired.includes(pname)){
+              hasMissing=true;
+              el && el.classList.add('border-red-500');
+            } else {
+              el && el.classList.remove('border-red-500');
+              if(val) {
+                filled[pname]=val;
+                // Save to localStorage for required user params
+                if(userParamInfo[pname] && userParamInfo[pname].required){
+                  localStorage.setItem(getStorageKey(pname), val);
+                }
+              }
+            }
+          });
+          if(hasMissing){
+            alert('Please fill all required fields.');
+            return;
+          }
+          let dest = targetTemplate;
+          dynamicParams.forEach(pname=>{
+            dest = dest.split('{' + pname + '}').join(encodeURIComponent(filled[pname]||''));
+            dest = dest.split('[' + pname + ']').join(encodeURIComponent(filled[pname]||''));
+          });
+          window.location.href = dest;
+        });
+      }
+      // Auto-redirect if all required are already filled via URL + localStorage
+      const allFilledNow = missingRequired.every(p=>{
+        const el = document.getElementById('param-'+p);
+        return (el && el.value.trim()) || paramValues[p];
+      });
+      // Do not auto-redirect, let user click Go to ensure intent
+    } else {
+      const input = document.getElementById('dynamic-input');
+      const btn = document.getElementById('dynamic-go');
+      function goDynamic(){
+        const val = input ? input.value.trim() : '';
+        if(!val){
+          alert('Please enter a value for {{ example_param }}');
+          return;
+        }
+        // Construct URL: pattern + "/" + val (handles hierarchical patterns)
+        const dest = '/' + pattern + '/' + encodeURIComponent(val);
+        window.location.href = dest;
+      }
+      if(btn) btn.addEventListener('click', goDynamic);
+      if(input) input.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); goDynamic(); }});
+    }
+  })();
+</script>
 {% endblock %}

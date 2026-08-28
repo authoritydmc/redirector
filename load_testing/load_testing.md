@@ -1,74 +1,58 @@
 # Load Testing with Locust
 
-## Introduction
-This document outlines the load testing setup using **Locust**, a Python-based load testing tool. The goal is to simulate user behavior and assess application performance under stress.
+This project includes a comprehensive Locust load testing script at `load_testing/locustfile.py` to simulate real-world usage and stress test all major shortcut and upstream features.
 
-## Setup
-### **1. Install Dependencies**
+## Features Covered
+- Static, dynamic, and user-dynamic shortcut creation and redirection
+- Upstream check UI and unknown shortcut access
+- Upstream cache resync, purge, and logs
+- Google and random shortcut flows
+
+## How to Run Load Tests
+
+1. **Install Locust:**
+   ```sh
+   pip install locust
+   ```
+
+2. **Start your Flask app:**
+   Make sure your app is running locally (default: http://localhost).
+
+3. **Run Locust:**
+   ```sh
+   locust -f load_testing/locustfile.py --host=http://localhost
+   ```
+
+4. **Open the Locust web UI:**
+   Go to [http://localhost:8089](http://localhost:8089) in your browser.
+
+5. **Configure and start the test:**
+   - Set the number of users and spawn rate.
+   - Click "Start swarming".
+
+## What Gets Tested
+- **/edit/<shortcut>**: Create static, dynamic, and user-dynamic shortcuts
+- **/<shortcut>**: Redirect to static, dynamic, and user-dynamic targets
+- **/check-upstreams-ui/<pattern>**: Upstream check UI
+- **/admin/upstream-cache/resync/<upstream>/<pattern>**: Resync cache
+- **/admin/upstream-cache/purge/<upstream>**: Purge cache
+- **/admin/upstream-logs**: View logs
+- **/admin/upstreams**: Add/delete upstreams (if you add tasks)
+
+## Customizing the Test
+- Edit `locustfile.py` to add/remove tasks or change request parameters.
+- You can simulate more users, different shortcut patterns, or more admin flows as needed.
+
+## Tips
+- For best results, run with a clean database or in a test environment.
+- Monitor your server's CPU, memory, and response times during the test.
+- Use the Locust UI charts to spot bottlenecks or failures.
+
+---
+
+**Example Locust command:**
 ```sh
-pip install locust
+locust -f load_testing/locustfile.py --host=http://localhost
 ```
 
-### **2. Directory Structure**
-```
-/load_tests
-    ├── locustfile.py          # Main entry point
-```
-
-## Locust Script
-### **Main locustfile.py**
-```python
-from locust import HttpUser, between
-from tasks.redirect_tasks import RedirectUpstreamTasks
-from tasks.user_tasks import UserTasks
-
-class WebsiteUser(HttpUser):
-    wait_time = between(1, 3)
-    tasks = [RedirectUpstreamTasks, UserTasks]
-```
-
-### **Redirect Tasks (`redirect_tasks.py`)**
-```python
-from locust import TaskSet, task
-import uuid
-
-class RedirectUpstreamTasks(TaskSet):
-    @task
-    def create_random_redirect(self):
-        shortcut = f"shortcut-{uuid.uuid4().hex[:8]}"
-        target = "https://example.com"
-        self.client.post(f"/edit/{shortcut}", data={"type": "redirect", "target": target}, name="/edit/<shortcut>")
-        self.client.get(f"/{shortcut}", name="/<shortcut>")
-
-    @task
-    def create_and_test_google_redirect(self):
-        shortcut = "google"
-        target = "https://google.com"
-        self.client.post(f"/edit/{shortcut}", data={"type": "redirect", "target": target}, name="/edit/google")
-        self.client.get(f"/{shortcut}", name="/google")
-```
-
-## Running the Test
-To start Locust with your defined tasks:
-```sh
-locust -f load_testing/locustfile.py --host=http://localhost:80
-```
-Then open `http://localhost:8089` in your browser to configure and start testing.
-
-## Load Test Parameters
-| Parameter    | Description                | Example Value |
-|-------------|----------------------------|--------------|
-| `Number of Users` | Simulated concurrent users | 100 |
-| `Spawn Rate` | Rate of user ramp-up | 10 |
-| `Request Timeout` | Max response wait time | 5 sec |
-| `Max Failures` | Allowed failed requests | 50 |
-
-## Monitoring & Analysis
-### **View Results in Locust UI**
-- Navigate to `http://localhost:8089` for real-time statistics.
-- Check response times, failures, and throughput.
-
-### **Export Data for Analysis**
-```sh
-locust --headless -f load_testing/locustfile.py --host=http://localhost:80 --csv=load_testing/load_test_results
-```
+See `locustfile.py` for all simulated user flows.

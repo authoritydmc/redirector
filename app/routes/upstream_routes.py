@@ -39,6 +39,7 @@ def admin_upstreams():
                 fail_url = request.form.get(f'fail_url_{i}')
                 fail_status_code = request.form.get(f'fail_status_code_{i}')
                 verify_ssl = request.form.get(f'verify_ssl_{i}') == 'on'
+                skip_sso_cache = request.form.get(f'skip_sso_cache_{i}') == 'on'
 
                 if name is None and base_url is None and fail_url is None and fail_status_code is None:
                     break
@@ -54,7 +55,8 @@ def admin_upstreams():
                         'base_url': base_url or '',
                         'fail_url': fail_url or '',
                         'fail_status_code': fail_status_code,
-                        'verify_ssl': verify_ssl
+                        'verify_ssl': verify_ssl,
+                        'skip_sso_cache': skip_sso_cache
                     })
                 i += 1
             utils.set_upstreams(new_upstreams)
@@ -122,17 +124,40 @@ def stream_check_upstreams(pattern):
                 fail_url_match = actual_url.startswith(fail_url) if fail_url else False
                 fail_status_match = (fail_status_code is not None and status_code == fail_status_code)
 
+                # SSO detection - must not cache SSO login pages
+                is_sso = utils.is_sso_url(actual_url)
+                if is_sso:
+                    logger.warning(f"SSO URL detected for '{pattern}' in '{up_name}': {actual_url} - will not cache")
+                    utils.log_upstream_check(
+                        pattern=pattern, upstream_name=up_name, check_url=check_url, result='sso_required',
+                        detail=f"actual_url={actual_url}, status_code={status_code}, sso_detected=True", cached=False
+                    )
+                    # SSO links exist but require auth - redirect to original check_url so browser handles SSO
+                    # Do NOT cache SSO URLs (they are useless for next user)
+                    yield from send_log(
+                        f"⚠️ SSO required for {up_name} (redirected to SSO login: {actual_url}) - not caching, will use original URL",
+                        {'found': True, 'redirect_url': check_url}
+                    )
+                    found = True
+                    redirect_url = check_url
+                    logger.info(f"Shortcut '{pattern}' found in '{up_name}' but requires SSO - redirecting to original URL.")
+                    break
+
                 if not fail_url_match or (fail_status_code and not fail_status_match):
                     found = True
                     redirect_url = actual_url
+                    # Only cache if not SSO and upstream allows it
+                    should_cache = utils.should_cache_upstream_result(up, actual_url) and utils.is_upstream_cache_enabled()
                     utils.log_upstream_check(
                        pattern= pattern,upstream_name= up_name,check_url= check_url, result='success',
-                        detail=f"actual_url={actual_url}, status_code={status_code}",cached=utils.is_upstream_cache_enabled()
+                        detail=f"actual_url={actual_url}, status_code={status_code}",cached=should_cache
                     )
-                    if utils.is_upstream_cache_enabled():
+                    if should_cache:
                         utils.cache_upstream_result(pattern, up_name, actual_url)
+                    else:
+                        logger.info(f"Skipping cache for '{pattern}' in '{up_name}' (SSO or cache disabled)")
                     yield from send_log(
-                        f"✅ Shortcut found in {up_name} (redirected to {actual_url}, status {status_code})",
+                        f"✅ Shortcut found in {up_name} (redirected to {actual_url}, status {status_code})" + ("" if should_cache else " (not cached - SSO/disabled)"),
                         {'found': True, 'redirect_url': redirect_url}
                     )
                     logger.info(f"Shortcut '{pattern}' successfully found in upstream '{up_name}'.")
@@ -222,8 +247,19 @@ def admin_upstream_cache_resync(upstream, pattern):
             logger.debug(
                 f"Resync check for '{pattern}' in '{upstream}': actual_url='{actual_url}', status='{status_code}', fail_url_match={fail_url_match}, fail_status_match={fail_status_match}")
 
+            # SSO check - do not cache SSO URLs
+            if utils.is_sso_url(actual_url):
+                logger.warning(f"SSO URL detected during resync for '{pattern}' in '{upstream}': {actual_url} - will not cache")
+                utils.log_upstream_check(pattern, upstream, check_url, 'sso_required', f"actual_url={actual_url}, status_code={status_code}, sso_detected=True", cached=False)
+                utils.clear_upstream_cache(pattern)
+                return jsonify({'success': False, 'error': 'Upstream requires SSO authentication - not cached. Link may exist but needs browser login.', 'sso': True,
+                                'checked_at': datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')})
+
             if not fail_url_match and (fail_status_code is None or not fail_status_match):
-                tried_at = datetime.utcnow().isoformat(sep=' ', timespec='seconds')
+                tried_at = datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')
+                if not utils.should_cache_upstream_result(up, actual_url):
+                    logger.info(f"Skipping cache for SSO URL '{pattern}' in '{upstream}' during resync")
+                    return jsonify({'success': True, 'resolved_url': actual_url, 'checked_at': tried_at, 'cached': False, 'warning': 'SSO URL not cached'})
                 utils.cache_upstream_result(pattern, upstream, actual_url, tried_at)
                 logger.info(f"Resync for '{pattern}' in '{upstream}' successful, cache updated.")
                 return jsonify({'success': True, 'resolved_url': actual_url, 'checked_at': tried_at})
@@ -231,17 +267,17 @@ def admin_upstream_cache_resync(upstream, pattern):
                 utils.clear_upstream_cache(pattern)
                 logger.info(f"Resync for '{pattern}' in '{upstream}' failed (matched fail criteria), cache cleared.")
                 return jsonify({'success': False, 'error': 'Pattern not found in upstream (fail criteria matched).',
-                                'checked_at': datetime.utcnow().isoformat(sep=' ', timespec='seconds')})
+                                'checked_at': datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')})
         except requests.exceptions.RequestException as e:
             utils.clear_upstream_cache(pattern)
             logger.error(f"Resync upstream check for '{pattern}' in '{upstream}' failed with HTTP error: {e}")
             return jsonify({'success': False, 'error': f"Upstream check failed: {str(e)}",
-                            'checked_at': datetime.utcnow().isoformat(sep=' ', timespec='seconds')})
+                            'checked_at': datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')})
         except Exception as e:
             utils.clear_upstream_cache(pattern)
             logger.exception(f"Unexpected error during resync upstream check for '{pattern}' in '{upstream}'.")
             return jsonify({'success': False, 'error': f"An unexpected error occurred during upstream check: {str(e)}",
-                            'checked_at': datetime.utcnow().isoformat(sep=' ', timespec='seconds')})
+                            'checked_at': datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')})
     except Exception as e:
         logger.exception(f"Top-level error during admin_upstream_cache_resync for '{upstream}'.")
         return jsonify(
@@ -305,9 +341,23 @@ def admin_upstream_cache_resync_all(upstream):
 
                 fail_url_match = actual_url.startswith(fail_url) if fail_url else False
                 fail_status_match = (fail_status_code is not None and status_code == fail_status_code)
-                tried_at = datetime.utcnow().isoformat(sep=' ', timespec='seconds')
+                tried_at = datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')
+
+                # SSO detection for resync-all
+                if utils.is_sso_url(actual_url):
+                    logger.warning(f"SSO URL detected during resync-all for '{pattern}' in '{upstream}': {actual_url} - will not cache")
+                    utils.log_upstream_check(pattern, upstream, check_url, 'sso_required', f"actual_url={actual_url}, status_code={status_code}, sso_detected=True", cached=False)
+                    utils.clear_upstream_cache(pattern)
+                    results.append({'pattern': pattern, 'success': False, 'error': 'SSO required - not cached', 'sso': True,
+                                    'checked_at': tried_at})
+                    logger.debug(f"Resync-all: Pattern '{pattern}' needs SSO, not cached.")
+                    continue
 
                 if not fail_url_match and (fail_status_code is None or not fail_status_match):
+                    if not utils.should_cache_upstream_result(up, actual_url):
+                        results.append({'pattern': pattern, 'success': True, 'resolved_url': actual_url, 'checked_at': tried_at, 'cached': False})
+                        logger.debug(f"Resync-all: Pattern '{pattern}' SSO not cached.")
+                        continue
                     utils.cache_upstream_result(pattern, upstream, actual_url, tried_at)
                     results.append(
                         {'pattern': pattern, 'success': True, 'resolved_url': actual_url, 'checked_at': tried_at})
@@ -320,13 +370,13 @@ def admin_upstream_cache_resync_all(upstream):
             except requests.exceptions.RequestException as e:
                 utils.clear_upstream_cache(pattern)
                 results.append({'pattern': pattern, 'success': False, 'error': f"Upstream check failed: {str(e)}",
-                                'checked_at': datetime.utcnow().isoformat(sep=' ', timespec='seconds')})
+                                'checked_at': datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')})
                 logger.error(f"Resync-all: HTTP error for '{pattern}' in '{upstream}': {e}")
             except Exception as e:
                 utils.clear_upstream_cache(pattern)
                 results.append(
                     {'pattern': pattern, 'success': False, 'error': f"An unexpected error occurred: {str(e)}",
-                     'checked_at': datetime.utcnow().isoformat(sep=' ', timespec='seconds')})
+                     'checked_at': datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')})
                 logger.exception(f"Resync-all: Unexpected error for '{pattern}' in '{upstream}'.")
         logger.info(f"Finished full resync for upstream: '{upstream}'. Processed {len(patterns_to_check)} patterns.")
         return jsonify({'success': True, 'results': results})

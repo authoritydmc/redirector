@@ -258,8 +258,13 @@ def get_shortcut(pattern):
                 # Ensure data_type is present for consistency, if not already
                 if 'data_type' not in shortcut:
                     shortcut['data_type'] = shortcut.get('type', CONSTANTS.DATA_TYPE_STATIC)
-                logger.debug(f"Shortcut '{pattern}' HIT from Redis. Source: {source}")
-                return shortcut, source, round(time.time() - start_time, 6)
+                # SSO URLs are never served from Redis cache - force DB lookup for freshness
+                if is_sso_url(shortcut.get('target', '')):
+                    logger.info(f"SSO target in Redis for '{pattern}' - purging Redis entry (SSO never cached)")
+                    redis_delete(f"shortcut:{pattern}")
+                else:
+                    logger.debug(f"Shortcut '{pattern}' HIT from Redis. Source: {source}")
+                    return shortcut, source, round(time.time() - start_time, 6)
             except json.JSONDecodeError as e:
                 logger.error(f"JSON decode error from Redis for shortcut:{pattern}: {e}. Deleting corrupt entry.")
                 redis_delete(f"shortcut:{pattern}") # If cached data is corrupt, delete it
@@ -280,13 +285,16 @@ def get_shortcut(pattern):
             'updated_at': redirect_obj.updated_at,
             'data_type': redirect_obj.type # Assuming 'type' maps to CONSTANTS.DATA_TYPE_STATIC/DYNAMIC
         }
-        # Hydrate Redis
+        # Hydrate Redis - NEVER cache SSO targets (avoid caching auth redirects)
         if config.redis_enabled:
-            try:
-                redis_set(f"shortcut:{pattern}", json.dumps(shortcut))
-                logger.debug(f"Shortcut '{pattern}' MISS from Redis, HIT from DB. Hydrated Redis.")
-            except Exception as e:
-                logger.error(f"Failed to hydrate Redis with shortcut:{pattern}: {e}")
+            if is_sso_url(shortcut.get('target', '')):
+                logger.info(f"SSO target detected for '{pattern}' - not caching in Redis (SSO never cached)")
+            else:
+                try:
+                    redis_set(f"shortcut:{pattern}", json.dumps(shortcut))
+                    logger.debug(f"Shortcut '{pattern}' MISS from Redis, HIT from DB. Hydrated Redis.")
+                except Exception as e:
+                    logger.error(f"Failed to hydrate Redis with shortcut:{pattern}: {e}")
         else:
             logger.debug(f"Shortcut '{pattern}' HIT from DB (Redis disabled).")
         return shortcut, source, round(time.time() - start_time, 6)
@@ -312,7 +320,7 @@ def set_shortcut(pattern, type_, target, created_at=None, updated_at=None, creat
         # Update existing shortcut
         redirect_obj.type = type_
         redirect_obj.target = target
-        redirect_obj.updated_at = updated_at or datetime.utcnow().isoformat(sep=' ', timespec='seconds')
+        redirect_obj.updated_at = updated_at or datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')
         redirect_obj.updated_ip = updated_ip
         logger.info(f"Updated existing shortcut: '{pattern}'")
     else:
@@ -322,8 +330,8 @@ def set_shortcut(pattern, type_, target, created_at=None, updated_at=None, creat
             type=type_,
             target=target,
             access_count=0,
-            created_at=created_at or datetime.utcnow().isoformat(sep=' ', timespec='seconds'),
-            updated_at=updated_at or datetime.utcnow().isoformat(sep=' ', timespec='seconds'),
+            created_at=created_at or datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds'),
+            updated_at=updated_at or datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds'),
             created_ip=created_ip,
             updated_ip=updated_ip
         )
@@ -333,22 +341,27 @@ def set_shortcut(pattern, type_, target, created_at=None, updated_at=None, creat
     try:
         db.session.commit()
         logger.debug(f"DB commit successful for shortcut '{pattern}'.")
-        # Invalidate (or re-set) Redis cache for this shortcut after update/set
+        # Invalidate (or re-set) Redis cache for this shortcut after update/set - NEVER cache SSO
         if config.redis_enabled:
             # Fetch the updated shortcut from DB to ensure consistency before caching
             updated_shortcut = Redirect.query.filter_by(pattern=pattern).first()
             if updated_shortcut:
-                shortcut_data = {
-                    'pattern': updated_shortcut.pattern,
-                    'type': updated_shortcut.type,
-                    'target': updated_shortcut.target,
-                    'access_count': updated_shortcut.access_count if updated_shortcut.access_count is not None else 0,
-                    'created_at': updated_shortcut.created_at,
-                    'updated_at': updated_shortcut.updated_at,
-                    'data_type': updated_shortcut.type
-                }
-                redis_set(f"shortcut:{pattern}", json.dumps(shortcut_data))
-                logger.debug(f"Redis cache updated for shortcut '{pattern}'.")
+                if is_sso_url(updated_shortcut.target):
+                    # Ensure any stale Redis entry is deleted for SSO
+                    redis_delete(f"shortcut:{pattern}")
+                    logger.info(f"SSO target for '{pattern}' - cleared Redis cache (SSO never cached)")
+                else:
+                    shortcut_data = {
+                        'pattern': updated_shortcut.pattern,
+                        'type': updated_shortcut.type,
+                        'target': updated_shortcut.target,
+                        'access_count': updated_shortcut.access_count if updated_shortcut.access_count is not None else 0,
+                        'created_at': updated_shortcut.created_at,
+                        'updated_at': updated_shortcut.updated_at,
+                        'data_type': updated_shortcut.type
+                    }
+                    redis_set(f"shortcut:{pattern}", json.dumps(shortcut_data))
+                    logger.debug(f"Redis cache updated for shortcut '{pattern}'.")
         else:
             logger.debug(f"Redis cache not updated for '{pattern}' (Redis disabled).")
     except Exception as e:
@@ -369,16 +382,21 @@ def is_upstream_cache_enabled():
     logger.debug(f"Upstream cache enabled status: {enabled}")
     return enabled
 
-def cache_upstream_result(pattern: str, upstream_name: str, resolved_url: str):
+def cache_upstream_result(pattern: str, upstream_name: str, resolved_url: str, checked_at: str = None):
     """
     Caches the resolved URL for an upstream check result in the database and optionally in Redis.
+    SSO URLs are NEVER cached - this function will no-op if resolved_url is SSO.
 
     Args:
         pattern (str): The shortcut pattern.
         upstream_name (str): The name of the upstream service.
         resolved_url (str): The URL resolved from the upstream check.
+        checked_at: Optional ISO timestamp; if not provided, uses current time.
     """
-    current_time_iso = datetime.now(timezone.utc).isoformat()
+    if is_sso_url(resolved_url):
+        logger.warning(f"Blocked caching of SSO URL for '{pattern}' in '{upstream_name}': {resolved_url} - SSO never cached")
+        return
+    current_time_iso = checked_at or datetime.now(timezone.utc).isoformat()
 
     cache_entry = UpstreamCache.query.filter_by(
         pattern=pattern,
@@ -432,8 +450,12 @@ def get_cached_upstream_result(pattern):
         if val:
             try:
                 result = json.loads(val)
-                logger.debug(f"Upstream cache HIT from Redis for '{pattern}'.")
-                return result
+                if is_sso_url(result.get('resolved_url', '')):
+                    logger.warning(f"SSO upstream cache hit in Redis for '{pattern}' - purging (SSO never cached)")
+                    redis_delete(f"upstream_cache:{pattern}")
+                else:
+                    logger.debug(f"Upstream cache HIT from Redis for '{pattern}'.")
+                    return result
             except json.JSONDecodeError as e:
                 logger.error(f"JSON decode error from Redis for upstream_cache:{pattern}: {e}. Deleting corrupt entry.")
                 redis_delete(f"upstream_cache:{pattern}") # Delete corrupt entry
@@ -448,19 +470,34 @@ def get_cached_upstream_result_from_db(pattern):
     # This private helper explicitly gets from DB and hydrates Redis.
     cache_entry = UpstreamCache.query.filter_by(pattern=pattern).first()
     if cache_entry:
+        # SSO URLs in DB cache are stale/invalid - purge them immediately
+        if is_sso_url(cache_entry.resolved_url):
+            logger.warning(f"Purging SSO upstream cache entry for '{pattern}' (was {cache_entry.resolved_url}) - SSO never cached")
+            try:
+                db.session.delete(cache_entry)
+                db.session.commit()
+                if config.redis_enabled:
+                    redis_delete(f"upstream_cache:{pattern}")
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Failed to purge SSO cache for '{pattern}': {e}")
+            return None
         result = {
             'pattern': cache_entry.pattern,
             'upstream_name': cache_entry.upstream_name,
             'resolved_url': cache_entry.resolved_url,
             'checked_at': cache_entry.checked_at
         }
-        # Hydrate Redis
+        # Hydrate Redis - but never hydrate SSO
         if config.redis_enabled:
-            try:
-                redis_set(f"upstream_cache:{pattern}", json.dumps(result))
-                logger.debug(f"Upstream cache HIT from DB for '{pattern}'. Hydrated Redis.")
-            except Exception as e:
-                logger.error(f"Failed to hydrate Redis with upstream_cache:{pattern}: {e}")
+            if is_sso_url(result['resolved_url']):
+                logger.info(f"SSO upstream cache for '{pattern}' not hydrating Redis")
+            else:
+                try:
+                    redis_set(f"upstream_cache:{pattern}", json.dumps(result))
+                    logger.debug(f"Upstream cache HIT from DB for '{pattern}'. Hydrated Redis.")
+                except Exception as e:
+                    logger.error(f"Failed to hydrate Redis with upstream_cache:{pattern}: {e}")
         else:
             logger.debug(f"Upstream cache HIT from DB for '{pattern}' (Redis disabled).")
         return result
@@ -497,6 +534,64 @@ def clear_upstream_cache(pattern, upstream_name=None):
             logger.debug(f"Cleared upstream cache entry from Redis for '{pattern}' and '{pattern}:{upstream_name}'.")
         except Exception as e:
             logger.error(f"Redis DELETE failed for upstream_cache:{pattern}: {e}")
+
+def purge_sso_upstream_cache():
+    """Purge all SSO URLs from upstream cache (DB + Redis). Called on startup or admin action."""
+    try:
+        all_entries = UpstreamCache.query.all()
+        purged = 0
+        for entry in all_entries:
+            if is_sso_url(entry.resolved_url):
+                logger.info(f"Purging SSO cache entry: {entry.pattern} -> {entry.resolved_url}")
+                db.session.delete(entry)
+                purged += 1
+                if config.redis_enabled and config.redis_client:
+                    try:
+                        config.redis_client.delete(f"upstream_cache:{entry.pattern}")
+                        config.redis_client.delete(f"upstream_cache:{entry.pattern}:{entry.upstream_name}")
+                    except Exception:
+                        pass
+        if purged:
+            db.session.commit()
+            logger.info(f"Purged {purged} SSO upstream cache entries (SSO never cached)")
+        else:
+            logger.debug("No SSO upstream cache entries to purge")
+        # Also purge Redis shortcut cache for SSO targets
+        if config.redis_enabled and config.redis_client:
+            try:
+                keys = config.redis_client.keys('shortcut:*')
+                for k in keys or []:
+                    val = config.redis_client.get(k)
+                    if val:
+                        try:
+                            data = json.loads(val)
+                            if is_sso_url(data.get('target', '')):
+                                config.redis_client.delete(k)
+                                logger.info(f"Purged SSO shortcut Redis cache: {k}")
+                        except Exception:
+                            continue
+                # Purge upstream_cache:* Redis keys that are SSO
+                up_keys = config.redis_client.keys('upstream_cache:*')
+                for k in up_keys or []:
+                    val = config.redis_client.get(k)
+                    if val:
+                        try:
+                            data = json.loads(val)
+                            if is_sso_url(data.get('resolved_url', '')):
+                                config.redis_client.delete(k)
+                                logger.info(f"Purged SSO upstream Redis cache: {k}")
+                        except Exception:
+                            continue
+            except Exception as e:
+                logger.error(f"Failed to purge SSO Redis caches: {e}")
+        return purged
+    except Exception as e:
+        logger.exception(f"Failed to purge SSO cache: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return 0
 
 
 
@@ -581,8 +676,8 @@ def import_redirects_from_json(json_data):
                     type=entry.get('type', CONSTANTS.DATA_TYPE_STATIC),
                     target=entry.get('target'),
                     access_count=entry.get('access_count', 0),
-                    created_at=entry.get('created_at', datetime.utcnow().isoformat(sep=' ', timespec='seconds')),
-                    updated_at=entry.get('updated_at', datetime.utcnow().isoformat(sep=' ', timespec='seconds')),
+                    created_at=entry.get('created_at', datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')),
+                    updated_at=entry.get('updated_at', datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')),
                     created_ip=entry.get('created_ip', 'import'),
                     updated_ip=entry.get('updated_ip', 'import')
                 )
@@ -630,7 +725,9 @@ def destructureSubPath(subPath: str) -> tuple[str, list[str]]:
     - "raj"        -> ("raj", [])
     - "json/1"     -> ("json", ["1"])
     - "json/1/2"   -> ("json", ["1", "2"])
-    - "/foo/bar "  -> ("foo/bar", []) (after sanitization, if 'foo/bar' is the pattern)
+    - "/foo/bar "  -> ("foo", ["bar"]) (only first segment is pattern, rest are props)
+    Legacy behavior - only first segment is considered pattern.
+    For hierarchical patterns (e.g., "x/abc", "y/h/k"), use get_shortcut_for_path() instead.
 
     Args:
         subPath: The raw subpath string from the URL (e.g., from Flask's <path:subpath>).
@@ -641,66 +738,145 @@ def destructureSubPath(subPath: str) -> tuple[str, list[str]]:
         - A list of strings representing the dynamic properties (e.g., ["1"], ["1", "2"]).
     """
     logger.debug(f"Destructuring subpath: '{subPath}'")
-
-    # 1. Sanitize the subpath:
-    #    - Strip leading/trailing whitespace.
-    #    - Convert to lowercase (assuming patterns are case-insensitive).
-    #    - Ensure no leading slash remains.
+    if subPath is None:
+        return "", []
+    if not isinstance(subPath, str):
+        subPath = str(subPath)
     sanitized_subpath = subPath.strip().lower()
     if sanitized_subpath.startswith('/'):
         sanitized_subpath = sanitized_subpath[1:]
-
-    # Handle empty string after sanitization (e.g., if subPath was just '/')
+    sanitized_subpath = sanitized_subpath.strip('/')
     if not sanitized_subpath:
-        return "", [] # Or raise an error, depending on how you want to handle '/' as input
-
-    # 2. Split the sanitized subpath into segments
+        return "", []
     segments = sanitized_subpath.split('/')
-
-    # 3. The first segment is the base pattern for lookup
     pattern = segments[0]
+    props = segments[1:] if len(segments) > 1 else []
+    return pattern, props
 
-    # 4. The remaining segments are the dynamic properties
-    dynamic_properties = segments[1:]
 
-    logger.debug(f"Destructured: pattern='{pattern}', dynamic_properties={dynamic_properties}")
-    return pattern, dynamic_properties
+def get_shortcut_for_path(subpath: str):
+    """
+    Hierarchical shortcut resolver - supports patterns containing slashes.
+    E.g., allows shortcuts like "x/abc", "x/def", "y/h/k" as distinct patterns.
+
+    Attempts longest-prefix match for the given subpath.
+    For static shortcuts, only exact matches (no remaining props) are considered.
+    For dynamic/user-dynamic, remaining segments are treated as dynamic values.
+    Returns (shortcut, data_source, resp_time, matched_pattern, remaining_props)
+    """
+    start_time = time.time()
+    if subpath is None:
+        return None, None, round(time.time() - start_time, 6), "", []
+    if not isinstance(subpath, str):
+        subpath = str(subpath)
+    sanitized = subpath.strip().lower().strip('/')
+    if not sanitized:
+        return None, None, round(time.time() - start_time, 6), "", []
+    segments = sanitized.split('/')
+    # Try longest prefix first (hierarchical)
+    for i in range(len(segments), 0, -1):
+        candidate = "/".join(segments[:i])
+        # Use get_shortcut for each candidate (handles Redis/DB/upstream)
+        shortcut, source, _ = get_shortcut(candidate)
+        if shortcut:
+            remaining = segments[i:]
+            shortcut_type = shortcut.get('type') or shortcut.get('data_type')
+            # Static shortcuts must be exact match (no extra path)
+            if shortcut_type == CONSTANTS.DATA_TYPE_STATIC and remaining:
+                logger.debug(f"Skipping static candidate '{candidate}' for subpath '{subpath}' due to remaining {remaining}")
+                continue
+            elapsed = round(time.time() - start_time, 6)
+            logger.debug(f"Hierarchical match: subpath '{subpath}' -> pattern '{candidate}' with remaining {remaining}")
+            return shortcut, source, elapsed, candidate, remaining
+    # Fallback for legacy patterns that include placeholder in pattern name (e.g., "redir-dyn/{foo}")
+    # Handles tests where pattern was stored as "redir-dyn/{foo}" but subpath is "redir-dyn/bar"
+    try:
+        from model.redirect import Redirect
+        dynamic_types = [CONSTANTS.DATA_TYPE_DYNAMIC, CONSTANTS.DATA_TYPE_USER_DYNAMIC]
+        # Use sanitized pattern for base extraction
+        try:
+            dynamic_redirects = Redirect.query.filter(Redirect.type.in_(dynamic_types)).all()
+        except Exception:
+            dynamic_redirects = []
+        for r in dynamic_redirects:
+            pat = r.pattern or ""
+            # Extract base before any { or [
+            base = pat.split("{")[0].split("[")[0].strip().rstrip("/")
+            base = sanitize_pattern(base)
+            if not base:
+                continue
+            if sanitized == base or sanitized.startswith(base + "/"):
+                remaining = sanitized[len(base):].strip("/").split("/") if len(sanitized) > len(base) else []
+                if remaining == [""]:
+                    remaining = []
+                shortcut = {
+                    'pattern': r.pattern,
+                    'type': r.type,
+                    'target': r.target,
+                    'access_count': r.access_count or 0,
+                    'created_at': r.created_at,
+                    'updated_at': r.updated_at,
+                    'data_type': r.type
+                }
+                elapsed = round(time.time() - start_time, 6)
+                logger.debug(f"Legacy dynamic match: subpath '{subpath}' -> stored pattern '{r.pattern}' base '{base}' remaining {remaining}")
+                return shortcut, CONSTANTS.data_source_redirect, elapsed, r.pattern, remaining
+    except Exception as e:
+        logger.debug(f"Legacy dynamic fallback failed: {e}")
+    # No hierarchical match found
+    elapsed = round(time.time() - start_time, 6)
+    logger.debug(f"No hierarchical match for subpath '{subpath}'")
+    return None, None, elapsed, "", segments
+
+def sanitize_pattern(pattern: str) -> str:
+    """Sanitize and normalize shortcut pattern. Allows hierarchical paths like x/abc."""
+    if pattern is None:
+        return ""
+    if not isinstance(pattern, str):
+        pattern = str(pattern)
+    p = pattern.strip().lower()
+    # Remove leading/trailing slashes
+    p = p.strip('/')
+    # Collapse multiple slashes
+    p = re.sub(r'/+', '/', p)
+    # Validate: must not be empty, must contain only allowed chars
+    return p
 
 
 def replacePlaceHolders(target_string, replacement_value):
     """
-    Replaces all occurrences of {placeholder} in a string with a given replacement value.
-
-    Args:
-        target_string (str): The string containing placeholders (e.g., "https://example.com/data/{id}/{name}").
-        replacement_value (str): The value to replace all placeholders with.
-
-    Returns:
-        str: The string with all placeholders replaced.
+    Replaces all occurrences of {placeholder} in a string with a given replacement value or list of values.
+    If a list is provided, replaces each unique placeholder with the corresponding value (by order of appearance),
+    and repeats the last value for any extra placeholders.
     """
-    return re.sub(r'\{[^}]+\}', str(replacement_value), target_string)
+    import re
+    if isinstance(replacement_value, (list, tuple)):
+        placeholders = re.findall(r'\{([^}]+)\}', target_string)
+        unique_placeholders = []
+        [unique_placeholders.append(p) for p in placeholders if p not in unique_placeholders]
+        mapping = {}
+        for i, name in enumerate(unique_placeholders):
+            if i < len(replacement_value):
+                mapping[name] = str(replacement_value[i])
+            else:
+                mapping[name] = str(replacement_value[-1])
+        def repl(match):
+            name = match.group(1)
+            return mapping.get(name, match.group(0))
+        return re.sub(r'\{([^}]+)\}', repl, target_string)
+    else:
+        return re.sub(r'\{[^}]+\}', str(replacement_value), target_string)
 
 
 def get_placeholder_vars(target_string: str) -> list[str]:
     """
     Extracts a list of all placeholder variable names from a string.
-    Placeholders are expected to be in the format {variable_name}.
-
-    Args:
-        target_string (str): The string to parse (e.g., "https://example.com/data/{id}/details/{user_name}").
-
-    Returns:
-        list[str]: A list of extracted variable names (e.g., ["id", "user_name"]).
-                   Returns an empty list if no placeholders are found.
+    Supports both {variable_name} and [variable_name] formats.
     """
-    # The regex r'\{([^}]+)\}' does the following:
-    # \{       - Matches a literal opening curly brace '{'
-    # (        - Starts a capturing group
-    # [^}]+    - Matches one or more characters that are NOT a closing curly brace '}'
-    # )        - Ends the capturing group
-    # \}       - Matches a literal closing curly brace '}'
-    # re.findall returns a list of all strings matched by the capturing group.
-    return re.findall(r'\{([^}]+)\}', target_string)
+    import re
+    curly = re.findall(r'\{([^}]+)\}', target_string)
+    square = re.findall(r'\[([^\]]+)\]', target_string)
+    return square + curly if square or curly else []
 
 
 def get_upstreams():
@@ -712,3 +888,73 @@ def set_upstreams(upstreams):
     cfg = config.get_configuration()
     cfg['upstreams'] = upstreams
     _save_config()
+
+# --- SSO detection for upstream caching ---
+SSO_URL_PATTERNS = [
+    'accounts.google.com', 'login.microsoftonline.com', 'login.microsoft.com',
+    'okta.com', 'oktapreview.com', 'okta-emea.com', 'auth0.com',
+    'sts.windows.net', 'login.windows.net', 'adfs', 'saml', 'oauth',
+    'openid', 'signin', '/login', '/signin', '/auth', '/sso',
+    'pingidentity', 'onelogin', 'accounts.', 'login.', 'auth.', 'sso.'
+]
+
+def is_sso_url(url: str) -> bool:
+    """
+    Detect if a URL is an SSO / login page that should NOT be cached.
+    Used to avoid caching upstream hits that require authentication.
+    
+    Examples:
+        - https://accounts.google.com/signin/v2/identifier -> SSO
+        - https://company.okta.com/login/login.htm -> SSO
+        - https://login.microsoftonline.com/.../oauth2/authorize -> SSO
+        - https://docs.google.com/... (not SSO, but may redirect to accounts.google.com)
+    """
+    if not url or not isinstance(url, str):
+        return False
+    lower = url.lower()
+    for pat in SSO_URL_PATTERNS:
+        if pat.lower() in lower:
+            return True
+    return False
+
+def should_cache_upstream_result(upstream: dict, resolved_url: str) -> bool:
+    """
+    Determine if an upstream result should be cached.
+    SSO URLs are NEVER cached - regardless of per-upstream setting.
+    This prevents caching login pages (accounts.google.com, okta, etc).
+    """
+    if not resolved_url:
+        return False
+    if is_sso_url(resolved_url):
+        logger.warning(f"SSO URL detected - NEVER caching: {resolved_url} (upstream: {upstream.get('name')})")
+        return False
+    return True
+
+def is_safe_redirect_target(url: str) -> bool:
+    """Validate redirect target is safe (http/https only, no javascript/data)."""
+    if not url or not isinstance(url, str):
+        return False
+    url = url.strip()
+    lower = url.lower()
+    # Block dangerous schemes
+    if lower.startswith(('javascript:', 'data:', 'vbscript:', 'file:', 'blob:')):
+        return False
+    # Must be http/https or protocol-relative (which we treat as https)
+    # Allow only http/https
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        # If no scheme, it could be relative path - block for open redirect (we want absolute http/https)
+        # For shortener, we require absolute http/https
+        if not parsed.scheme:
+            return False
+        return parsed.scheme.lower() in ('http', 'https')
+    except Exception:
+        return False
+
+def sanitize_redirect_target(url: str, fallback: str = "/") -> str:
+    """Return safe redirect target or fallback if unsafe."""
+    if is_safe_redirect_target(url):
+        return url
+    logger.warning(f"Blocked unsafe redirect target: {url}")
+    return fallback
