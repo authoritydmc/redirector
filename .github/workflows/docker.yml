@@ -1,0 +1,47 @@
+name: Docker Test
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+  workflow_dispatch:
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run Docker smoke test (local build)
+        run: |
+          chmod +x test_docker.sh
+          ./test_docker.sh
+      - name: Test public image (if available)
+        if: always()
+        run: |
+          echo "Testing public image rajlabs/redirector:latest (if exists)..."
+          docker pull rajlabs/redirector:latest || echo "Public image not yet available, skipping"
+          if docker image inspect rajlabs/redirector:latest >/dev/null 2>&1; then
+            echo "Running public image smoke test (quick health check)..."
+            docker run -d --name redirector-public-test -p 18080:80 rajlabs/redirector:latest
+            sleep 10
+            curl -s -f http://localhost:18080/health || (docker logs redirector-public-test; exit 1)
+            echo "Public image health OK"
+            docker rm -f redirector-public-test
+          fi
+        continue-on-error: true
+
+  docker-push-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v5
+      - name: Verify image can be built for release tag
+        run: |
+          chmod +x test_docker.sh
+          ./test_docker.sh
+          echo "Image ready for release ${{ github.ref_name }}"

@@ -39,3 +39,12 @@ jobs:
       run: |
         export PYTHONPATH=$(pwd)
         pytest
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run Docker smoke test (borrowed from Tax_Scripts)
+        run: |
+          chmod +x test_docker.sh
+          ./test_docker.sh
