@@ -1,255 +1,276 @@
 {% extends "base.html" %}
-  {% block title %}Dashboard - URL Shortener/Redirector{% endblock %}
-  {% block content %}
-  {% if show_starter %}
-  <div class="mb-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg p-5 text-white flex flex-col sm:flex-row items-start sm:items-center gap-4">
-    <div class="flex-1">
-      <h3 class="font-black text-lg flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> Welcome! Start with a starter pack</h3>
-      <p class="text-sm text-white/90 mt-1">No shortcuts yet. Install 14 curated company-ready shortcuts in one click — includes <span class="font-mono bg-white/20 px-1 rounded">eng/docs</span>, <span class="font-mono bg-white/20 px-1 rounded">jira/{ticket}</span>, and per-user <span class="font-mono bg-white/20 px-1 rounded">[username]</span> examples. SSO targets are never cached.</p>
+{% block title %}Dashboard — r/ links for your team{% endblock %}
+{% block content %}
+
+<!-- Hero stats -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center"><i class="fa-solid fa-link"></i></div>
+      <div>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Total shortcuts</p>
+        <p class="text-2xl font-black text-gray-900 dark:text-white">{{ total }}</p>
+      </div>
     </div>
-    <a href="/admin/setup" class="bg-white text-blue-600 px-5 py-2.5 rounded-lg shadow font-bold hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-download"></i> View Starter Pack</a>
+    <p class="text-xs text-gray-400 mt-2"><i class="fa-solid fa-arrow-trend-up text-green-500"></i> {{ trending|length }} trending</p>
   </div>
-  {% endif %}
-  <div class="flex justify-end mb-6 gap-2">
-    <a href="/edit/" class="bg-blue-600 text-white px-5 py-2 rounded-lg shadow hover:bg-blue-700 font-semibold flex items-center gap-2 transition">
-      <i class="fa-solid fa-plus"></i> New Shortcut
-    </a>
-    <a href="/admin/setup" class="bg-white dark:bg-gray-800 border text-gray-700 dark:text-gray-200 px-5 py-2 rounded-lg shadow hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold flex items-center gap-2 transition">
-      <i class="fa-solid fa-wand-magic-sparkles text-purple-500"></i> Starter Pack
-    </a>
+  <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-green-500/10 text-green-600 flex items-center justify-center"><i class="fa-solid fa-chart-simple"></i></div>
+      <div>
+        <p class="text-xs text-gray-500">Total hits</p>
+        <p class="text-2xl font-black text-gray-900 dark:text-white">{{ total_hits }}</p>
+      </div>
+    </div>
+    <p class="text-xs text-gray-400 mt-2">Across all shortcuts</p>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center"><i class="fa-solid fa-fire"></i></div>
+      <div>
+        <p class="text-xs text-gray-500">Most popular</p>
+        <p class="text-sm font-bold truncate max-w-24 text-gray-900 dark:text-white">{% if trending %}{{ trending[0].pattern }}{% else %}—{% endif %}</p>
+      </div>
+    </div>
+    <p class="text-xs text-gray-400 mt-2">{% if trending %}{{ trending[0].access_count }} hits{% else %}No data yet{% endif %}</p>
+  </div>
+  <div class="bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-4 text-white shadow">
+    <p class="text-xs text-white/80">Quick start</p>
+    <p class="font-bold">Try <span class="font-mono bg-white/20 px-1 rounded">r/docs</span></p>
+    <a href="/tutorial" class="text-xs underline mt-2 inline-block text-white/90 hover:text-white">How to create →</a>
+  </div>
+</div>
+
+<!-- Action bar -->
+<div class="flex flex-col sm:flex-row gap-3 mb-4">
+  <a href="/edit/" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl shadow hover:bg-blue-700 font-bold flex items-center gap-2 justify-center">
+    <i class="fa-solid fa-plus"></i> New Shortcut
+  </a>
+  <a href="/admin/setup" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-5 py-2.5 rounded-xl shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold flex items-center gap-2 justify-center">
+    <i class="fa-solid fa-wand-magic-sparkles text-purple-500"></i> Starter Pack
+  </a>
+  <a href="/qr/docs" target="_blank" class="hidden sm:flex bg-white dark:bg-gray-800 border px-4 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 items-center gap-2"><i class="fa-solid fa-qrcode"></i> QR Demo</a>
+  <div class="ml-auto flex gap-2">
     {% if not r_hostname_enabled %}
-    <a href="/enable-r-instructions" class="bg-yellow-500 text-white px-5 py-2 rounded-lg shadow hover:bg-yellow-600 font-semibold flex items-center gap-2 transition">
-      <i class="fa-solid fa-circle-info"></i> Enable r/ Shortcuts
+    <a href="/enable-r-instructions" class="bg-yellow-500 text-white px-4 py-2.5 rounded-xl shadow hover:bg-yellow-600 font-semibold flex items-center gap-2 text-sm">
+      <i class="fa-solid fa-circle-info"></i> Enable r/
     </a>
     {% endif %}
+    <a href="/changelog" class="bg-white dark:bg-gray-800 border px-3 py-2.5 rounded-xl text-sm flex items-center gap-1"><i class="fa-solid fa-file-lines"></i> Changelog</a>
   </div>
-  <div class="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
-    <div class="flex-1 flex items-center gap-2">
-      <div class="relative flex-1 max-w-md">
-        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-        <input id="shortcut-search" type="text" placeholder="Search shortcuts... (pattern, target)" class="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-      </div>
-      <span id="search-count" class="text-xs text-gray-500 dark:text-gray-400 hidden"></span>
-    </div>
-    <label class="text-sm font-semibold text-gray-700 dark:text-gray-200">Show
-      <select id="shortcut-count" class="ml-2 px-2 py-1 rounded border border-gray-300 dark:bg-gray-800 dark:text-gray-100">
-        <option value="5">5</option>
-        <option value="10">10</option>
-        <option value="20">20</option>
-        <option value="50">50</option>
-        <option value="100">100</option>
-      </select>
-      shortcuts
-    </label>
-    <label class="text-sm font-semibold text-gray-700 dark:text-gray-200">Sort by
-      <select id="shortcut-sort" class="ml-2 px-2 py-1 rounded border border-gray-300 dark:bg-gray-800 dark:text-gray-100">
-        <option value="updated">Last Updated</option>
-        <option value="created">First Created</option>
-      </select>
-    </label>
-  </div>
-  <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-    <h2 class="text-xl font-semibold mb-4 text-blue-700 dark:text-blue-200">Shortcuts</h2>
-    <table class="min-w-full table-auto text-left" id="shortcuts-table">
-      <thead>
-        <tr>
-          <th class="px-4 py-2 text-gray-700 dark:text-gray-200">Shortcut</th>
-          <th class="px-4 py-2 text-gray-700 dark:text-gray-200">Target</th>
-          <th class="px-4 py-2 text-gray-700 dark:text-gray-200">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="shortcuts-tbody">
-      {% for shortcut in shortcuts %}
-        <tr class="border-t align-top dark:border-gray-700">
-          <td class="px-4 py-2 font-mono align-top text-gray-800 dark:text-gray-100">
-            <div class="flex items-center gap-2">
-              {% if shortcut['type'] == 'static' %}
-                <span title="Static shortcut"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 14.828a4 4 0 010-5.656m1.415 1.414a2 2 0 010 2.828m-2.829-2.828a6 6 0 018.485 8.485l-3.536 3.535a6 6 0 01-8.485-8.485l3.535-3.535a2 2 0 112.828 2.828l-3.535 3.535a2 2 0 102.828 2.828l3.535-3.535" /></svg></span>
-              {% else %}
-                <span title="Dynamic shortcut"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg></span>
-              {% endif %}
-              {{ shortcut['pattern'] }}
-            </div>
-            <div class="text-xs text-gray-400 dark:text-gray-300 mt-1 flex items-center gap-4">
-              <span title="Accesses" class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>{{ shortcut['access_count'] }}</span>
-              <span title="Created" class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>{{ shortcut['created_at'] if shortcut['created_at'] else 'N/A' }}</span>
-              <span title="Last updated" class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>{{ shortcut['updated_at'] if shortcut['updated_at'] else 'N/A' }}</span>
-            </div>
-          </td>
-          <td class="px-4 py-2 break-all align-top text-blue-600 dark:text-blue-400"><a class="underline" href="{{ shortcut['target'] }}" target="_blank">{{ shortcut['target'] }}</a></td>
-          <td class="px-4 py-2 align-top">
-            <a class="text-green-600 dark:text-green-400 hover:underline mr-2" href="/{{ shortcut['pattern'] }}" target="_blank" title="Go"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></a>
-            <a class="text-yellow-600 dark:text-yellow-400 hover:underline mr-2" href="/edit/{{ shortcut['pattern'] }}" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 11l6 6M3 21h6a2 2 0 002-2v-6a2 2 0 00-2-2H3a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg></a>
-            {% if session.admin_logged_in %}
-            <button class="text-red-600 hover:text-red-800" title="Delete shortcut" onclick="deleteShortcut('{{ shortcut.pattern }}', this)">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-            {% endif %}
-          </td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <script>
-    const countSelect = document.getElementById('shortcut-count');
-    const sortSelect = document.getElementById('shortcut-sort');
-    function reloadShortcuts() {
-      const count = countSelect.value;
-      const sort = sortSelect.value;
-      fetch(`/dashboard-shortcuts?count=${count}&sort=${sort}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.success) {
-            const tbody = document.getElementById('shortcuts-tbody');
-            tbody.innerHTML = '';
-            for (const shortcut of data.shortcuts) {
-              tbody.innerHTML += `
-        <tr class="border-t align-top dark:border-gray-700">
-          <td class="px-4 py-2 font-mono align-top text-gray-800 dark:text-gray-100">
-            <div class="flex items-center gap-2">
-              ${shortcut.type === 'static' ? `<span title="Static shortcut"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"w-5 h-5 text-green-500\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M13.828 14.828a4 4 0 010-5.656m1.415 1.414a2 2 0 010 2.828m-2.829-2.828a6 6 0 018.485 8.485l-3.536 3.535a6 6 0 01-8.485-8.485l3.535-3.535a2 2 0 112.828 2.828l-3.535 3.535a2 2 0 102.828 2.828l3.535-3.535" /></svg></span>` : `<span title="Dynamic shortcut"><svg xmlns=\"http://www.w3.org/2000/svg" class=\"w-5 h-5 text-blue-500\" fill=\"none\" viewBox=\"0 0 24 24" stroke="currentColor"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg></span>`}
-              ${shortcut.pattern}
-            </div>
-            <div class="text-xs text-gray-400 dark:text-gray-300 mt-1 flex items-center gap-4">
-              <span title="Accesses" class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>${shortcut.access_count}</span>
-              <span title="Created" class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>${shortcut.created_at || 'N/A'}</span>
-              <span title="Last updated" class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>${shortcut.updated_at || 'N/A'}</span>
-            </div>
-          </td>
-          <td class="px-4 py-2 break-all align-top text-blue-600 dark:text-blue-400"><a class="underline" href="${shortcut.target}" target="_blank">${shortcut.target}</a></td>
-          <td class="px-4 py-2 align-top">
-            <a class="text-green-600 dark:text-green-400 hover:underline mr-2" href="/${shortcut.pattern}" target="_blank" title="Go"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></a>
-            <a class="text-yellow-600 dark:text-yellow-400 hover:underline mr-2" href="/edit/${shortcut.pattern}" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 11l6 6M3 21h6a2 2 0 002-2v-6a2 2 0 00-2-2H3a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg></a>
-            {% if session.admin_logged_in %}
-            <button class="text-red-600 hover:text-red-800" title="Delete shortcut" onclick="deleteShortcut('${shortcut.pattern}', this)">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-            {% endif %}
-          </td>
-        </tr>
-              `;
-            }
-          }
-        });
-    }
-    countSelect.addEventListener('change', reloadShortcuts);
-    sortSelect.addEventListener('change', reloadShortcuts);
-    // Set initial values from server
-    countSelect.value = "{{ count|default(5) }}";
-    sortSelect.value = "{{ sort|default('updated') }}";
+</div>
 
-    // Search filtering (client-side)
-    const searchInput = document.getElementById('shortcut-search');
-    const searchCount = document.getElementById('search-count');
-    function filterTable(){
-      const q = searchInput.value.toLowerCase().trim();
-      const rows = document.querySelectorAll('#shortcuts-tbody tr');
-      let visible=0;
-      rows.forEach(row=>{
-        const text = row.innerText.toLowerCase();
-        const show = !q || text.includes(q);
-        row.style.display = show ? '' : 'none';
-        if(show) visible++;
-      });
-      if(q){
-        searchCount.textContent = visible + ' match' + (visible!==1?'es':'');
-        searchCount.classList.remove('hidden');
-      } else {
-        searchCount.classList.add('hidden');
-      }
-    }
-    searchInput.addEventListener('input', filterTable);
-    // Also hook into reload to re-apply filter after fetch
-    const origReload = reloadShortcuts;
-    reloadShortcuts = function(){
-      const count = countSelect.value;
-      const sort = sortSelect.value;
-      const q = searchInput.value.trim();
-      // If search query present, include in server fetch for better handling of hierarchical
-      let url = `/dashboard-shortcuts?count=${count}&sort=${sort}`;
-      if(q) url += `&q=${encodeURIComponent(q)}`;
-      fetch(url)
-        .then(r => r.json())
-        .then(data => {
-          if (data.success) {
-            const tbody = document.getElementById('shortcuts-tbody');
-            tbody.innerHTML = '';
-            for (const shortcut of data.shortcuts) {
-              // Server already filtered by q, but still render all returned
-              tbody.innerHTML += `
-        <tr class="border-t align-top dark:border-gray-700">
-          <td class="px-4 py-2 font-mono align-top text-gray-800 dark:text-gray-100">
-            <div class="flex items-center gap-2">
-              ${shortcut.type === 'static' ? `<span title="Static shortcut"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"w-5 h-5 text-green-500\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M13.828 14.828a4 4 0 010-5.656m1.415 1.414a2 2 0 010 2.828m-2.829-2.828a6 6 0 018.485 8.485l-3.536 3.535a6 6 0 01-8.485-8.485l3.535-3.535a2 2 0 112.828 2.828l-3.535 3.535a2 2 0 102.828 2.828l3.535-3.535" /></svg></span>` : `<span title="Dynamic shortcut"><svg xmlns=\"http://www.w3.org/2000/svg" class=\"w-5 h-5 text-blue-500\" fill=\"none\" viewBox=\"0 0 24 24" stroke="currentColor"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg></span>`}
-              ${shortcut.pattern}
-            </div>
-            <div class="text-xs text-gray-400 dark:text-gray-300 mt-1 flex items-center gap-4">
-              <span title="Accesses" class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>${shortcut.access_count}</span>
-              <span title="Created" class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>${shortcut.created_at || 'N/A'}</span>
-              <span title="Last updated" class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>${shortcut.updated_at || 'N/A'}</span>
-            </div>
-          </td>
-          <td class="px-4 py-2 break-all align-top text-blue-600 dark:text-blue-400"><a class="underline" href="${shortcut.target}" target="_blank">${shortcut.target}</a></td>
-          <td class="px-4 py-2 align-top">
-            <a class="text-green-600 dark:text-green-400 hover:underline mr-2" href="/${shortcut.pattern}" target="_blank" title="Go"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></a>
-            <a class="text-yellow-600 dark:text-yellow-400 hover:underline mr-2" href="/edit/${shortcut.pattern}" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 11l6 6M3 21h6a2 2 0 002-2v-6a2 2 0 00-2-2H3a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg></a>
-            {% if session.admin_logged_in %}
-            <button class="text-red-600 hover:text-red-800" title="Delete shortcut" onclick="deleteShortcut('${shortcut.pattern}', this)">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-            {% endif %}
-          </td>
-        </tr>
-              `;
-            }
-            filterTable();
-          }
-        });
-    }
-    // Re-wire events to new reload
-    countSelect.removeEventListener('change', origReload);
-    sortSelect.removeEventListener('change', origReload);
-    countSelect.addEventListener('change', reloadShortcuts);
-    sortSelect.addEventListener('change', reloadShortcuts);
-    // Optionally, trigger initial reload if you want to always use AJAX
-    // reloadShortcuts();
-  </script>
-  <div class="mt-6 p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-xs text-gray-600 dark:text-gray-300">
-      <div class="font-semibold mb-1">Legend:</div>
-      <div class="flex flex-wrap gap-6 items-center">
-        <span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-green-500 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 14.828a4 4 0 010-5.656m1.415 1.414a2 2 0 010 2.828m-2.829-2.828a6 6 0 018.485 8.485l-3.536 3.535a6 6 0 01-8.485-8.485l3.535-3.535a2 2 0 112.828 2.828l-3.535 3.535a2 2 0 102.828 2.828l3.535-3.535" /></svg>Static</span>
-        <span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-blue-500 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg>Dynamic</span>
-        <span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>Accesses</span>
-        <span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>Created</span>
-        <span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Last updated</span>
-        <span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline mr-1 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>Go</span>
-        <span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline mr-1 text-yellow-600 dark:text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 11l6 6M3 21h6a2 2 0 002-2v-6a2 2 0 00-2-2H3a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg>Edit</span>
-        <span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline mr-1 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>Delete</span>
-      </div>
+{% if show_starter %}
+<div class="mb-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-lg p-5 text-white flex flex-col sm:flex-row items-start sm:items-center gap-4">
+  <div class="flex-1">
+    <h3 class="font-black text-lg flex items-center gap-2"><i class="fa-solid fa-rocket"></i> Welcome! Start with a starter pack</h3>
+    <p class="text-sm text-white/90 mt-1">No shortcuts yet. Install 14 curated company-ready shortcuts in one click — includes <span class="font-mono bg-white/20 px-1 rounded">eng/docs</span>, <span class="font-mono bg-white/20 px-1 rounded">jira/{ticket}</span>, <span class="font-mono bg-white/20 px-1 rounded">[username]</span>. SSO targets are never cached.</p>
+  </div>
+  <a href="/admin/setup" class="bg-white text-blue-600 px-5 py-2.5 rounded-xl shadow font-bold hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-download"></i> View Starter Pack</a>
+</div>
+{% endif %}
+
+<!-- Search + filters -->
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow border border-gray-200 dark:border-gray-700 p-4 mb-6">
+  <div class="flex flex-col lg:flex-row gap-3">
+    <div class="flex-1 relative">
+      <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+      <input id="shortcut-search" type="text" placeholder="Search shortcuts… try eng/, docs, or https://figma.com" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 focus:bg-white dark:focus:bg-gray-800 focus:ring-2 focus:ring-blue-500 text-sm">
+      <kbd class="hidden sm:inline absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-gray-100 dark:bg-gray-700 border px-1.5 py-0.5 rounded">/</kbd>
+    </div>
+    <div class="flex gap-2">
+      <select id="filter-type" class="px-3 py-2.5 rounded-xl border bg-white dark:bg-gray-900 text-sm">
+        <option value="">All types</option>
+        <option value="static">Static</option>
+        <option value="dynamic">Dynamic</option>
+        <option value="user-dynamic">User</option>
+      </select>
+      <select id="shortcut-count" class="px-3 py-2.5 rounded-xl border bg-white dark:bg-gray-900 text-sm">
+        <option value="5">5</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
+      </select>
+      <select id="shortcut-sort" class="px-3 py-2.5 rounded-xl border bg-white dark:bg-gray-900 text-sm hidden sm:block">
+        <option value="updated">Last updated</option><option value="created">Created</option><option value="popular">Most hits</option>
+      </select>
     </div>
   </div>
-  {% endblock %}
-  {% block scripts %}
+  <div class="flex gap-2 mt-3 flex-wrap">
+    <button class="tag-filter text-xs px-2.5 py-1 rounded-full border bg-gray-50 dark:bg-gray-900 hover:bg-blue-50" data-tag="">All</button>
+    <button class="tag-filter text-xs px-2.5 py-1 rounded-full border hover:bg-blue-50" data-tag="eng">eng</button>
+    <button class="tag-filter text-xs px-2.5 py-1 rounded-full border hover:bg-blue-50" data-tag="hr">hr</button>
+    <button class="tag-filter text-xs px-2.5 py-1 rounded-full border hover:bg-blue-50" data-tag="docs">docs</button>
+    <span id="search-count" class="text-xs text-gray-500 ml-auto hidden"></span>
+  </div>
+</div>
+
+<div class="grid lg:grid-cols-3 gap-6">
+  <!-- Main table -->
+  <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-6 py-4 border-b flex items-center justify-between">
+      <h2 class="font-black text-gray-900 dark:text-white flex items-center gap-2"><i class="fa-solid fa-list"></i> Shortcuts <span class="text-xs font-normal text-gray-500">({{ total }})</span></h2>
+      <div class="flex gap-2">
+        <button onclick="copyAll()" class="text-xs px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-sm">Copy list</button>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left" id="shortcuts-table">
+        <thead class="bg-gray-50 dark:bg-gray-900/50 text-xs text-gray-500">
+          <tr><th class="px-6 py-3">Shortcut</th><th class="px-4 py-3">Target</th><th class="px-4 py-3 text-right">Actions</th></tr>
+        </thead>
+        <tbody id="shortcuts-tbody" class="divide-y divide-gray-100 dark:divide-gray-700">
+        {% for s in shortcuts %}
+          <tr class="hover:bg-blue-50/50 dark:hover:bg-gray-700/30 group" data-type="{{ s.type }}" data-tags="{{ s.tags or '' }}">
+            <td class="px-6 py-3">
+              <div class="flex items-center gap-2">
+                {% if s.type=='static' %}<span class="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 flex items-center justify-center text-xs"><i class="fa-solid fa-link"></i></span>
+                {% elif s.type=='dynamic' %}<span class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center text-xs"><i class="fa-solid fa-bolt"></i></span>
+                {% else %}<span class="w-6 h-6 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 flex items-center justify-center text-xs"><i class="fa-solid fa-user"></i></span>{% endif %}
+                <span class="font-mono font-bold text-sm text-gray-900 dark:text-white">{{ s.pattern }}</span>
+                <button onclick="copyText('r/{{ s.pattern }}')" class="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" title="Copy r/ link"><i class="fa-regular fa-copy text-xs"></i></button>
+              </div>
+              <div class="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                <span><i class="fa-solid fa-eye mr-1"></i>{{ s.access_count }}</span>
+                <span class="hidden sm:inline"><i class="fa-regular fa-clock mr-1"></i>{{ s.updated_at[:10] if s.updated_at else '' }}</span>
+                {% if s.tags %}<span class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-xs">{{ s.tags }}</span>{% endif %}
+              </div>
+            </td>
+            <td class="px-4 py-3 max-w-48">
+              <a href="{{ s.target }}" target="_blank" class="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block" title="{{ s.target }}">{{ s.target }}</a>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex justify-end gap-1">
+                <a href="/{{ s.pattern }}" target="_blank" class="w-7 h-7 rounded-lg bg-green-500 text-white flex items-center justify-center hover:bg-green-600" title="Go"><i class="fa-solid fa-arrow-up-right-from-square text-xs"></i></a>
+                <a href="/qr/{{ s.pattern }}" target="_blank" class="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200" title="QR"><i class="fa-solid fa-qrcode text-xs"></i></a>
+                <a href="/edit/{{ s.pattern }}" class="w-7 h-7 rounded-lg bg-yellow-500 text-white flex items-center justify-center hover:bg-yellow-600" title="Edit"><i class="fa-solid fa-pen text-xs"></i></a>
+                {% if session.admin_logged_in %}
+                <button onclick="deleteShortcut('{{ s.pattern }}', this)" class="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 flex items-center justify-center hover:bg-red-100" title="Delete"><i class="fa-solid fa-trash text-xs"></i></button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+        {% if not shortcuts %}
+          <tr><td colspan="3" class="px-6 py-12 text-center">
+            <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-2xl">🔗</div>
+            <p class="font-bold">No shortcuts yet</p><p class="text-sm text-gray-500">Create your first <span class="font-mono">r/</span> link or install the starter pack.</p>
+            <a href="/admin/setup" class="inline-block mt-3 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm">Install starter pack</a>
+          </td></tr>
+        {% endif %}
+        </tbody>
+      </table>
+    </div>
+    <div class="px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between text-xs text-gray-500">
+      <span>Press <kbd class="px-1.5 py-0.5 bg-white dark:bg-gray-700 border rounded text-xs">/</kbd> to search, <kbd class="px-1.5 py-0.5 bg-white dark:bg-gray-700 border rounded">n</kbd> for new</span>
+      <a href="/admin/setup" class="hover:underline">Manage starter pack →</a>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="space-y-4">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 border shadow-sm">
+      <h3 class="font-black text-sm mb-3 flex items-center gap-2"><i class="fa-solid fa-fire text-orange-500"></i> Trending</h3>
+      {% if trending %}
+        {% for t in trending %}
+        <a href="/{{ t.pattern }}" class="flex items-center gap-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 -mx-2 px-2 rounded-xl">
+          <span class="font-mono text-xs font-bold bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">#{{ loop.index }}</span>
+          <span class="font-mono text-sm font-bold flex-1 truncate">{{ t.pattern }}</span>
+          <span class="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 px-2 py-0.5 rounded-full">{{ t.access_count }} hits</span>
+        </a>
+        {% endfor %}
+      {% else %}<p class="text-xs text-gray-400">No hits yet — share a link!</p>{% endif %}
+    </div>
+
+    <div class="bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-5 text-white shadow">
+      <h3 class="font-black text-sm mb-2 flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> Quick create</h3>
+      <p class="text-xs text-white/80 mb-3">Type a shortcut and destination, we handle `r/` for you.</p>
+      <form action="/edit/" method="post" class="space-y-2">
+        <input name="pattern" placeholder="my-link" class="w-full px-3 py-2 rounded-xl text-sm text-gray-900 placeholder:text-gray-400" required>
+        <input name="target" placeholder="https://example.com" class="w-full px-3 py-2 rounded-xl text-sm text-gray-900 placeholder:text-gray-400" required>
+        <input type="hidden" name="type" value="static">
+        <button class="w-full bg-white text-blue-600 py-2 rounded-xl font-bold text-sm hover:bg-gray-50">Create r/ link</button>
+      </form>
+      <p class="text-xs text-white/60 mt-2">Tip: use <span class="font-mono bg-white/20 px-1 rounded">jira/{ticket}</span> for dynamic</p>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 border shadow-sm">
+      <h3 class="font-black text-sm mb-3">Recent</h3>
+      {% for r in recent %}
+      <a href="/{{ r.pattern }}" class="flex items-center gap-2 py-1.5 text-sm hover:underline"><span class="w-2 h-2 rounded-full bg-blue-500"></span><span class="font-mono truncate">{{ r.pattern }}</span><span class="ml-auto text-xs text-gray-400">{{ r.created_at[:10] if r.created_at else '' }}</span></a>
+      {% else %}<p class="text-xs text-gray-400">No recent</p>{% endfor %}
+      <a href="/changelog" class="text-xs text-blue-600 hover:underline mt-3 inline-block">See changelog →</a>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 border flex items-center gap-3">
+      <img src="{{ url_for('static', filename='assets/logo.png') }}" class="w-8 h-8 rounded">
+      <div class="flex-1"><p class="text-sm font-bold">Need help?</p><p class="text-xs text-gray-500">r/ links work on your office network. Add <span class="font-mono">127.0.0.1 r</span> for local.</p></div>
+      <a href="/enable-r-instructions" class="text-blue-600 text-xs underline">Fix</a>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-4 py-2 rounded-full text-sm shadow-lg hidden">Copied!</div>
+
+{% endblock %}
+{% block scripts %}
 <script>
-function deleteShortcut(pattern, btn) {
-  if (!confirm('Are you sure you want to delete this shortcut?')) return;
-  fetch(`/api/delete-shortcut/${encodeURIComponent(pattern)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin'
-  }).then(r => r.json()).then(data => {
-    if (data.success) {
-      // Remove row from table
-      const row = btn.closest('tr');
-      if (row) row.remove();
-    } else {
-      alert('Delete failed: ' + (data.error || 'Unknown error'));
-    }
-  }).catch(e => {
-    alert('Delete failed: ' + e);
+function copyText(t){ navigator.clipboard.writeText(t).then(()=>{ const el=document.getElementById('toast'); el.textContent='Copied '+t; el.classList.remove('hidden'); setTimeout(()=>el.classList.add('hidden'),1200); }); }
+function copyAll(){ const ps=[...document.querySelectorAll('#shortcuts-tbody tr td:first-child .font-mono')].map(e=> 'r/'+e.textContent.trim()).join('\n'); copyText(ps); }
+function deleteShortcut(pat, btn){
+  if(!confirm('Delete r/'+pat+'?')) return;
+  fetch('/api/delete-shortcut/'+encodeURIComponent(pat),{method:'POST', credentials:'same-origin'}).then(r=>r.json()).then(d=>{ if(d.success) btn.closest('tr').remove(); else alert(d.error||'Failed'); });
+}
+// Search + filters
+const search=document.getElementById('shortcut-search');
+const typeFilter=document.getElementById('filter-type');
+const countSel=document.getElementById('shortcut-count');
+const sortSel=document.getElementById('shortcut-sort');
+let activeTag='';
+document.querySelectorAll('.tag-filter').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('.tag-filter').forEach(x=>x.classList.remove('bg-blue-500','text-white'));
+    if(activeTag===b.dataset.tag){ activeTag=''; } else { activeTag=b.dataset.tag; b.classList.add('bg-blue-500','text-white'); }
+    filter();
+  });
+});
+function filter(){
+  const q=(search.value||'').toLowerCase();
+  const t=typeFilter.value;
+  const tag=activeTag;
+  let visible=0;
+  document.querySelectorAll('#shortcuts-tbody tr').forEach(tr=>{
+    const type=tr.dataset.type||'';
+    const tags=(tr.dataset.tags||'').toLowerCase();
+    const text=tr.innerText.toLowerCase();
+    let show=true;
+    if(q && !text.includes(q)) show=false;
+    if(t && type!==t) show=false;
+    if(tag && !tags.includes(tag) && !text.includes(tag)) show=false;
+    tr.style.display=show?'':'none';
+    if(show) visible++;
+  });
+  const sc=document.getElementById('search-count');
+  if(q||t||tag){ sc.textContent=visible+' matches'; sc.classList.remove('hidden'); } else sc.classList.add('hidden');
+}
+search?.addEventListener('input', filter);
+typeFilter?.addEventListener('change', filter);
+// Count/sort still reload from server (keeps pagination)
+function reload(){
+  const c=countSel.value, s=sortSel.value, q=search.value.trim();
+  let url='/dashboard-shortcuts?count='+c+'&sort='+(s==='popular'?'updated':s);
+  if(q) url+='&q='+encodeURIComponent(q);
+  fetch(url).then(r=>r.json()).then(d=>{
+    if(!d.success) return;
+    const tb=document.getElementById('shortcuts-tbody');
+    tb.innerHTML='';
+    // Simple re-render (preserves design via reload page for now)
+    location.reload();
   });
 }
+countSel?.addEventListener('change', reload);
+sortSel?.addEventListener('change', reload);
+// Keyboard shortcuts
+document.addEventListener('keydown', e=>{
+  if(e.key==='/' && document.activeElement.tagName!=='INPUT'){ e.preventDefault(); search.focus(); }
+  if(e.key==='n' && !e.ctrlKey && document.activeElement.tagName!=='INPUT'){ location.href='/edit/'; }
+});
 </script>
 {% endblock %}
-

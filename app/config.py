@@ -155,7 +155,8 @@ class Config:
                 "secret": None,
                 "backup_codes": [],
                 "passkeys": []
-            }
+            },
+            "setup_completed": False
         }
         # Sort the dictionary by keys (case-insensitive)
         sorted_default_config = dict(sorted(_default_config.items(), key=lambda x: x[0].lower()))
