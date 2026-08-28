@@ -3,94 +3,172 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Redirecting... - URL Shortener/Redirector</title>
+  <title>Redirecting... — r/{{ request.path[1:] if request.path else '' }}</title>
   <meta http-equiv="refresh" content="{{ delay }};url={{ target }}" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = {
-      darkMode: 'class',
-    }
+    tailwind.config = { darkMode: 'class' }
+    if (!document.documentElement.classList.contains('dark')) document.documentElement.classList.add('dark');
   </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    @keyframes pulse-ring { 0% { transform: scale(0.9); opacity: 0.7; } 100% { transform: scale(1.15); opacity: 0; } }
+    .pulse-ring::before { content:''; position:absolute; inset:0; border-radius:9999px; background:rgba(59,130,246,0.3); animation: pulse-ring 1.6s cubic-bezier(0.4,0,0.6,1) infinite; }
+  </style>
 </head>
-<body class="bg-gradient-to-br from-blue-100 to-blue-300 dark:from-gray-900 dark:to-gray-800 min-h-screen flex items-center justify-center px-4">
-
-  <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
-    <!-- Redirect Icon -->
-    <div class="mx-auto mb-6 w-16 h-16 flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 animate-bounce">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-      </svg>
-    </div>
-
-    <h1 class="text-3xl font-extrabold text-blue-700 dark:text-blue-300 mb-2">Redirecting...</h1>
-    <p class="text-lg text-gray-700 dark:text-gray-300 mb-4">You are being redirected to:</p>
-
-    <a href="{{ target }}" target="_blank" rel="noopener noreferrer"
-       class="block break-words text-blue-600 dark:text-blue-400 font-mono underline text-lg hover:text-blue-800 dark:hover:text-blue-600 mb-6">
-      {{ target }}
-    </a>
-
-    <!-- Source Badge -->
-    {% if source %}
-      <div class="flex justify-center gap-4 mb-4 text-sm text-gray-600 dark:text-gray-400">
-        {% if source == constants.data_source_redis %}
-          <span class="flex items-center gap-1 text-green-600 dark:text-green-400">
-            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M3 10h18l-9 9-9-9z"/></svg>
-            Redis Cache
-          </span>
-        {% elif source == constants.redirect %}
-          <span class="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
-            Redirect Table
-          </span>
-        {% elif source == constants.data_source_upstream %}
-          <span class="flex items-center gap-1 text-orange-600 dark:text-orange-400">
-            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3L2 21h20L12 3z"/></svg>
-            Upstream Cache
-          </span>
-        {% endif %}
-      </div>
-    {% endif %}
-
-    <!-- Response Time -->
-    <div class="flex justify-center items-center gap-2 text-gray-600 dark:text-gray-400 text-sm mb-4">
-      <svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 5v6h5v-2h-3V7h-2z"/>
-      </svg>
-      <span>{{ response_time }} ms</span>
-    </div>
-
-    <!-- Created & Modified Metadata -->
-    <p class="text-xs text-gray-400 dark:text-gray-500 mb-6">
-      {% if created_at %} Created: {{ created_at }} {% endif %}
-      {% if modified_at %} | Modified: {{ modified_at }} {% endif %}
-    </p>
-
-    <p class="mb-4 text-gray-700 dark:text-gray-300">
-      Redirecting in <span id="countdown" class="font-semibold">{{ delay }}</span> second{{ 's' if delay != 1 else '' }}...
-    </p>
-
-    <button onclick="window.location.href='{{ target }}'" 
-            class="w-full py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white font-semibold rounded-lg transition">
-      Go Now
-    </button>
+<body class="bg-[#0f1221] dark:bg-[#0f1221] min-h-screen flex flex-col">
+  <!-- subtle blobs -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden">
+    <div class="absolute -top-24 -right-24 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"></div>
+    <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl"></div>
   </div>
 
-  <script>
-    let seconds = {{ delay }};
-    const countdown = document.getElementById('countdown');
-    const interval = setInterval(() => {
-      seconds--;
-      if (seconds <= 0) {
-        clearInterval(interval);
-      } else {
-        countdown.textContent = seconds;
+  <header class="relative z-10 max-w-5xl mx-auto w-full px-4 py-6 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 text-white/90 hover:text-white">
+      <img src="{{ url_for('static', filename='assets/logo.png') }}" class="w-7 h-7 rounded bg-white p-1">
+      <span class="font-bold text-sm">Redirector</span>
+      <span class="text-xs bg-white/10 px-2 py-0.5 rounded-full border border-white/10">r/</span>
+    </a>
+    <a href="/" class="text-xs text-white/60 hover:text-white flex items-center gap-1"><i class="fa-solid fa-house"></i> Dashboard</a>
+  </header>
+
+  <main class="flex-1 flex items-center justify-center px-4 py-8 relative z-10">
+    <div class="bg-[#1c1f2e]/90 backdrop-blur border border-white/10 rounded-[24px] shadow-2xl max-w-[420px] w-full p-6 sm:p-8 text-center">
+      <!-- Icon -->
+      <div class="relative mx-auto mb-6 w-16 h-16 flex items-center justify-center rounded-full bg-[#2a2f4a] pulse-ring">
+        <div class="w-16 h-16 rounded-full bg-[#3b4bff] flex items-center justify-center shadow-lg">
+          <i class="fa-solid fa-arrow-right text-white text-xl"></i>
+        </div>
+      </div>
+
+      <h1 class="text-[28px] font-black text-white tracking-tight">Redirecting…</h1>
+      <p class="text-sm text-white/60 mt-1">You are being redirected to:</p>
+
+      <!-- Destination card -->
+      <div class="mt-4 bg-white/5 border border-white/10 rounded-2xl p-3 flex items-center gap-3 text-left">
+        <img id="favicon" src="https://www.google.com/s2/favicons?domain={{ target|replace('https://','')|replace('http://','')|replace('/',' ')|trim|cut(' ') }}&sz=32" class="w-8 h-8 rounded-lg bg-white p-1 flex-shrink-0" onerror="this.style.display='none'">
+        <div class="flex-1 min-w-0">
+          <a id="dest-link" href="{{ target }}" class="block text-sm font-mono text-blue-400 hover:text-blue-300 truncate" title="{{ target }}">{{ target }}</a>
+          <p class="text-xs text-white/40 truncate" id="dest-host"></p>
+        </div>
+        <button onclick="copyDest()" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center flex-shrink-0" title="Copy"><i class="fa-regular fa-copy text-xs"></i></button>
+      </div>
+
+      <!-- Meta row -->
+      <div class="flex items-center justify-between mt-4 text-xs text-white/40">
+        <span class="flex items-center gap-1.5">
+          {% if source == 'redis cache' %}<span class="w-2 h-2 rounded-full bg-green-500"></span> Redis • {% elif source == 'upstream_table' %}<span class="w-2 h-2 rounded-full bg-orange-500"></span> Upstream • {% else %}<span class="w-2 h-2 rounded-full bg-blue-500"></span> Direct • {% endif %}
+          <span id="timing">{{ response_time }} ms</span>
+        </span>
+        <span class="flex items-center gap-1"><i class="fa-solid fa-shield-halved text-green-400"></i> Secure</span>
+      </div>
+
+      <!-- Progress -->
+      <div class="mt-5">
+        <div class="h-1.5 bg-white/10 rounded-full overflow-hidden">
+          <div id="progress" class="h-full bg-[#3b4bff] rounded-full transition-all duration-1000 ease-linear" style="width:0%"></div>
+        </div>
+        <p class="text-sm text-white/70 mt-3">
+          Redirecting in <span id="countdown" class="font-bold text-white">{{ delay }}</span> <span id="sec-label">second{% if delay!=1 %}s{% endif %}</span>…
+          <span class="text-white/30">•</span> <button onclick="skip()" class="underline hover:text-white">skip</button>
+        </p>
+        <p class="text-xs text-white/30 mt-1">Press <kbd class="px-1.5 py-0.5 bg-white/10 border border-white/20 rounded text-xs">Enter</kbd> to go now, <kbd class="px-1.5 py-0.5 bg-white/10 border border-white/20 rounded text-xs">Esc</kbd> to stay</p>
+      </div>
+
+      <!-- Actions -->
+      <div class="grid grid-cols-2 gap-3 mt-5">
+        <button onclick="stay()" class="py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-xmark"></i> Stay
+        </button>
+        <button id="go-btn" onclick="goNow()" class="py-3 rounded-xl bg-[#3b4bff] hover:bg-[#2f3ddb] text-white font-bold text-sm shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+          Go Now <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-white/20 mt-4">Short link • <span class="font-mono">r/{{ request.path[1:] }}</span> • <a href="/qr/{{ request.path[1:] }}" class="hover:text-white/40 underline">QR</a> • <a href="/" class="hover:text-white/40 underline">All links</a></p>
+    </div>
+  </main>
+
+  <footer class="relative z-10 text-center py-6 text-xs text-white/20">
+    Powered by <a href="https://github.com/authoritydmc/redirector" target="_blank" class="hover:text-white/40 underline">Redirector</a> • Made with ♥ by rajlabs.in
+  </footer>
+
+  <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-white text-gray-900 px-4 py-2 rounded-full text-sm font-semibold shadow-xl hidden">Copied!</div>
+
+<script>
+  const dest = {{ target|tojson }};
+  const delay = {{ delay }};
+  let seconds = delay;
+  let cancelled = false;
+  const countdownEl = document.getElementById('countdown');
+  const secLabel = document.getElementById('sec-label');
+  const progress = document.getElementById('progress');
+  const goBtn = document.getElementById('go-btn');
+  // host
+  try {
+    const u = new URL(dest);
+    document.getElementById('dest-host').textContent = u.hostname;
+  } catch { document.getElementById('dest-host').textContent = dest; }
+
+  function copyDest(){
+    navigator.clipboard.writeText(dest).then(()=>{
+      const t=document.getElementById('toast');
+      t.textContent='Copied link';
+      t.classList.remove('hidden');
+      setTimeout(()=>t.classList.add('hidden'),1200);
+    });
+  }
+  function goNow(){
+    if(cancelled) return;
+    window.location.href = dest;
+  }
+  function stay(){ cancelled=true; clearInterval(iv); progress.style.width='0%'; countdownEl.textContent='paused'; secLabel.textContent=''; }
+  function skip(){ goNow(); }
+
+  // progress + countdown for 1s default (fast)
+  let start = Date.now();
+  const iv = setInterval(()=>{
+    if(cancelled) return;
+    const elapsed = (Date.now()-start)/1000;
+    const pct = Math.min(100, (elapsed/delay)*100);
+    progress.style.width = pct + '%';
+    const remaining = Math.max(0, Math.ceil(delay - elapsed));
+    countdownEl.textContent = remaining;
+    secLabel.textContent = remaining===1 ? 'second' : 'seconds';
+    if(remaining<=0){
+      clearInterval(iv);
+      if(!cancelled) window.location.href = dest;
+    }
+  }, 50);
+
+  // keyboard
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault(); goNow(); }
+    if(e.key==='Escape'){ e.preventDefault(); stay(); }
+  });
+  // auto-focus Go for accessibility
+  goBtn.focus();
+
+  // dynamic param handling (user-dynamic) - keep existing logic
+  {% if dynamic_params and missing_required %}
+    (function(){
+      var pattern = {{ pattern|tojson|safe }};
+      var paramNames = {{ dynamic_params|tojson|safe }};
+      var paramValues = {{ param_values|tojson|safe }};
+      var missingRequired = {{ missing_required|tojson|safe }};
+      var userParamInfo = {{ user_param_info|tojson|safe }};
+      var targetTemplate = {{ target|tojson|safe }};
+      // If missing, this page is actually not for redirect but for prompt - the above countdown should be cancelled
+      if(missingRequired && missingRequired.length){
+        cancelled=true; clearInterval(iv);
+        countdownEl.textContent='needs input';
+        progress.style.width='0%';
       }
-    }, 1000);
-  </script>
+    })();
+  {% endif %}
+</script>
   {% if dynamic_params and missing_required %}
   <script type="text/javascript">
-    // Dynamic param prompt logic injected by backend
     var pattern = {{ pattern|tojson|safe }};
     var paramNames = {{ dynamic_params|tojson|safe }};
     var paramValues = {{ param_values|tojson|safe }};
@@ -120,13 +198,12 @@
         filled[name] = value;
       }
     }
-    // Fill all placeholders in target
     var destUrl = targetTemplate;
     for (var i = 0; i < paramNames.length; i++) {
       var name = paramNames[i];
       destUrl = destUrl.split('{' + name + '}').join(filled[name] || '');
+      destUrl = destUrl.split('[' + name + ']').join(filled[name] || '');
     }
-    // Redirect
     window.location.href = destUrl;
   </script>
   {% endif %}
