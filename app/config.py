@@ -136,7 +136,7 @@ class Config:
         _default_config = {
             "_config_version": 1,
             "port": 80,
-            "auto_redirect_delay": 3,
+            "auto_redirect_delay": 1,
             "database": "sqlite:///" + os.path.join(self.DATA_DIR, "redirect.db"),
             "admin_password": random_pwd,
             "delete_requires_password": True,
