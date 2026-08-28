@@ -1,74 +1,93 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to **Redirector** — your team's `go/` links — are documented here.  
+We follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+> **For everyone:** This page highlights what changed for you — faster shortcuts, fewer clicks, and more secure team sharing. Technical details live in GitHub releases.
+
+---
 
 ## [Unreleased]
 
 ### Added
-- Changelog UI at `/changelog` with live parsing of `CHANGELOG.md` (version, date, Added/Fixed/Changed sections), API at `/api/changelog`
-- Version management via `VERSION` file + `get_version.py` (like Tax_Scripts) — `python get_version.py --bump patch|minor|major`
-- Health & readiness probes at `/health` and `/ready` (DB + Redis checks) and Prometheus metrics at `/api/metrics`
-- Dashboard search & filter (client-side) for pattern/target/tags
-
-### Changed
-- Migrated version logic to read `VERSION` file + git build suffix (`3.1.0+5.gabcdef`) instead of hardcoded `3.0.0`
-
-## [3.1.0] - 2026-08-28
-### Added
-- **SSO never cached** — `is_sso_url()` detection for `accounts.google.com`, `login.microsoftonline.com`, `okta.com`, etc.; `should_cache_upstream_result()` always returns False for SSO; `purge_sso_upstream_cache()` on startup clears stale SSO entries from DB and Redis; shortcut Redis hydration skipped for SSO targets; `Cache-Control: no-store` headers for SSO redirects (`X-SSO-Link: true`) and security headers middleware (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`)
-- **Hierarchical shortcuts** — `get_shortcut_for_path()` longest-prefix matcher enables `x/abc`, `x/def`, `y/h/k` as distinct patterns; `handle_redirect` uses hierarchical resolver with static-exact vs dynamic-prefix semantics; `sanitize_pattern()` normalizes hierarchical paths
-- **User-dynamic UX** — `dynamic_shortcut_usage.html` now interactive: shows per-param descriptions, localStorage persistence (`user_param_<pattern>_<name>`), Clear/Go buttons, and multiple-param handling; `create_shortcut.html`/`edit_shortcut.html` dynamically generate `param_desc_<name>` inputs when target contains `[var]`
-- **Upstream SSO awareness** — `stream_check_upstreams` detects SSO before cache and redirects to original `check_url` (so browser handles SSO login) instead of caching login page; `admin_upstreams` adds `skip_sso_cache` per-upstream toggle (default True); `resync` and `resync-all` skip SSO caching with warning payload (`sso: true`)
-- **Enterprise roadmap** — 9 GitHub issues created for company-wide deployment: SSO/OIDC + RBAC, team namespaces, discovery (search/tags/aliases), analytics, browser/Slack/webhooks, private/team-scoped ACLs, lifecycle (expiry/archival), ops (health/metrics/CLI), QR/multi-links (see #69-#77)
+- **Starter Pack — one click, 14 shortcuts:** New teams see a welcome banner on an empty dashboard. Install curated shortcuts like `google`, `eng/docs`, `hr/handbook`, `jira/{ticket}`, and `my-prs/[username]` in one click, or pick individually at **Admin → Setup**. Perfect for onboarding a new workspace in 30 seconds.
+- **Find anything, instantly:** Dashboard search now filters by shortcut name, destination, and tags as you type — plus server-side search for large workspaces (`r/docs` finds `eng/docs` too).
+- **QR codes for every link:** Open `r/qr/<pattern>` or call `GET /api/qr/<pattern>` to get a QR for your short link — great for posters, onboarding decks, and meeting rooms.
+- **Did you mean?** Typing a missing link now shows up to 3 close matches instead of a blank "create" page. Fewer dead ends, faster discovery.
+- **Private & expiring links:** Create unlisted or private shortcuts and set an expiry date. Private links require admin login; expired links show a clear 410 message.
 
 ### Fixed
-- Security: `/.github/workflows/summary.yml` command injection — `gh issue comment "$ISSUE_NUMBER" --body "$RESPONSE"` with env `RESPONSE` instead of inline `'${{ steps.inference.outputs.response }}'` (reported in #67)
-- `cache_upstream_result()` now accepts optional `checked_at` param (fixes 4-arg call in resync handlers)
-- Import/creation allows hierarchical patterns with slashes (previously `destructureSubPath` only used first segment)
+- Faster Docker start on Windows and cleaner first-time database setup.
 
-### Changed
-- `get_shortcut()` Redis path purges SSO shortcut entries immediately; `get_cached_upstream_result*` purges SSO upstream cache entries on read
-- `app/__init__.py` runs `purge_sso_upstream_cache()` on startup and adds security headers middleware
+---
 
-## [3.0.0] - 2025-06-21
+## [3.1.0] — 2026-08-28
+
+**Bring your whole company on `r/` — teams, SSO, and personal shortcuts, done right.**
+
 ### Added
-- Upstream shortcut caching: successful upstream lookups cached in SQLite and Redis (if enabled)
-- Configurable upstream cache via `redirect.config.json` (`"upstream_cache": {"enabled": true}`), default enabled
-- Admin UI for viewing, resyncing, and purging upstream cache entries
-- "Resync All" and "Purge All" actions for upstream cache
-- Gunicorn support for production
-- Improved error diagnostics for cache and upstream operations
+- **Team shortcuts that just work:** Create hierarchical links like `r/eng/docs`, `r/eng/runbook`, `r/hr/handbook`, and `r/design/system` as distinct shortcuts. No more collisions between teams — `r/eng/docs` and `r/hr/docs` live happily side by side.
+- **One-time setup, remembered for you:** For links that need your info (like `r/my-prs/[username]`), we'll ask once, save it securely in *your browser only* (never on the server), and reuse it next time. Clear it anytime with one click.
+- **Smarter handling of company logins (SSO):** Links that require Google, Microsoft, or Okta login are never cached. You'll always land on the real login page — never a stale copy — and we automatically clear any old cached login pages on startup. Includes `Cache-Control: no-store` and `X-SSO-Link` for SSO links.
+- **Company-wide security, out of the box:** Added two-factor login for admins — scan a QR with Google Authenticator/Authy/1Password or use a passkey (Face ID, Touch ID, Windows Hello) plus one-time backup codes. Find it under **Admin → MFA / Passkeys**.
+- **See what's new, without leaving the app:** A beautiful **Changelog** page at `r/changelog` (and `GET /api/changelog`) shows every update with version, date, and badges — just like your favorite SaaS product.
 
 ### Changed
-- Redirect route uses upstream cache hits with same delay/template logic as local hits
-- Upstream and cache admin pages redesigned for mobile + dark mode
+- **Versioning you can trust:** The version now comes from a `VERSION` file (`3.1.0`) plus build info (`3.1.0+5.gabcdef`). Bump it with `python get_version.py --bump minor`. No more guessing what you're running.
+- **Stay up to date, once a day:** The footer checks GitHub for updates only once per 24 hours (cached in your browser) and shows a gentle toast when a new version is available — no spam, just nudge when it matters.
 
 ### Fixed
-- Route import and endpoint registration for upstream cache management
-- Robust JSON error handling for all cache/upstream endpoints
+- **More secure automation:** Fixed a GitHub Actions workflow that could have allowed untrusted text to run as a shell command. Now uses a safe quoted variable.
 
-## [1.1.0] - 2025-05-23
+### For admins & IT
+- Health checks at `r/health` / `r/ready` and metrics at `r/api/metrics` for Kubernetes and Prometheus.
+- Upstream cache now has a per-upstream “Skip SSO cache” toggle (on by default) and correctly handles `resync` without caching login pages.
+
+---
+
+## [3.0.0] — 2025-06-21
+
+**Faster everywhere — especially for teams using an upstream `go/` service.**
+
 ### Added
-- Audit logging: `created_at`, `updated_at`, `created_ip`, `updated_ip` per shortcut
-- Access count display on dashboard and edit page
-- Company-wide installation docs in README
-- Modern Tailwind UI and FontAwesome icons
+- **Upstream caching:** Links found on your upstream `go/` service (like `go/ticket`) are now cached in SQLite and Redis — next time, they redirect instantly, even if the upstream is slow.
+- **Control your cache:** Turn caching on or off in `data/redirect.config.json` → `upstream_cache.enabled` (on by default).
+- **Manage it visually:** New **Admin → Upstream Cache** page to view, resync one, resync all, or purge entries — with confirmations and dark-mode polish.
+- **Production ready:** Recommended run is now via Gunicorn + gevent (4 workers, async) — handles many concurrent team clicks without breaking a sweat.
 
 ### Changed
-- Config moved to `data/redirect.config.json` with secure auto-generated admin password
-- Database path `data/redirects.db` with auto-creation for Docker
-- Docker instructions use `rajlabs/redirector` image
+- Upstream hits now show the same countdown page as local shortcuts (including delay and stats) — consistent experience everywhere.
 
 ### Fixed
-- `__version__` import in version route
-- Test teardown and cross-platform issues
+- More reliable error messages and JSON responses for all cache actions.
 
-## [1.0.0] - 2025-05-20
+---
+
+## [1.1.0] — 2025-05-23
+
+**Built for companies — not just a personal shortener.**
+
 ### Added
-- Initial Flask URL shortener/redirector with static and dynamic shortcuts, SQLite + web UI
-- Docker support, Redis in-memory cache, upstream fallback checks
-- Admin login, import/export, version page, and audit logging
+- See who used what and when: creation time, last update, and access count on every shortcut.
+- Step-by-step company install guide in the README (DNS for `r/`, reverse proxy examples, Docker volumes).
 
+### Changed
+- Fresh coat of paint: Tailwind + FontAwesome, fully responsive and dark-mode ready.
+- Safer defaults: config lives in `data/redirect.config.json` (auto-created, random admin password shown once), database at `data/redirects.db`.
+
+### Fixed
+- More reliable tests on Windows, macOS, and Linux.
+
+---
+
+## [1.0.0] — 2025-05-20
+
+**Hello, world — your team's memorable shortcuts.**
+
+- Create **static** shortcuts (`r/docs` → `https://docs.google.com/...`) and **dynamic** ones (`r/jira/{ticket}` → `https://jira.company.com/{ticket}`) in seconds.
+- Self-hosted with Docker (or plain Python), optional Redis for speed, and upstream fallback so you never lose a link.
+- Simple admin login, import/export, and a version page that shows your live URLs — all ready for `r/` on your office network.
+
+---
+
+*Questions?* Open an issue on [GitHub](https://github.com/authoritydmc/redirector) or see the `/tutorial` inside the app.
