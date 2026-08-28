@@ -15,13 +15,13 @@ jobs:
         run: echo "IMAGE_NAME=redirector" >> $GITHUB_ENV
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0          # Fetch all history for all tags
           fetch-tags: true         # Fetch all tags from the remote repository
 
       - name: Set up Python environment
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 

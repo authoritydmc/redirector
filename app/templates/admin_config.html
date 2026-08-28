@@ -1,414 +1,188 @@
 {% extends "base.html" %}
-{% block title %}Admin Config - URL Shortener/Redirector{% endblock %}
-
+{% block title %}Admin Config — Redirector{% endblock %}
 {% block content %}
-<div class="flex items-center justify-center min-h-[calc(100vh-160px)]">
-  <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-8 w-full max-w-xl sm:max-w-2xl md:max-w-xl lg:max-w-2xl xl:max-w-2xl 2xl:max-w-2xl text-center">
-    <h1 class="text-2xl font-bold text-blue-700 dark:text-blue-200 mb-4 flex items-center gap-2">
-      <i class="fa-solid fa-gear"></i> Admin Config
-      <span class="ml-2 inline-flex items-center gap-1 px-2 py-1 rounded bg-yellow-200 text-yellow-900 text-xs font-semibold" title="Experimental - Work In Progress">
-        <i class="fa-solid fa-flask"></i> Experimental WIP
-      </span>
-    </h1>
+<div class="max-w-4xl mx-auto">
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl shadow border border-gray-200 dark:border-white/10 overflow-hidden">
+    <div class="px-6 py-5 border-b border-gray-200 dark:border-white/10 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+      <h1 class="text-xl font-black flex items-center gap-3"><i class="fa-solid fa-gear"></i> Configuration</h1>
+      <p class="text-sm text-white/80 mt-1">Manage your Redirector instance — changes take effect immediately and are saved to <span class="font-mono bg-white/20 px-1 rounded">data/redirect.config.json</span></p>
+    </div>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        {% for category, message in messages %}
-          <div class="mb-4 px-4 py-2 rounded {{ 'bg-green-100 border border-green-300 text-green-800' if category == 'success' else 'bg-red-100 border border-red-300 text-red-800' }}">{{ message }}</div>
-        {% endfor %}
+        <div class="px-6 pt-4 space-y-2">
+          {% for cat, msg in messages %}
+            <div class="px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 {% if cat=='success' %}bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-300{% else %}bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-300{% endif %}">
+              <i class="fa-solid {% if cat=='success' %}fa-circle-check{% else %}fa-triangle-exclamation{% endif %}"></i> {{ msg }}
+            </div>
+          {% endfor %}
+        </div>
       {% endif %}
     {% endwith %}
-    <form method="post" class="space-y-4" id="config-form">
-      {% for k, v in config_data.items() %}
-        {% if k not in ['admin_password', 'upstreams'] %}
-          {% if k == 'config_version' %}
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2 group items-center hover:bg-blue-50 dark:hover:bg-gray-700 rounded transition">
-              <label class="font-semibold w-40 text-gray-400 dark:text-gray-500">{{ k }}</label>
-              <
-            </div>
-          {% elif k == 'database' %}
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2 group items-center hover:bg-blue-50 dark:hover:bg-gray-700 rounded transition">
-              <label class="font-semibold w-40 text-gray-700 dark:text-gray-200">Database</label>
-              <div class="flex-1 flex items-center gap-2">
-                <input name="database" type="text" value="{{ v }}" class="px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 text-gray-400 dark:text-gray-500 w-64" readonly id="db-input" />
-                <button type="button" class="db-config-btn text-gray-500 hover:text-blue-600 ml-1 transition-opacity" title="Configure database"><i class="fa-solid fa-database"></i> Configure</button>
-              </div>
-              <div class="w-full text-xs text-gray-400 ml-40 dark:text-gray-500">Configure SQLite, PostgreSQL, or MySQL. For SQLite, select a folder.</div>
-            </div>
-          {% elif k == 'log_level' %}
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2 group items-center hover:bg-blue-50 dark:hover:bg-gray-700 rounded transition relative">
-              <label class="font-semibold w-40 text-gray-700 dark:text-gray-200">Log Level</label>
-              <div class="flex-1 flex items-center gap-2">
-                <select name="log_level" class="px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 dark:text-gray-100">
-                  <option value="DEBUG" {% if v == 'DEBUG' %}selected{% endif %}>⚠️ DEBUG</option>
-                  <option value="INFO" {% if v == 'INFO' %}selected{% endif %}>ℹ️ INFO</option>
-                  <option value="WARNING" {% if v == 'WARNING' %}selected{% endif %}>⚡ WARNING</option>
-                  <option value="ERROR" {% if v == 'ERROR' %}selected{% endif %}>❌ ERROR</option>
-                  <option value="CRITICAL" {% if v == 'CRITICAL' %}selected{% endif %}>💀 CRITICAL</option>
-                </select>
-                <button type="button" class="edit-btn text-gray-500 hover:text-blue-600 ml-1 transition-opacity opacity-0 group-hover:opacity-100 focus:opacity-100" title="Edit"><i class="fa-solid fa-pen"></i></button>
-              </div>
-            </div>
-          {% elif k == 'upstream_cache' %}
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2 group items-center hover:bg-blue-50 dark:hover:bg-gray-700 rounded transition relative">
-              <label class="font-semibold w-40 text-gray-700 dark:text-gray-200">Upstream Cache</label>
-              <div class="flex-1 flex items-center gap-2">
-                <select name="upstream_cache" class="px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 dark:text-gray-100" disabled readonly>
-                  <option value="true" {% if v %}selected{% endif %}>True</option>
-                  <option value="false" {% if not v %}selected{% endif %}>False</option>
-                </select>
-                <button type="button" class="edit-btn text-gray-500 hover:text-blue-600 ml-1 transition-opacity opacity-0 group-hover:opacity-100 focus:opacity-100" title="Edit"><i class="fa-solid fa-pen"></i></button>
-              </div>
-            </div>
-          {% elif k == 'delete_requires_password' %}
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2 group items-center hover:bg-blue-50 dark:hover:bg-gray-700 rounded transition relative">
-              <label class="font-semibold w-40 text-gray-700 dark:text-gray-200">{{ k|replace('_',' ')|title }}</label>
-              <div class="flex-1 flex items-center gap-2">
-                <select name="{{ k }}" class="px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 dark:text-gray-100">
-                  <option value="true" {% if v %}selected{% endif %}>True</option>
-                  <option value="false" {% if not v %}selected{% endif %}>False</option>
-                </select>
-                <button type="button" class="edit-btn text-gray-500 hover:text-blue-600 ml-1 transition-opacity opacity-0 group-hover:opacity-100 focus:opacity-100" title="Edit"><i class="fa-solid fa-pen"></i></button>
-              </div>
-            </div>
-          {% elif k == 'redis' %}
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2 group items-center hover:bg-blue-50 dark:hover:bg-gray-700 rounded transition">
-              <label class="font-semibold w-40 text-gray-700 dark:text-gray-200">Redis</label>
-              <div class="flex-1 flex flex-col gap-1 bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-700">
-                <div class="font-semibold text-blue-700 dark:text-blue-300 mb-1 flex items-center gap-2"><i class="fa-solid fa-bolt"></i> Redis Config
-                  <button type="button" class="redis-config-btn text-gray-500 hover:text-blue-600 ml-2 transition-opacity" title="Configure Redis"><i class="fa-solid fa-gear"></i> Configure</button>
-                </div>
-                <div class="flex items-center gap-2">
-                  <span class="text-gray-700 dark:text-gray-100">Enabled: <span id="redis-enabled-status">{{ 'Yes' if v.get('enabled', False) else 'No' }}</span></span>
-                  <span class="text-gray-700 dark:text-gray-100">Host: <span id="redis-host-status">{{ v.get('host', 'localhost') }}</span></span>
-                  <span class="text-gray-700 dark:text-gray-100">Port: <span id="redis-port-status">{{ v.get('port', 6379) }}</span></span>
-                </div>
-              </div>
-            </div>
-          {% elif k == 'auto_redirect_delay' %}
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2 group items-center hover:bg-blue-50 dark:hover:bg-gray-700 rounded transition relative">
-              <label class="font-semibold w-40 text-gray-700 dark:text-gray-200">Redirect Delay</label>
-              <div class="flex-1 flex items-center gap-2">
-                <input name="auto_redirect_delay" type="number" min="0" step="1" value="{{ v }}" class="px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 text-gray-400 dark:text-gray-500 w-32" readonly />
-                <span class="text-xs text-gray-400 dark:text-gray-500">seconds</span>
-                <button type="button" class="edit-btn text-gray-500 hover:text-blue-600 ml-1 transition-opacity opacity-0 group-hover:opacity-100 focus:opacity-100" title="Edit"><i class="fa-solid fa-pen"></i></button>
-              </div>
-            </div>
-          {% elif k == 'port' %}
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2 group items-center hover:bg-blue-50 dark:hover:bg-gray-700 rounded transition relative">
-              <label class="font-semibold w-40 text-gray-700 dark:text-gray-200">Port</label>
-              <div class="flex-1 flex items-center gap-2">
-                <input name="port" type="number" min="1" max="65535" value="{{ v }}" class="px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 text-gray-400 dark:text-gray-500 w-32" readonly />
-                <button type="button" class="edit-btn text-gray-500 hover:text-blue-600 ml-1 transition-opacity opacity-0 group-hover:opacity-100 focus:opacity-100" title="Edit"><i class="fa-solid fa-pen"></i></button>
-              </div>
-            </div>
-          {% else %}
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2 group items-center hover:bg-blue-50 dark:hover:bg-gray-700 rounded transition relative">
-              <label class="font-semibold w-40 text-gray-700 dark:text-gray-200">{{ k|replace('_',' ')|title }}</label>
-              <div class="flex-1 flex items-center gap-2">
-                <input name="{{ k }}" value="{{ v }}" class="px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 text-gray-400 dark:text-gray-500" readonly />
-                <button type="button" class="edit-btn text-gray-500 hover:text-blue-600 ml-1 transition-opacity opacity-0 group-hover:opacity-100 focus:opacity-100" title="Edit"><i class="fa-solid fa-pen"></i></button>
-              </div>
-            </div>
-          {% endif %}
-        {% endif %}
-      {% endfor %}
-      <!-- Upstream config handled elsewhere -->
-      <div class="flex flex-col sm:flex-row sm:items-center gap-2 group items-center bg-blue-50 dark:bg-gray-700 rounded transition p-2">
-        <label class="font-semibold w-40 text-blue-700 dark:text-blue-200 flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up"></i> Upstreams</label>
-        <div class="flex-1 flex items-center gap-2">
-          <a href="/admin/upstreams" class="text-blue-600 dark:text-blue-300 hover:underline flex items-center gap-1"><i class="fa-solid fa-arrow-up-right-from-square"></i> Manage Upstreams</a>
+
+    <form method="post" id="config-form" class="p-6 space-y-8">
+      <!-- General -->
+      <div>
+        <h3 class="font-black text-sm flex items-center gap-2 text-gray-900 dark:text-white mb-3"><i class="fa-solid fa-sliders text-blue-500"></i> General</h3>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <label class="block">
+            <span class="text-xs font-bold text-gray-700 dark:text-white/70">Port</span>
+            <input name="port" type="number" min="1" max="65535" value="{{ config_data.get('port',80) }}" class="mt-1 w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0f1221] text-sm">
+            <span class="text-xs text-gray-500">Restart required to apply.</span>
+          </label>
+          <label class="block">
+            <span class="text-xs font-bold">Redirect delay (seconds)</span>
+            <input name="auto_redirect_delay" type="number" min="0" max="10" value="{{ config_data.get('auto_redirect_delay',1) }}" class="mt-1 w-full px-3 py-2 rounded-xl border bg-white dark:bg-[#0f1221] text-sm">
+            <span class="text-xs text-gray-500">1 = fast, 0 = instant.</span>
+          </label>
+          <label class="block">
+            <span class="text-xs font-bold">Log level</span>
+            <select name="log_level" class="mt-1 w-full px-3 py-2 rounded-xl border bg-white dark:bg-[#0f1221] text-sm">
+              <option value="DEBUG" {% if config_data.get('log_level')=='DEBUG' %}selected{% endif %}>DEBUG</option>
+              <option value="INFO" {% if config_data.get('log_level')=='INFO' %}selected{% endif %}>INFO</option>
+              <option value="WARNING" {% if config_data.get('log_level')=='WARNING' %}selected{% endif %}>WARNING</option>
+              <option value="ERROR" {% if config_data.get('log_level')=='ERROR' %}selected{% endif %}>ERROR</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-xs font-bold">Delete requires password</span>
+            <select name="delete_requires_password" class="mt-1 w-full px-3 py-2 rounded-xl border bg-white dark:bg-[#0f1221] text-sm">
+              <option value="true" {% if config_data.get('delete_requires_password') %}selected{% endif %}>Yes</option>
+              <option value="false" {% if not config_data.get('delete_requires_password') %}selected{% endif %}>No</option>
+            </select>
+          </label>
         </div>
-        <div class="w-full text-xs text-gray-400 ml-40 dark:text-gray-500">Upstream configuration is managed on a separate page.</div>
       </div>
-      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-semibold shadow flex items-center gap-2"><i class="fa-solid fa-save"></i> Save Config</button>
+
+      <!-- Database -->
+      <div class="border-t border-gray-200 dark:border-white/10 pt-6">
+        <h3 class="font-black text-sm flex items-center gap-2"><i class="fa-solid fa-database text-blue-500"></i> Database</h3>
+        <p class="text-xs text-gray-500 dark:text-white/60 mb-3">SQLite (default) or PostgreSQL/MySQL for teams. Use a folder for SQLite.</p>
+        <div class="flex gap-2">
+          <input id="db-display" value="{{ config_data.get('database','') }}" readonly class="flex-1 px-3 py-2 rounded-xl border bg-gray-50 dark:bg-white/5 text-sm font-mono truncate">
+          <button type="button" id="db-config-btn" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center gap-1"><i class="fa-solid fa-gear"></i> Configure</button>
+        </div>
+        <input type="hidden" name="database" id="db-hidden" value="{{ config_data.get('database','') }}">
+      </div>
+
+      <!-- Redis -->
+      <div class="border-t pt-6">
+        <h3 class="font-black text-sm flex items-center gap-2"><i class="fa-solid fa-bolt text-amber-500"></i> Redis Cache</h3>
+        <div class="grid sm:grid-cols-3 gap-4 mt-3">
+          <label class="block">
+            <span class="text-xs font-bold">Enabled</span>
+            <select id="redis-enabled" class="mt-1 w-full px-3 py-2 rounded-xl border bg-white dark:bg-[#0f1221] text-sm">
+              <option value="true" {% if config_data.get('redis',{}).get('enabled') %}selected{% endif %}>Enabled</option>
+              <option value="false" {% if not config_data.get('redis',{}).get('enabled') %}selected{% endif %}>Disabled</option>
+            </select>
+            <input type="hidden" name="redis.enabled" id="redis-enabled-hidden" value="{{ 'true' if config_data.get('redis',{}).get('enabled') else 'false' }}">
+          </label>
+          <label class="block">
+            <span class="text-xs font-bold">Host</span>
+            <input id="redis-host" value="{{ config_data.get('redis',{}).get('host','localhost') }}" class="mt-1 w-full px-3 py-2 rounded-xl border bg-white dark:bg-[#0f1221] text-sm">
+            <input type="hidden" name="redis.host" id="redis-host-hidden" value="{{ config_data.get('redis',{}).get('host','localhost') }}">
+          </label>
+          <label class="block">
+            <span class="text-xs font-bold">Port</span>
+            <input id="redis-port" type="number" value="{{ config_data.get('redis',{}).get('port',6379) }}" class="mt-1 w-full px-3 py-2 rounded-xl border bg-white dark:bg-[#0f1221] text-sm">
+            <input type="hidden" name="redis.port" id="redis-port-hidden" value="{{ config_data.get('redis',{}).get('port',6379) }}">
+          </label>
+        </div>
+        <p class="text-xs text-gray-500 mt-2">Redis speeds up redirects. Use <span class="font-mono">redis</span> as host inside Docker Compose.</p>
+      </div>
+
+      <!-- Upstream cache -->
+      <div class="border-t pt-6">
+        <h3 class="font-black text-sm flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> Upstream Cache</h3>
+        <label class="flex items-center gap-3 mt-3">
+          <input type="checkbox" id="upstream-cache-enabled" {% if config_data.get('upstream_cache',{}).get('enabled') %}checked{% endif %} class="w-4 h-4">
+          <span class="text-sm font-semibold">Enable upstream cache</span>
+          <span class="text-xs text-gray-500">— caches successful upstream lookups in DB + Redis</span>
+        </label>
+        <input type="hidden" name="upstream_cache.enabled" id="upstream-cache-hidden" value="{{ 'true' if config_data.get('upstream_cache',{}).get('enabled') else 'false' }}">
+        <p class="text-xs text-gray-500 mt-2">SSO links are never cached, even when enabled.</p>
+        <a href="/admin/upstreams" class="text-sm text-blue-600 hover:underline mt-2 inline-block">Manage upstreams →</a>
+      </div>
+
+      <div class="flex gap-3 pt-6 border-t">
+        <button type="submit" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-black flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+        <a href="/" class="px-6 py-3 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 font-bold text-sm flex items-center justify-center">Cancel</a>
+      </div>
     </form>
+  </div>
 
-    <!-- Modal for change summary -->
-    <div id="config-summary-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
-      <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-lg w-full p-6">
-        <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100 flex items-center gap-2">
-          <i class="fa-solid fa-flask text-yellow-500"></i> Confirm Config Changes
-        </h2>
-        <div id="config-changes-summary" class="mb-6 text-gray-800 dark:text-gray-200 text-sm">
-          <!-- Changes summary will be injected here -->
+  <!-- DB Modal -->
+  <div id="db-modal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl shadow-xl max-w-md w-full p-6 border border-gray-200 dark:border-white/10">
+      <h3 class="font-black flex items-center gap-2"><i class="fa-solid fa-database text-blue-600"></i> Database</h3>
+      <div class="mt-4 space-y-3">
+        <label class="block text-sm font-bold">Type</label>
+        <select id="db-type" class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-[#0f1221] text-sm">
+          <option value="sqlite">SQLite (file)</option>
+          <option value="postgresql">PostgreSQL</option>
+          <option value="mysql">MySQL</option>
+        </select>
+        <div id="sqlite-config">
+          <label class="block text-sm font-bold">Folder (SQLite)</label>
+          <div class="flex gap-2 mt-1">
+            <input id="sqlite-folder" class="flex-1 px-3 py-2 rounded-xl border bg-white dark:bg-[#0f1221] text-sm" placeholder="data or /absolute/path">
+            <button type="button" id="choose-folder-btn" class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-white/10 border"><i class="fa-solid fa-folder-open"></i></button>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Will use <span class="font-mono">redirects.db</span> inside folder.</p>
         </div>
-        <div class="flex justify-end gap-3">
-          <button id="cancel-config-save" type="button" class="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600 font-semibold">Cancel</button>
-          <button id="confirm-config-save" type="button" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 font-semibold">Confirm & Save</button>
+        <div id="pg-config" class="hidden">
+          <label class="block text-sm font-bold">PostgreSQL URI</label>
+          <input id="pg-uri" placeholder="postgresql://user:pass@host:5432/dbname" class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-[#0f1221] text-sm font-mono">
+          <p class="text-xs text-gray-500 mt-1">Example: <span class="font-mono">postgresql://user:pass@host:5432/dbname</span></p>
+        </div>
+        <div id="mysql-config" class="hidden">
+          <label class="block text-sm font-bold">MySQL URI</label>
+          <input id="mysql-uri" placeholder="mysql://user:pass@host:3306/dbname" class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-[#0f1221] text-sm font-mono">
         </div>
       </div>
-    </div>
-
-    <!-- Database config modal -->
-    <div id="db-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-md">
-        <h3 class="text-lg font-bold mb-4 text-blue-700 dark:text-blue-200 flex items-center gap-2"><i class="fa-solid fa-database"></i> <span class="dark:text-blue-200">Database Configuration</span></h3>
-        <div class="mb-4">
-          <label class="block font-semibold mb-1 text-gray-700 dark:text-gray-200">Database Type</label>
-          <select id="db-type" class="w-full px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 dark:text-gray-100">
-            <option value="sqlite">SQLite</option>
-            <option value="postgresql">PostgreSQL</option>
-            <option value="mysql">MySQL</option>
-          </select>
-        </div>
-        <div id="sqlite-config" class="mb-4">
-          <label class="block font-semibold mb-1 text-gray-700 dark:text-gray-200">SQLite Folder</label>
-          <div class="flex items-center gap-2">
-            <input id="sqlite-folder" type="text" class="flex-1 px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 dark:text-gray-100" readonly />
-            <button type="button" id="choose-folder-btn" class="text-gray-500 hover:text-blue-600" title="Choose folder"><i class="fa-solid fa-folder-open"></i></button>
-          </div>
-          <div class="text-xs text-gray-400 dark:text-gray-300 mt-1">The file <b class="dark:text-blue-200">redirects.db</b> will be used in the selected folder.</div>
-        </div>
-        <div id="pg-config" class="mb-4 hidden relative">
-          <div class="text-xs text-blue-700 dark:text-blue-300 mb-1">Enter a valid PostgreSQL URI. Example: <code>postgresql://user:pass@host:5432/dbname</code></div>
-          <div class="floating-label-group">
-            <input id="pg-uri" type="text" class="w-full px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 dark:text-gray-100 peer" placeholder=" " autocomplete="off" />
-            <label for="pg-uri" class="floating-label text-gray-500 dark:text-gray-300">PostgreSQL URI</label>
-            <span id="pg-uri-status" class="absolute right-2 top-1/2 -translate-y-1/2 text-lg"></span>
-          </div>
-          <div id="pg-uri-hint" class="text-xs mt-1"></div>
-        </div>
-        <div id="mysql-config" class="mb-4 hidden relative">
-          <div class="text-xs text-blue-700 dark:text-blue-300 mb-1">Enter a valid MySQL URI. Example: <code>mysql://user:pass@host:3306/dbname</code></div>
-          <div class="floating-label-group">
-            <input id="mysql-uri" type="text" class="w-full px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 dark:text-gray-100 peer" placeholder=" " autocomplete="off" />
-            <label for="mysql-uri" class="floating-label text-gray-500 dark:text-gray-300">MySQL URI</label>
-            <span id="mysql-uri-status" class="absolute right-2 top-1/2 -translate-y-1/2 text-lg"></span>
-          </div>
-          <div id="mysql-uri-hint" class="text-xs mt-1"></div>
-        </div>
-        <div class="flex justify-end gap-2">
-          <button type="button" id="db-cancel" class="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-100">Cancel</button>
-          <button type="button" id="db-save" class="px-4 py-2 rounded bg-blue-600 text-white font-semibold">Save</button>
-        </div>
+      <div class="flex gap-2 mt-6">
+        <button id="db-cancel" class="flex-1 py-2 rounded-xl bg-gray-100 dark:bg-white/10 font-bold">Cancel</button>
+        <button id="db-save" class="flex-1 py-2 rounded-xl bg-blue-600 text-white font-bold">Save</button>
       </div>
     </div>
-    <!-- Redis config modal -->
-    <div id="redis-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-md">
-        <h3 class="text-lg font-bold mb-4 text-blue-700 dark:text-blue-200 flex items-center gap-2"><i class="fa-solid fa-bolt"></i> <span class="dark:text-blue-200">Redis Configuration</span></h3>
-        <div class="mb-4">
-          <label class="block font-semibold mb-1 text-gray-700 dark:text-gray-200">Enabled</label>
-          <select id="redis-enabled" class="w-full px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 dark:text-gray-100">
-            <option value="true">True</option>
-            <option value="false">False</option>
-          </select>
-        </div>
-        <div class="mb-4">
-          <label class="block font-semibold mb-1 text-gray-700 dark:text-gray-200">Host</label>
-          <input id="redis-host" type="text" class="w-full px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 dark:text-gray-100" />
-        </div>
-        <div class="mb-4">
-          <label class="block font-semibold mb-1 text-gray-700 dark:text-gray-200">Port</label>
-          <input id="redis-port" type="number" min="1" max="65535" class="w-full px-2 py-1 rounded border border-gray-300 dark:bg-gray-900 dark:text-gray-100" />
-        </div>
-        <div class="flex justify-end gap-2">
-          <button type="button" id="redis-cancel" class="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-100">Cancel</button>
-          <button type="button" id="redis-save" class="px-4 py-2 rounded bg-blue-600 text-white font-semibold">Save</button>
-        </div>
-      </div>
-    </div>
-    <a href="/" class="text-blue-600 dark:text-blue-400 hover:underline mt-4 block">← Back to Dashboard</a>
   </div>
 </div>
-{% endblock %}
-{% block scripts %}
+
 <script>
-// Per-field edit logic
-[...document.querySelectorAll('.edit-btn')].forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    const parent = btn.closest('.flex-1');
-    if (!parent) return;
-    const input = parent.querySelector('input, select');
-    if (!input) return;
-    input.readOnly = false;
-    input.disabled = false;
-    input.classList.remove('text-gray-400', 'dark:text-gray-500');
-    input.classList.add('text-black', 'dark:text-white');
-    input.focus();
-    btn.classList.add('text-blue-600');
-    input.addEventListener('blur', function handler() {
-      input.readOnly = true;
-      input.disabled = true;
-      input.classList.remove('text-black', 'dark:text-white');
-      input.classList.add('text-gray-400', 'dark:text-gray-500');
-      btn.classList.remove('text-blue-600');
-      input.removeEventListener('blur', handler);
-    });
-  });
+// Sync hidden fields before submit
+document.getElementById('config-form').addEventListener('submit', ()=>{
+  document.getElementById('redis-enabled-hidden').value = document.getElementById('redis-enabled').value;
+  document.getElementById('redis-host-hidden').value = document.getElementById('redis-host').value;
+  document.getElementById('redis-port-hidden').value = document.getElementById('redis-port').value;
+  document.getElementById('upstream-cache-hidden').value = document.getElementById('upstream-cache-enabled').checked ? 'true' : 'false';
 });
-// Database config popup logic and real-time URI validation
-(function() {
-  const dbBtn = document.querySelector('.db-config-btn');
-  const dbModal = document.getElementById('db-modal');
-  const dbCancel = document.getElementById('db-cancel');
-  const dbType = document.getElementById('db-type');
-  const sqliteConfig = document.getElementById('sqlite-config');
-  const pgConfig = document.getElementById('pg-config');
-  const mysqlConfig = document.getElementById('mysql-config');
-  const pgUri = document.getElementById('pg-uri');
-  const mysqlUri = document.getElementById('mysql-uri');
-  const pgStatus = document.getElementById('pg-uri-status');
-  const mysqlStatus = document.getElementById('mysql-uri-status');
-  const pgHint = document.getElementById('pg-uri-hint');
-  const mysqlHint = document.getElementById('mysql-uri-hint');
-  // Show/hide config sections based on type
-  function updateDbType() {
-    const type = dbType.value;
-    sqliteConfig.classList.toggle('hidden', type !== 'sqlite');
-    pgConfig.classList.toggle('hidden', type !== 'postgresql');
-    mysqlConfig.classList.toggle('hidden', type !== 'mysql');
-  }
-  if (dbType) {
-    dbType.addEventListener('change', updateDbType);
-    updateDbType();
-  }
-  // Real-time URI validation for PostgreSQL
-  if (pgUri) {
-    pgUri.addEventListener('input', function() {
-      const val = pgUri.value.trim();
-      // Basic regex for postgresql://user:pass@host:port/dbname
-      const re = /^postgres(?:ql)?:\/\/[\w%\-]+(:[^@]+)?@[\w.\-]+(:\d+)?\/[\w\-]+$/i;
-      if (val === '') {
-        pgStatus.innerHTML = '';
-        pgHint.textContent = '';
-        pgUri.classList.remove('border-green-500', 'border-red-500');
-        return;
-      }
-      if (re.test(val)) {
-        pgStatus.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i>';
-        pgHint.textContent = 'Looks good!';
-        pgUri.classList.add('border-green-500');
-        pgUri.classList.remove('border-red-500');
-      } else {
-        pgStatus.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500"></i>';
-        pgHint.textContent = 'Invalid URI. Format: postgresql://user:pass@host:port/dbname';
-        pgUri.classList.add('border-red-500');
-        pgUri.classList.remove('border-green-500');
-      }
-    });
-  }
-  // Real-time URI validation for MySQL
-  if (mysqlUri) {
-    mysqlUri.addEventListener('input', function() {
-      const val = mysqlUri.value.trim();
-      // Basic regex for mysql://user:pass@host:port/dbname
-      const re = /^mysql:\/\/[\w%\-]+(:[^@]+)?@[\w.\-]+(:\d+)?\/[\w\-]+$/i;
-      if (val === '') {
-        mysqlStatus.innerHTML = '';
-        mysqlHint.textContent = '';
-        mysqlUri.classList.remove('border-green-500', 'border-red-500');
-        return;
-      }
-      if (re.test(val)) {
-        mysqlStatus.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i>';
-        mysqlHint.textContent = 'Looks good!';
-        mysqlUri.classList.add('border-green-500');
-        mysqlUri.classList.remove('border-red-500');
-      } else {
-        mysqlStatus.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500"></i>';
-        mysqlHint.textContent = 'Invalid URI. Format: mysql://user:pass@host:port/dbname';
-        mysqlUri.classList.add('border-red-500');
-        mysqlUri.classList.remove('border-green-500');
-      }
-    });
-  }
-  // Popup open/close logic
-  if (dbBtn && dbModal) {
-    dbBtn.addEventListener('click', function() {
-      dbModal.classList.remove('hidden');
-      updateDbType();
-    });
-  }
-  if (dbCancel && dbModal) {
-    dbCancel.addEventListener('click', function() {
-      dbModal.classList.add('hidden');
-    });
-  }
-  // Redis config popup logic
-  const redisBtn = document.querySelector('.redis-config-btn');
-  const redisModal = document.getElementById('redis-modal');
-  const redisCancel = document.getElementById('redis-cancel');
-  if (redisBtn && redisModal) {
-    redisBtn.addEventListener('click', function() {
-      redisModal.classList.remove('hidden');
-    });
-  }
-  if (redisCancel && redisModal) {
-    redisCancel.addEventListener('click', function() {
-      redisModal.classList.add('hidden');
-    });
-  }
-})();
-
-// Config summary modal logic
-const configData = {{ config_data|tojson }};
-const form = document.getElementById('config-form');
-const modal = document.getElementById('config-summary-modal');
-const changesSummary = document.getElementById('config-changes-summary');
-const cancelBtn = document.getElementById('cancel-config-save');
-const confirmBtn = document.getElementById('confirm-config-save');
-
-form.addEventListener('submit', function(e) {
-  e.preventDefault();
-  // Gather changes
-  const formData = new FormData(form);
-  let changes = [];
-  function displayVal(val) {
-    if (typeof val === 'boolean') return val ? 'true' : 'false';
-    if (val === true) return 'true';
-    if (val === false) return 'false';
-    if (val && typeof val === 'object') return JSON.stringify(val);
-    return val;
-  }
-  function deepEqual(a, b) {
-    if (typeof a !== typeof b) return false;
-    if (typeof a === 'object' && a !== null && b !== null) {
-      try {
-        return JSON.stringify(a) === JSON.stringify(b);
-      } catch { return false; }
-    }
-    return a === b;
-  }
-  for (const [key, oldVal] of Object.entries(configData)) {
-    if (key === 'admin_password' || key === 'upstreams') continue;
-    const input = form.elements.namedItem(key);
-    if (!input) continue;
-    let newVal = input.value;
-    if (input.type === 'checkbox') newVal = input.checked;
-    // Try to parse booleans and numbers
-    if (typeof oldVal === 'boolean') newVal = (newVal === 'true' || newVal === true);
-    if (typeof oldVal === 'number') newVal = Number(newVal);
-    // Use deepEqual for objects, strict for primitives
-    if (!deepEqual(newVal, oldVal)) {
-      changes.push({key, oldVal, newVal});
-    }
-  }
-  if (changes.length === 0) {
-    // No changes, submit directly
-    form.submit();
-    return;
-  }
-  // Show modal with changes
-  changesSummary.innerHTML = '<ul class="list-disc ml-6">' + changes.map(c => `<li><b>${c.key}</b>: <span class='text-gray-500'>${displayVal(c.oldVal)}</span> <i class='fa-solid fa-arrow-right mx-1'></i> <span class='text-blue-700 dark:text-blue-200'>${displayVal(c.newVal)}</span></li>`).join('') + '</ul>';
-  modal.classList.remove('hidden');
-  // Save changes for confirm
-  modal.dataset.changes = JSON.stringify(changes);
+// DB modal
+const dbModal=document.getElementById('db-modal');
+document.getElementById('db-config-btn')?.addEventListener('click', ()=>{
+  const cur=document.getElementById('db-hidden').value;
+  if(cur.includes('postgresql')){ document.getElementById('db-type').value='postgresql'; document.getElementById('pg-uri').value=cur; }
+  else if(cur.includes('mysql')){ document.getElementById('db-type').value='mysql'; document.getElementById('mysql-uri').value=cur; }
+  else { document.getElementById('db-type').value='sqlite'; document.getElementById('sqlite-folder').value=cur.replace('sqlite:///', '').replace('/redirects.db','').replace('redirects.db','') || 'data'; }
+  updateDbType(); dbModal.classList.remove('hidden');
 });
-
-cancelBtn.onclick = function() {
-  modal.classList.add('hidden');
-};
-confirmBtn.onclick = function() {
-  // Actually submit the form
-  modal.classList.add('hidden');
-  form.submit();
-};
-// Optional: close modal on Escape
-window.addEventListener('keydown', function(e) {
-  if (!modal.classList.contains('hidden') && e.key === 'Escape') {
-    modal.classList.add('hidden');
-  }
+document.getElementById('db-cancel')?.addEventListener('click', ()=> dbModal.classList.add('hidden'));
+document.getElementById('db-save')?.addEventListener('click', ()=>{
+  const t=document.getElementById('db-type').value;
+  let v='';
+  if(t==='sqlite'){ let f=document.getElementById('sqlite-folder').value.trim()||'data'; if(f.endsWith('redirects.db')) f=f.replace(/redirects\.db$/,''); v='sqlite:///' + f.replace(/\/$/,'') + '/redirects.db'; }
+  else if(t==='postgresql'){ v=document.getElementById('pg-uri').value.trim(); if(!v.startsWith('postgresql://')){ alert('Invalid PostgreSQL URI'); return; } }
+  else { v=document.getElementById('mysql-uri').value.trim(); if(!v.startsWith('mysql://')){ alert('Invalid MySQL URI'); return; } }
+  document.getElementById('db-hidden').value=v;
+  document.getElementById('db-display').value=v;
+  dbModal.classList.add('hidden');
 });
+function updateDbType(){
+  const t=document.getElementById('db-type').value;
+  document.getElementById('sqlite-config').classList.toggle('hidden', t!=='sqlite');
+  document.getElementById('pg-config').classList.toggle('hidden', t!=='postgresql');
+  document.getElementById('mysql-config').classList.toggle('hidden', t!=='mysql');
+}
+document.getElementById('db-type')?.addEventListener('change', updateDbType);
+dbModal?.addEventListener('click', e=>{ if(e.target===dbModal) dbModal.classList.add('hidden'); });
 </script>
 {% endblock %}
