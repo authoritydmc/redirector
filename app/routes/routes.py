@@ -80,9 +80,78 @@ def admin_logout():
     logger.info("Admin user logged out.")
     return redirect(url_for('main.dashboard'))
 
+# Public setup wizard for first run - set admin password without hunting logs
+@bp.route('/setup', methods=['GET', 'POST'])
+def setup_wizard():
+    from app.config import config as cfg
+    data = cfg.get_configuration()
+    # If setup already completed and admin is logged in, redirect to dashboard
+    # Allow re-setup only if not completed or no shortcuts and not admin
+    is_completed = data.get('setup_completed', False)
+    # Check if we should show setup: not completed OR no shortcuts at all (fresh DB)
+    try:
+        total = Redirect.query.count()
+    except Exception:
+        total = 0
+    # If setup completed and DB has content, don't allow public setup (require admin)
+    if is_completed and total > 0 and not session.get('admin_logged_in'):
+        # For security, require admin for re-setup after initial
+        return redirect(url_for('main.admin_login', next=url_for('main.setup_wizard')))
+    error = None
+    success = None
+    if request.method == 'POST':
+        pwd = request.form.get('password', '').strip()
+        pwd2 = request.form.get('password2', '').strip()
+        if len(pwd) < 6:
+            error = 'Password must be at least 6 characters.'
+        elif pwd != pwd2:
+            error = 'Passwords do not match.'
+        else:
+            # Save password and mark setup completed
+            try:
+                cfg_data = cfg.get_configuration()
+                cfg_data['admin_password'] = pwd
+                cfg_data['setup_completed'] = True
+                with open(cfg.CONFIG_FILE, 'w') as f:
+                    json.dump(cfg_data, f, indent=2, sort_keys=True)
+                cfg.reload()
+                session['admin_logged_in'] = True
+                flash('Admin password set! You are now logged in.', 'success')
+                # Optionally install starter pack if requested
+                if request.form.get('install_starter'):
+                    try:
+                        from app.utils.default_shortcuts import DEFAULT_SHORTCUTS
+                        now = datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')
+                        ip = request.remote_addr or 'setup'
+                        for tmpl in DEFAULT_SHORTCUTS[:6]:  # install first 6 essentials
+                            if not utils.isPatternExists(tmpl['pattern']):
+                                utils.set_shortcut(pattern=tmpl['pattern'], type_=tmpl['type'], target=tmpl['target'], created_at=now, updated_at=now, created_ip=ip, updated_ip=ip)
+                    except Exception as e:
+                        logger.warning(f"Starter install failed: {e}")
+                return redirect(url_for('main.dashboard'))
+            except Exception as e:
+                logger.exception("Setup failed")
+                error = f'Failed to save: {e}'
+    # Show current generated password hint (last 4 chars) for first run
+    current_pwd = data.get('admin_password', '')
+    hint = f"••••{current_pwd[-4:]}" if len(current_pwd) > 4 else "not set"
+    return render_template('setup_wizard.html', error=error, success=success, hint=hint, is_completed=is_completed)
+
 # GET: Dashboard page. Triggered when user visits the root URL '/'.
 @bp.route('/', methods=['GET'])
 def dashboard():
+    # First-run redirect: if setup not completed, show wizard
+    try:
+        from app.config import config as cfg
+        if not cfg.get_configuration().get('setup_completed', False):
+            # Check if DB is empty - definitely show setup
+            try:
+                if Redirect.query.count() == 0:
+                    return redirect(url_for('main.setup_wizard'))
+            except Exception:
+                pass
+    except Exception:
+        pass
     try:
         count = int(request.args.get('count', 5))
         sort = request.args.get('sort', 'updated')
@@ -91,11 +160,27 @@ def dashboard():
         else:
             latest_shortcuts = Redirect.query.order_by(Redirect.updated_at.desc()).limit(count).all()
         total = Redirect.query.count()
-        logger.debug(f"Retrieved {len(latest_shortcuts)} latest shortcuts for dashboard (total {total}).")
+        # Stats for redesign
+        try:
+            total_hits = sum((r.access_count or 0) for r in Redirect.query.all())
+        except Exception:
+            total_hits = 0
+        try:
+            trending = Redirect.query.order_by(Redirect.access_count.desc()).limit(3).all() if total > 0 else []
+        except Exception:
+            trending = []
+        try:
+            recent = Redirect.query.order_by(Redirect.created_at.desc()).limit(3).all() if total > 0 else []
+        except Exception:
+            recent = []
+        logger.debug(f"Retrieved {len(latest_shortcuts)} latest shortcuts for dashboard (total {total}, hits {total_hits}).")
     except Exception as e:
         logger.exception("Failed to retrieve latest shortcuts for dashboard.")
         latest_shortcuts = []
         total = 0
+        total_hits = 0
+        trending = []
+        recent = []
     # r/ hostname detection logic
     r_hostname_enabled = False
     # Check config file for r/ hostname
@@ -120,7 +205,7 @@ def dashboard():
         pass
     # Show starter pack banner if DB is empty (first setup)
     show_starter = (total == 0)
-    return render_template('dashboard.html', shortcuts=latest_shortcuts, count=count, sort=sort, r_hostname_enabled=r_hostname_enabled, total=total, show_starter=show_starter)
+    return render_template('dashboard.html', shortcuts=latest_shortcuts, count=count, sort=sort, r_hostname_enabled=r_hostname_enabled, total=total, total_hits=total_hits, trending=trending, recent=recent, show_starter=show_starter)
 
 @bp.route('/qr/<path:pattern>')
 def qr_code(pattern):
