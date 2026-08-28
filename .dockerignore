@@ -6,3 +6,7 @@ scripts/
 .venv
 .vscode/
 *.md
+!CHANGELOG.md
+!README.md
+!VERSIONING.md
+!SECURITY.md
