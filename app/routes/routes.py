@@ -87,10 +87,12 @@ def dashboard():
             latest_shortcuts = Redirect.query.order_by(Redirect.created_at.desc()).limit(count).all()
         else:
             latest_shortcuts = Redirect.query.order_by(Redirect.updated_at.desc()).limit(count).all()
-        logger.debug(f"Retrieved {len(latest_shortcuts)} latest shortcuts for dashboard.")
+        total = Redirect.query.count()
+        logger.debug(f"Retrieved {len(latest_shortcuts)} latest shortcuts for dashboard (total {total}).")
     except Exception as e:
         logger.exception("Failed to retrieve latest shortcuts for dashboard.")
         latest_shortcuts = []
+        total = 0
     # r/ hostname detection logic
     r_hostname_enabled = False
     # Check config file for r/ hostname
@@ -113,7 +115,9 @@ def dashboard():
                 break
     except Exception:
         pass
-    return render_template('dashboard.html', shortcuts=latest_shortcuts, count=count, sort=sort, r_hostname_enabled=r_hostname_enabled)
+    # Show starter pack banner if DB is empty (first setup)
+    show_starter = (total == 0)
+    return render_template('dashboard.html', shortcuts=latest_shortcuts, count=count, sort=sort, r_hostname_enabled=r_hostname_enabled, total=total, show_starter=show_starter)
 
 
 
@@ -309,6 +313,53 @@ def admin_config():
         except Exception as e:
             flash(f'Failed to update configuration: {e}', 'error')
     return render_template('admin_config.html', config_data=config_data)
+
+@bp.route('/admin/setup', methods=['GET'])
+@login_required
+def admin_setup():
+    from app.utils.default_shortcuts import get_defaults_grouped, DEFAULT_SHORTCUTS
+    grouped = get_defaults_grouped()
+    existing = {r.pattern for r in Redirect.query.all()}
+    return render_template('admin_setup.html', grouped=grouped, existing=existing, total_defaults=len(DEFAULT_SHORTCUTS))
+
+@bp.route('/api/install-defaults', methods=['POST'])
+@login_required
+def api_install_defaults():
+    from app.utils.default_shortcuts import get_default_by_pattern
+    data = request.get_json() or {}
+    patterns = data.get('patterns') or request.form.getlist('patterns')
+    # fallback to form checkbox
+    if not patterns and request.form:
+        patterns = [k.split('chk_')[1] for k in request.form.keys() if k.startswith('chk_')]
+    if not patterns:
+        return jsonify({'success': False, 'error': 'No patterns selected'}), 400
+    installed = []
+    skipped = []
+    now = datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')
+    ip = request.remote_addr or 'setup'
+    for pat in patterns:
+        tmpl = get_default_by_pattern(pat)
+        if not tmpl:
+            skipped.append(pat)
+            continue
+        if utils.isPatternExists(pat):
+            skipped.append(pat)
+            continue
+        try:
+            utils.set_shortcut(pattern=tmpl['pattern'], type_=tmpl['type'], target=tmpl['target'], created_at=now, updated_at=now, created_ip=ip, updated_ip=ip)
+            # for user-dynamic, create UserParam
+            if tmpl['type'] == 'user-dynamic' and tmpl.get('params'):
+                for pname, desc in tmpl['params'].items():
+                    existing = UserParam.query.filter_by(shortcut_pattern=pat, param_name=pname).first()
+                    if not existing:
+                        p = UserParam(shortcut_pattern=pat, param_name=pname, description=desc, required=True, created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc))
+                        utils.db.session.add(p)
+                        utils.db.session.commit()
+            installed.append(pat)
+        except Exception as e:
+            logger.exception(f"Failed to install default {pat}: {e}")
+            skipped.append(pat)
+    return jsonify({'success': True, 'installed': installed, 'skipped': skipped, 'count': len(installed)})
 
 @bp.route('/api/param-description/<shortcut_pattern>/<param_name>')
 def api_param_description(shortcut_pattern, param_name):

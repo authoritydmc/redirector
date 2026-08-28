@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Setup Starter Shortcuts - URL Shortener/Redirector{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow p-6 sm:p-8 mt-6">
+  <div class="flex items-center gap-3 mb-2">
+    <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 flex items-center justify-center"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+    <h2 class="text-2xl font-black text-gray-900 dark:text-white">Starter Pack — Good Shortcuts</h2>
+    <span class="ml-auto text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 border">{{ total_defaults }} curated</span>
+  </div>
+  <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Pick the shortcuts every company needs. Hierarchical <span class="font-mono">eng/docs</span>, dynamic <span class="font-mono">jira/{ticket}</span>, and per-user <span class="font-mono">[username]</span> examples are included. Already existing patterns are greyed out.</p>
+
+  <form id="setup-form" class="space-y-6">
+    {% for category, items in grouped.items() %}
+    <div class="border rounded-xl overflow-hidden">
+      <div class="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b flex items-center gap-2">
+        <span class="font-bold text-sm">{{ category }}</span>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border">{{ items|length }}</span>
+        <label class="ml-auto text-xs flex items-center gap-1"><input type="checkbox" class="cat-toggle" data-cat="{{ category }}"> Select all</label>
+      </div>
+      <div class="divide-y">
+        {% for s in items %}
+        {% set exists = s.pattern in existing %}
+        <label class="flex items-start gap-3 px-4 py-3 hover:bg-blue-50 dark:hover:bg-gray-700/50 {% if exists %}opacity-60{% endif %}">
+          <input type="checkbox" name="chk_{{ s.pattern }}" value="{{ s.pattern }}" class="mt-1 chk" data-cat="{{ category }}" {% if exists %}disabled checked{% endif %} {% if not exists %}checked{% endif %}>
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-mono font-bold text-sm px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-900 border">{{ s.pattern }}</span>
+              <span class="text-xs px-2 py-0.5 rounded-full border {% if s.type=='static' %}bg-green-50 text-green-700 border-green-200{% elif s.type=='dynamic' %}bg-blue-50 text-blue-700 border-blue-200{% else %}bg-yellow-50 text-yellow-700 border-yellow-200{% endif %}">{{ s.type }}</span>
+              {% if exists %}<span class="text-xs text-gray-500"><i class="fa-solid fa-check"></i> already exists</span>{% endif %}
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ s.description }} → <span class="font-mono break-all">{{ s.target }}</span></div>
+          </div>
+          <i class="fa-solid {{ s.icon }} text-gray-400 mt-1"></i>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="flex flex-wrap gap-3">
+      <button type="submit" id="install-btn" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-bold flex items-center gap-2"><i class="fa-solid fa-download"></i> Install Selected</button>
+      <a href="/" class="px-6 py-3 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 font-semibold">Skip — Go to Dashboard</a>
+      <span id="install-msg" class="text-sm self-center hidden"></span>
+    </div>
+  </form>
+
+  <div class="mt-6 text-xs text-gray-500 dark:text-gray-400 border-t pt-4">
+    <p><i class="fa-solid fa-circle-info"></i> You can also <a href="/admin/import-redirects" class="underline">import JSON</a> or create shortcuts manually via <span class="font-mono">r/...</span>. SSO targets (Google Drive etc) are never cached.</p>
+  </div>
+</div>
+<script>
+  document.querySelectorAll('.cat-toggle').forEach(t=>{
+    t.addEventListener('change', ()=>{
+      const cat=t.dataset.cat;
+      document.querySelectorAll('.chk[data-cat="'+cat+'"]:not(:disabled)').forEach(c=>c.checked=t.checked);
+    });
+  });
+  document.getElementById('setup-form').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const btn=document.getElementById('install-btn');
+    const msg=document.getElementById('install-msg');
+    const patterns=[...document.querySelectorAll('.chk:checked:not(:disabled)')].map(c=>c.value);
+    if(!patterns.length){ msg.textContent='Select at least one'; msg.classList.remove('hidden'); return; }
+    btn.disabled=true; btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Installing...';
+    try{
+      const r=await fetch('{{ url_for("main.api_install_defaults") }}',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({patterns})});
+      const d=await r.json();
+      if(d.success){
+        msg.textContent=`Installed ${d.installed.length}, skipped ${d.skipped.length}. Redirecting...`;
+        msg.classList.remove('hidden'); msg.className='text-sm self-center text-green-600';
+        setTimeout(()=>location.href='/', 900);
+      } else { msg.textContent=d.error||'Failed'; msg.classList.remove('hidden'); }
+    }catch(err){ msg.textContent=err.message; msg.classList.remove('hidden'); }
+    btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-download"></i> Install Selected';
+  });
+</script>
+{% endblock %}
