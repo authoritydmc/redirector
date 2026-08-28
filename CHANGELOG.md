@@ -39,7 +39,7 @@ We follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic
 ### Fixed
 - **More secure automation:** Fixed a GitHub Actions workflow that could have allowed untrusted text to run as a shell command. Now uses a safe quoted variable.
 
-### For admins & IT
+**For admins & IT:**
 - Health checks at `r/health` / `r/ready` and metrics at `r/api/metrics` for Kubernetes and Prometheus.
 - Upstream cache now has a per-upstream “Skip SSO cache” toggle (on by default) and correctly handles `resync` without caching login pages.
 
