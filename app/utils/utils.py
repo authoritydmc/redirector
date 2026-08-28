@@ -283,7 +283,11 @@ def get_shortcut(pattern):
             'access_count': redirect_obj.access_count if redirect_obj.access_count is not None else 0,
             'created_at': redirect_obj.created_at,
             'updated_at': redirect_obj.updated_at,
-            'data_type': redirect_obj.type # Assuming 'type' maps to CONSTANTS.DATA_TYPE_STATIC/DYNAMIC
+            'data_type': redirect_obj.type,
+            'tags': getattr(redirect_obj, 'tags', None),
+            'visibility': getattr(redirect_obj, 'visibility', 'public'),
+            'expires_at': getattr(redirect_obj, 'expires_at', None),
+            'owner_email': getattr(redirect_obj, 'owner_email', None)
         }
         # Hydrate Redis - NEVER cache SSO targets (avoid caching auth redirects)
         if config.redis_enabled:
@@ -314,7 +318,7 @@ def get_shortcut(pattern):
     logger.info(f"Shortcut '{pattern}' not found in local DB or upstream cache.")
     return None, None, round(time.time() - start_time, 6)
 
-def set_shortcut(pattern, type_, target, created_at=None, updated_at=None, created_ip=None, updated_ip=None):
+def set_shortcut(pattern, type_, target, created_at=None, updated_at=None, created_ip=None, updated_ip=None, tags=None, visibility=None, expires_at=None, owner_email=None):
     redirect_obj = Redirect.query.filter_by(pattern=pattern).first()
     if redirect_obj:
         # Update existing shortcut
@@ -322,6 +326,14 @@ def set_shortcut(pattern, type_, target, created_at=None, updated_at=None, creat
         redirect_obj.target = target
         redirect_obj.updated_at = updated_at or datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')
         redirect_obj.updated_ip = updated_ip
+        if tags is not None:
+            redirect_obj.tags = tags
+        if visibility is not None:
+            redirect_obj.visibility = visibility
+        if expires_at is not None:
+            redirect_obj.expires_at = expires_at
+        if owner_email is not None:
+            redirect_obj.owner_email = owner_email
         logger.info(f"Updated existing shortcut: '{pattern}'")
     else:
         # Create new shortcut
@@ -333,7 +345,11 @@ def set_shortcut(pattern, type_, target, created_at=None, updated_at=None, creat
             created_at=created_at or datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds'),
             updated_at=updated_at or datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds'),
             created_ip=created_ip,
-            updated_ip=updated_ip
+            updated_ip=updated_ip,
+            tags=tags,
+            visibility=visibility or 'public',
+            expires_at=expires_at,
+            owner_email=owner_email
         )
         db.session.add(new_shortcut)
         logger.info(f"Created new shortcut: '{pattern}'")
@@ -958,3 +974,43 @@ def sanitize_redirect_target(url: str, fallback: str = "/") -> str:
         return url
     logger.warning(f"Blocked unsafe redirect target: {url}")
     return fallback
+
+def get_similar_patterns(query: str, limit: int = 3):
+    """Suggest similar patterns for not-found (issue #71). Simple ilike."""
+    if not query:
+        return []
+    try:
+        from model.redirect import Redirect
+        q = query.strip().lower()
+        # Try prefix match first, then contains
+        candidates = Redirect.query.filter(Redirect.pattern.ilike(f"%{q}%")).limit(limit*2).all()
+        # Simple ranking: shortest pattern first
+        candidates = sorted(candidates, key=lambda r: len(r.pattern))[:limit]
+        return [{'pattern': r.pattern, 'target': r.target, 'type': r.type} for r in candidates]
+    except Exception:
+        return []
+
+def is_expired(redirect_obj) -> bool:
+    """Check if redirect has expired (issue #75)."""
+    if not redirect_obj or not getattr(redirect_obj, 'expires_at', None):
+        return False
+    try:
+        exp = redirect_obj.expires_at
+        # Try ISO parse
+        from datetime import datetime, timezone
+        dt = datetime.fromisoformat(exp.replace('Z', '+00:00')) if 'T' in exp else datetime.strptime(exp, '%Y-%m-%d %H:%M:%S')
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) > dt
+    except Exception:
+        return False
+
+def is_private_visible(redirect_obj, is_admin: bool) -> bool:
+    """Check visibility ACL (issue #74): private requires admin."""
+    vis = getattr(redirect_obj, 'visibility', 'public') or 'public'
+    if vis == 'private' and not is_admin:
+        return False
+    if vis == 'team' and not is_admin:
+        # For now, team requires admin (future: check team membership)
+        return False
+    return True
