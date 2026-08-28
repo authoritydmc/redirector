@@ -6,10 +6,14 @@ We follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic
 
 ---
 
-## [Unreleased]
+## [3.1.1] — 2026-08-28
 
 ### Added
-- Upcoming: more team analytics and Slack integration (tracked in GitHub issues).
+- **Dashboard polish:** Reduced `Changelog` links from 4 to 2 (header + footer only) — less clutter.
+
+### Fixed
+- **Version status:** `3.1.0+143.g2aee161` no longer shows `Unknown` when latest tag is `2.2.0` (dev ahead) — now shows `Up to date (dev ahead)` via `compareSemver` and `update_available` flag, with fallback to raw `VERSION` when GitHub has no releases.
+- **Dark mode:** System info `Version` / `System Health` / `Config` no longer uses `text-black` on dark (`dark:text-white` everywhere) — fixes docker screenshot.
 
 ---
 
