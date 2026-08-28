@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Redirecting... — r/{{ request.path[1:] if request.path else '' }}</title>
+  <title>Redirecting... - r/{{ request.path[1:] if request.path else '' }}</title>
   <meta http-equiv="refresh" content="{{ delay }};url={{ target }}" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -41,12 +41,12 @@
         </div>
       </div>
 
-      <h1 class="text-[28px] font-black text-white tracking-tight">Redirecting…</h1>
+      <h1 class="text-[28px] font-black text-white tracking-tight">Redirecting...</h1>
       <p class="text-sm text-white/60 mt-1">You are being redirected to:</p>
 
       <!-- Destination card -->
       <div class="mt-4 bg-white/5 border border-white/10 rounded-2xl p-3 flex items-center gap-3 text-left">
-        <img id="favicon" src="https://www.google.com/s2/favicons?domain={{ target|replace('https://','')|replace('http://','')|replace('/',' ')|trim|cut(' ') }}&sz=32" class="w-8 h-8 rounded-lg bg-white p-1 flex-shrink-0" onerror="this.style.display='none'">
+        <img id="favicon" src="https://www.google.com/s2/favicons?domain={{ target }}&sz=32" class="w-8 h-8 rounded-lg bg-white p-1 flex-shrink-0" onerror="this.style.display='none'">
         <div class="flex-1 min-w-0">
           <a id="dest-link" href="{{ target }}" class="block text-sm font-mono text-blue-400 hover:text-blue-300 truncate" title="{{ target }}">{{ target }}</a>
           <p class="text-xs text-white/40 truncate" id="dest-host"></p>
