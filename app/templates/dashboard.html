@@ -56,7 +56,6 @@
       <i class="fa-solid fa-circle-info"></i> Enable r/
     </a>
     {% endif %}
-    <a href="/changelog" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 px-3 py-2.5 rounded-xl text-sm flex items-center gap-1 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-white/10"><i class="fa-solid fa-file-lines"></i> Changelog</a>
   </div>
 </div>
 
@@ -196,7 +195,6 @@
       {% for r in recent %}
       <a href="/{{ r.pattern }}" class="flex items-center gap-2 py-1.5 text-sm hover:underline text-gray-700 dark:text-white/80"><span class="w-2 h-2 rounded-full bg-blue-500"></span><span class="font-mono truncate">{{ r.pattern }}</span><span class="ml-auto text-xs text-gray-400 dark:text-white/30">{{ r.created_at[:10] if r.created_at else '' }}</span></a>
       {% else %}<p class="text-xs text-gray-500 dark:text-white/40">No recent</p>{% endfor %}
-      <a href="/changelog" class="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-3 inline-block">See changelog →</a>
     </div>
 
     <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 flex items-center gap-3">
