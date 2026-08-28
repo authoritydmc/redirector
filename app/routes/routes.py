@@ -12,6 +12,8 @@ from app.routes.routesUtils import login_required, get_safe_next_url
 from app.utils import utils
 from model.redirect import Redirect  # Import Redirect model for export/import
 from model.user_param import UserParam
+import base64
+import io
 
 # Get a logger instance for this module
 logger = logging.getLogger(__name__)
@@ -119,6 +121,34 @@ def dashboard():
     # Show starter pack banner if DB is empty (first setup)
     show_starter = (total == 0)
     return render_template('dashboard.html', shortcuts=latest_shortcuts, count=count, sort=sort, r_hostname_enabled=r_hostname_enabled, total=total, show_starter=show_starter)
+
+@bp.route('/qr/<path:pattern>')
+def qr_code(pattern):
+    """QR code for short URL (issue #77). Returns PNG."""
+    short_url = request.host_url.rstrip('/') + '/' + pattern
+    try:
+        import qrcode
+        img = qrcode.make(short_url)
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        buf.seek(0)
+        return send_file(buf, mimetype='image/png', download_name=f'{pattern.replace("/", "_")}_qr.png')
+    except Exception as e:
+        logger.exception("QR generation failed")
+        return jsonify({'success': False, 'error': 'QR generation failed'}), 500
+
+@bp.route('/api/qr/<path:pattern>')
+def api_qr(pattern):
+    short_url = request.host_url.rstrip('/') + '/' + pattern
+    try:
+        import qrcode
+        img = qrcode.make(short_url)
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        b64 = base64.b64encode(buf.getvalue()).decode()
+        return jsonify({'success': True, 'pattern': pattern, 'short_url': short_url, 'qr_base64': b64})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 

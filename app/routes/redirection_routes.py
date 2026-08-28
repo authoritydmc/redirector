@@ -262,14 +262,20 @@ def handle_redirect(subpath):
 
     logger.info(f"No direct shortcut found for '{subpath}'. Checking live upstreams.")
     if utils.get_upstreams():
-        # For hierarchical paths, check full subpath in upstream UI (supports x/abc etc)
         sanitized = utils.sanitize_pattern(subpath) if hasattr(utils, 'sanitize_pattern') else subpath.strip().strip('/')
         check_pattern = sanitized if sanitized else subpath.split('/')[0]
         logger.debug(f"Redirecting to upstream check UI for pattern: '{check_pattern}'")
         return redirect(url_for('upstream.check_upstreams_ui', pattern=check_pattern), code=302)
 
-    logger.info(f"No upstreams configured. Redirecting to create shortcut page for '{subpath}'.")
-    return redirect(url_for('redirection.edit_redirect', subpath=subpath))
+    # No upstreams: show not-found with suggestions (#71) instead of immediate create redirect
+    try:
+        suggestions = utils.get_similar_patterns(subpath, limit=3)
+        # Also check for expired/private handling: if exact pattern exists but is expired/private, suggestions already handled above
+        # For now, render not_found with suggestions and CTA to create
+        return render_template('not_found.html', pattern=subpath, suggestions=suggestions), 404
+    except Exception:
+        logger.exception("Not-found handling failed")
+        return redirect(url_for('redirection.edit_redirect', subpath=subpath))
 
 
 @bp.route('/edit/', methods=['GET', 'POST'])

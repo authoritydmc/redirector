@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Not Found - URL Shortener/Redirector{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow p-8 mt-8 text-center">
+  <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600"><i class="fa-solid fa-question text-2xl"></i></div>
+  <h2 class="text-xl font-black mb-2">Shortcut not found: <span class="font-mono text-blue-600">r/{{ pattern }}</span></h2>
+  <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">No shortcut matches <span class="font-mono">{{ pattern }}</span>. Did you mean one of these?</p>
+  {% if suggestions %}
+  <div class="space-y-2 text-left max-w-md mx-auto mb-6">
+    {% for s in suggestions %}
+    <a href="/{{ s.pattern }}" class="block px-4 py-2 rounded-lg border hover:bg-blue-50 dark:hover:bg-gray-700 flex items-center gap-3">
+      <span class="font-mono font-bold">{{ s.pattern }}</span>
+      <span class="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-900 border">{{ s.type }}</span>
+      <span class="text-xs text-gray-500 truncate">{{ s.target }}</span>
+      <i class="fa-solid fa-arrow-right ml-auto text-gray-400"></i>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-xs text-gray-500 mb-6">No similar shortcuts found.</p>
+  {% endif %}
+  <div class="flex gap-3 justify-center">
+    <a href="/edit/{{ pattern }}" class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 font-bold flex items-center gap-2"><i class="fa-solid fa-plus"></i> Create r/{{ pattern }}</a>
+    <a href="/" class="px-5 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">Dashboard</a>
+  </div>
+  <p class="text-xs text-gray-400 mt-6"><i class="fa-solid fa-lightbulb"></i> Tip: Use <span class="font-mono">r/eng/docs</span> for teams, <span class="font-mono">r/jira/{ticket}</span> for dynamic, <span class="font-mono">r/my-prs/[username]</span> for per-user.</p>
+</div>
+{% endblock %}
