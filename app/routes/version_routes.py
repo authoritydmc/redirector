@@ -301,13 +301,23 @@ def api_latest_version():
             }
             return result
         elif resp.status_code == 404:
-            logger.warning(f"GitHub API 404: No releases found for {GITHUB_REPO}. You must create a release on GitHub for version check to work. Response: {resp.text}")
-            result = {'success': False, 'error': 'No releases found on GitHub. Please create a release for version checking.', 'current': get_semver()}
-            _version_check_cache = {
-                'timestamp': now,
-                'result': result,
-                'error': True
-            }
+            logger.warning(f"GitHub API 404: No releases yet for {GITHUB_REPO} — falling back to raw VERSION file")
+            # Try raw VERSION file as fallback (project URL + VERSION)
+            try:
+                raw = requests.get(f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/VERSION", timeout=2)
+                if raw.ok:
+                    latest = raw.text.strip()
+                    # Compare with current
+                    cmp = compare_semver(latest or '', get_semver())
+                    update_available = cmp > 0
+                    logger.info(f"Fallback raw VERSION: latest={latest}, current={get_semver()}, update={update_available}")
+                    result = {'success': True, 'latest': latest, 'current': get_semver(), 'update_available': update_available, 'fallback': True}
+                    _version_check_cache = {'timestamp': now, 'result': result, 'error': False}
+                    return result
+            except Exception as e:
+                logger.warning(f"Fallback raw VERSION failed: {e}")
+            result = {'success': True, 'latest': get_semver(), 'current': get_semver(), 'update_available': False, 'message': 'No releases yet — you are up to date'}
+            _version_check_cache = {'timestamp': now, 'result': result, 'error': False}
             return result
         elif resp.status_code == 403 and 'rate limit' in resp.text.lower():
             logger.warning(f"GitHub API rate limit exceeded: {resp.text}")

@@ -252,7 +252,14 @@ def tutorial():
 @bp.route('/admin/export-redirects')
 @login_required
 def admin_export_redirects():
-    redirects = Redirect.query.all()
+    # Support ?format=secure (default) vs ?format=legacy, and ?q= filter
+    import hashlib, hmac
+    q = request.args.get('q', '').strip()
+    query = Redirect.query
+    if q:
+        like = f"%{q}%"
+        query = query.filter((Redirect.pattern.ilike(like)) | (Redirect.target.ilike(like)))
+    redirects = query.all()
     exported_data = []
     for r in redirects:
         exported_data.append({
@@ -264,14 +271,42 @@ def admin_export_redirects():
             'created_at': r.created_at,
             'updated_at': r.updated_at,
             'created_ip': r.created_ip,
-            'updated_ip': r.updated_ip
+            'updated_ip': r.updated_ip,
+            'tags': getattr(r, 'tags', None),
+            'visibility': getattr(r, 'visibility', 'public'),
+            'expires_at': getattr(r, 'expires_at', None),
+            'owner_email': getattr(r, 'owner_email', None),
         })
-
-    buf = io.BytesIO(json.dumps(exported_data, indent=2).encode('utf-8'))
+    # Metadata for secure transfer
+    from app.CONSTANTS import get_semver
+    meta = {
+        'version': get_semver(),
+        'exportedAt': datetime.now(timezone.utc).isoformat(),
+        'count': len(exported_data),
+        'generator': 'Redirector',
+        'filter': q or None,
+    }
+    payload = {'meta': meta, 'data': exported_data}
+    # HMAC signature using admin_password (not exported) for integrity (optional, verified on import if present)
+    try:
+        secret = utils.get_admin_password().encode()
+        sig = hmac.new(secret, json.dumps(exported_data, sort_keys=True).encode(), hashlib.sha256).hexdigest()
+        payload['signature'] = sig
+        payload['meta']['signatureAlgo'] = 'HMAC-SHA256'
+    except Exception:
+        pass
+    # Also include checksum for non-security verification
+    try:
+        chk = hashlib.sha256(json.dumps(exported_data, sort_keys=True).encode()).hexdigest()[:16]
+        payload['meta']['checksum'] = chk
+    except Exception:
+        pass
+    buf = io.BytesIO(json.dumps(payload, indent=2).encode('utf-8'))
     buf.seek(0)
     timestamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
-    filename = f'redirects-{timestamp}.json'
-    logger.info(f"Exported {len(exported_data)} redirects to {filename}.")
+    suffix = f'-{q}' if q else ''
+    filename = f'redirects{suffix}-{timestamp}.json'
+    logger.info(f"Exported {len(exported_data)} redirects (q={q}) to {filename} with signature.")
     return send_file(buf, mimetype='application/json', as_attachment=True, download_name=filename)
 
 

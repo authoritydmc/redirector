@@ -168,11 +168,13 @@ async function checkVersionSystem(){
     cur=d.current||cur;
     document.getElementById('version-string').textContent=cur;
     const cmp=compareSemver(latest, cur);
-    if(cmp===0){
+    // Use backend update_available if present, else cmp
+    const hasUpdate = (typeof d.update_available === 'boolean') ? d.update_available : (cmp>0);
+    if(cmp===0 || (!hasUpdate && cmp<=0)){
       icon.innerHTML='<i class="fa-solid fa-circle-check text-green-500"></i>';
-      text.textContent='Up to date';
+      text.textContent= cmp<0 ? 'Up to date (dev ahead)' : 'Up to date';
       text.className='text-green-600 dark:text-green-400 font-bold';
-    } else if(cmp>0){
+    } else if(hasUpdate || cmp>0){
       icon.innerHTML='<i class="fa-solid fa-circle-exclamation text-amber-500"></i>';
       text.textContent='Update available';
       text.className='text-amber-600 font-bold';
