@@ -1,120 +1,344 @@
-<!-- filepath: app/templates/enable_r_instructions.html -->
 {% extends "base.html" %}
-{% block title %}Enable r/ Shortcuts - Instructions{% endblock %}
+{% block title %}Enable r/ Shortcuts — 30 seconds{% endblock %}
+{% block head %}
+<style>
+  .tab-active { background: #2563eb; color: white; border-color: #2563eb; }
+  .step-num { width: 28px; height: 28px; border-radius: 9999px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size: 13px; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="max-w-2xl mx-auto px-4 py-10">
-  <h1 class="text-3xl font-bold text-blue-700 dark:text-blue-200 mb-6 flex items-center gap-3">
-    <i class="fa-solid fa-circle-info text-blue-500 dark:text-blue-300"></i>
-    How to Enable <span class="font-mono">r/</span> Shortcuts
-  </h1>
-  <p class="mb-6 text-lg text-gray-700 dark:text-blue-100">
-    To use <span class="font-mono">r/</span> shortcuts on your device, you need to add an entry to your <span class="font-mono">hosts</span> file. 
-    You can do this automatically using the provided scripts or manually by editing the file yourself. Choose your platform below:
-  </p>
-
-  <div class="space-y-8">
-    {% set platforms = [
-      {"name": "Windows", "icon": "fa-brands fa-windows", "script": "add-r-host-windows.ps1", "manual_path": "C:\\Windows\\System32\\drivers\\etc\\hosts"},
-      {"name": "macOS", "icon": "fa-brands fa-apple", "script": "add-r-host-macos.sh", "manual_path": "/etc/hosts", "flush": "dscacheutil -flushcache && sudo killall -HUP mDNSResponder"},
-      {"name": "Linux", "icon": "fa-brands fa-linux", "script": "add-r-host-linux.sh", "manual_path": "/etc/hosts"}
-    ] %}
-
-    {% for platform in platforms %}
-    <div class="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
-      <h2 class="text-2xl font-semibold text-blue-600 dark:text-blue-300 mb-2 flex items-center gap-2">
-        <i class="{{ platform.icon }}"></i> {{ platform.name }}
-      </h2>
-      <ol class="list-decimal list-inside text-gray-700 dark:text-blue-100 space-y-2">
-        <li>Open <b>{{ "PowerShell" if platform.name == "Windows" else "Terminal" }}</b>.</li>
-        <li>Run the following command:
-          <div class="relative group mt-2">
-            <pre class="bg-gray-100 dark:bg-[#181824] rounded p-2 text-sm overflow-x-auto">
-              <code id="{{ platform.name|lower }}-cmd">bash scripts/{{ platform.script }}</code>
-            </pre>
-            <button onclick="copyCmd('{{ platform.name|lower }}-cmd', this)" 
-                    class="absolute top-2 right-2 bg-blue-600 text-white px-2 py-1 rounded text-xs opacity-80 hover:opacity-100 transition">
-              <i class="fa-regular fa-copy"></i> Copy
-            </button>
-            <div class="copy-feedback text-green-600 dark:text-green-400 text-xs mt-1" style="display:none; opacity:0;">Copied!</div>
-          </div>
-        </li>
-        <li>Or, manually edit <span class="font-mono">{{ platform.manual_path }}</span> (requires sudo for macOS/Linux):
-          <div class="relative group mt-2">
-            <pre class="bg-gray-100 dark:bg-[#181824] rounded p-2 text-sm overflow-x-auto">
-              <code id="{{ platform.name|lower }}-host">127.0.0.1   r</code>
-            </pre>
-            <button onclick="copyCmd('{{ platform.name|lower }}-host', this)" 
-                    class="absolute top-2 right-2 bg-blue-600 text-white px-2 py-1 rounded text-xs opacity-80 hover:opacity-100 transition">
-              <i class="fa-regular fa-copy"></i> Copy
-            </button>
-            <div class="copy-feedback text-green-600 dark:text-green-400 text-xs mt-1" style="display:none; opacity:0;">Copied!</div>
-          </div>
-        </li>
-        {% if platform.flush %}
-        <li><b>Then run:</b>
-          <div class="relative group mt-2">
-            <pre class="bg-gray-100 dark:bg-[#181824] rounded p-2 text-sm overflow-x-auto">
-              <code id="{{ platform.name|lower }}-flush">{{ platform.flush }}</code>
-            </pre>
-            <button onclick="copyCmd('{{ platform.name|lower }}-flush', this)" 
-                    class="absolute top-2 right-2 bg-blue-600 text-white px-2 py-1 rounded text-xs opacity-80 hover:opacity-100 transition">
-              <i class="fa-regular fa-copy"></i> Copy
-            </button>
-            <div class="copy-feedback text-green-600 dark:text-green-400 text-xs mt-1" style="display:none; opacity:0;">Copied!</div>
-          </div>
-        </li>
-        {% endif %}
-      </ol>
-    </div>
-    {% endfor %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <!-- Header -->
+  <div class="text-center mb-8">
+    <h1 class="text-3xl font-black text-gray-900 dark:text-white flex items-center justify-center gap-3">
+      <span class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center"><i class="fa-solid fa-bolt"></i></span>
+      Enable <span class="font-mono bg-blue-600 text-white px-2 py-0.5 rounded-lg">r/</span> Shortcuts
+    </h1>
+    <p class="text-gray-600 dark:text-gray-400 mt-2">Type <span class="font-mono bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded border">r/docs</span> in your browser → instantly open any team link. Works like Google's <span class="font-mono">go/</span>.</p>
   </div>
 
-  <div class="mt-10 text-center">
-    <a href="/" class="inline-block bg-blue-700 text-white px-6 py-2 rounded-lg shadow hover:bg-blue-800 transition">
-      <i class="fa-solid fa-arrow-left mr-2"></i>Back to Dashboard
+  <!-- Live status card -->
+  <div id="status-card" class="rounded-2xl border p-5 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800">
+    <div id="status-icon" class="w-12 h-12 rounded-xl bg-yellow-500 text-white flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-spinner fa-spin"></i></div>
+    <div class="flex-1 min-w-0">
+      <p id="status-title" class="font-bold text-gray-900 dark:text-white">Checking r/…</p>
+      <p id="status-desc" class="text-sm text-gray-600 dark:text-gray-400">Testing if <span class="font-mono">r</span> resolves to <span class="font-mono">127.0.0.1</span> on this device.</p>
+      <p id="status-detail" class="text-xs font-mono text-gray-500 mt-1"></p>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="checkR()" class="px-4 py-2 rounded-xl bg-white dark:bg-gray-800 border hover:bg-gray-50 text-sm font-semibold flex items-center gap-2"><i class="fa-solid fa-rotate"></i> Test again</button>
+      <a id="status-cta" href="#single" class="hidden px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-sm font-bold">Fix it →</a>
+    </div>
+  </div>
+
+  <!-- What is r/ -->
+  <div class="bg-white dark:bg-gray-800 rounded-2xl border p-6 mb-6">
+    <h2 class="font-black text-lg mb-2 flex items-center gap-2"><i class="fa-solid fa-lightbulb text-yellow-500"></i> What is <span class="font-mono">r/</span>?</h2>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Instead of sharing <span class="font-mono text-xs bg-gray-100 dark:bg-gray-900 px-1 rounded">https://docs.google.com/document/d/1a2b3c...</span>, just say <span class="font-mono bg-blue-600 text-white px-1.5 py-0.5 rounded">r/docs</span> in Slack, meetings, or your address bar. Everyone on your team (or just you, locally) gets instant access.</p>
+    <div class="grid sm:grid-cols-3 gap-3 text-center">
+      <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-3 border"><p class="font-mono text-blue-600 font-bold">r/jira/123</p><p class="text-xs text-gray-500">→ Jira ticket</p></div>
+      <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-3 border"><p class="font-mono text-blue-600 font-bold">r/eng/runbook</p><p class="text-xs text-gray-500">→ On-call page</p></div>
+      <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-3 border"><p class="font-mono text-blue-600 font-bold">r/my-prs</p><p class="text-xs text-gray-500">→ Your PRs (per-user)</p></div>
+    </div>
+  </div>
+
+  <!-- Choose setup -->
+  <div class="grid sm:grid-cols-2 gap-4 mb-6">
+    <a href="#single" class="bg-blue-600 text-white rounded-2xl p-5 border-2 border-blue-600 shadow-lg">
+      <p class="font-black flex items-center gap-2"><i class="fa-solid fa-laptop"></i> Just for me</p>
+      <p class="text-sm text-white/90 mt-1">Add <span class="font-mono bg-white/20 px-1 rounded">127.0.0.1 r</span> to your hosts file. 30 seconds, no IT needed.</p>
+      <p class="text-xs bg-white text-blue-600 px-2 py-1 rounded-full inline-block mt-3 font-bold">Recommended for personal use →</p>
     </a>
+    <a href="#company" class="bg-white dark:bg-gray-800 rounded-2xl p-5 border-2 border-gray-200 dark:border-gray-700 hover:border-blue-300">
+      <p class="font-black flex items-center gap-2"><i class="fa-solid fa-building"></i> For my company</p>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Add a DNS record so <span class="font-mono">r</span> works for everyone on the office network.</p>
+      <p class="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full inline-block mt-3">For IT admins →</p>
+    </a>
+  </div>
+
+  <!-- Single device -->
+  <div id="single" class="bg-white dark:bg-gray-800 rounded-2xl border shadow-sm overflow-hidden mb-6">
+    <div class="px-6 py-4 border-b bg-gray-50 dark:bg-gray-900 flex items-center justify-between">
+      <h2 class="font-black text-lg flex items-center gap-2"><i class="fa-solid fa-laptop"></i> Just for me — hosts file</h2>
+      <span class="text-xs px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 border">30 sec</span>
+    </div>
+
+    <!-- OS tabs -->
+    <div class="px-6 pt-4 flex gap-2 border-b">
+      <button data-tab="windows" class="tab-btn tab-active px-4 py-2 rounded-t-xl text-sm font-bold border flex items-center gap-2"><i class="fa-brands fa-windows"></i> Windows</button>
+      <button data-tab="macos" class="tab-btn px-4 py-2 rounded-t-xl text-sm font-bold border bg-white dark:bg-gray-800 flex items-center gap-2"><i class="fa-brands fa-apple"></i> macOS</button>
+      <button data-tab="linux" class="tab-btn px-4 py-2 rounded-t-xl text-sm font-bold border bg-white dark:bg-gray-800 flex items-center gap-2"><i class="fa-brands fa-linux"></i> Linux</button>
+    </div>
+
+    <div class="p-6 space-y-6">
+      <!-- Windows -->
+      <div id="tab-windows" class="tab-panel space-y-4">
+        <div class="flex gap-3">
+          <span class="step-num bg-blue-600 text-white">1</span>
+          <div class="flex-1">
+            <p class="font-bold text-sm">Open PowerShell as Administrator</p>
+            <p class="text-xs text-gray-500">Hit <span class="font-mono bg-gray-100 dark:bg-gray-900 px-1 rounded">Win</span>, type <span class="font-mono">PowerShell</span>, right-click → <b>Run as Administrator</b>. Click Yes.</p>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <span class="step-num bg-blue-600 text-white">2</span>
+          <div class="flex-1">
+            <p class="font-bold text-sm">Run the script (copy & paste)</p>
+            <div class="relative group mt-2">
+              <pre class="bg-[#0f1221] text-white rounded-xl p-3 pr-12 text-sm overflow-x-auto"><code id="win-cmd">powershell -ExecutionPolicy Bypass -Command "Add-Content -Path $env:windir\System32\drivers\etc\hosts -Value '127.0.0.1   r' -Force; Write-Host 'Done! Try r/docs in your browser.'"</code></pre>
+              <button onclick="copyCmd('win-cmd', this)" class="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700"><i class="fa-regular fa-copy"></i> Copy</button>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Or download and double-click: <a href="/static/scripts/add-r-host-windows.ps1" class="text-blue-600 underline">add-r-host-windows.ps1</a></p>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <span class="step-num bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">3</span>
+          <div class="flex-1">
+            <p class="font-bold text-sm">Verify — open <a href="http://r/" target="_blank" class="text-blue-600 underline font-mono">http://r/</a></p>
+            <p class="text-xs text-gray-500">Should show Redirector. If you see a search page, fully close and reopen your browser.</p>
+            <button onclick="testR()" class="mt-2 px-3 py-1.5 rounded-full bg-green-600 text-white text-xs font-bold hover:bg-green-700"><i class="fa-solid fa-vial"></i> Test r/ now</button> <span id="win-test" class="text-xs ml-2"></span>
+          </div>
+        </div>
+        <details class="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 rounded-xl p-3">
+          <summary class="font-bold text-sm cursor-pointer text-yellow-800 dark:text-yellow-200">Troubleshooting Windows</summary>
+          <ul class="text-xs text-gray-600 dark:text-gray-400 list-disc ml-5 mt-2 space-y-1">
+            <li><b>Access denied:</b> You must run PowerShell as Administrator.</li>
+            <li><b>Still not working:</b> Run <span class="font-mono bg-white dark:bg-gray-900 px-1 rounded">ipconfig /flushdns</span> then restart Chrome.</li>
+            <li><b>Antivirus blocks hosts:</b> Allow the edit or add <span class="font-mono">127.0.0.1 r</span> manually via Notepad as Admin.</li>
+          </ul>
+        </details>
+      </div>
+
+      <!-- macOS -->
+      <div id="tab-macos" class="tab-panel hidden space-y-4">
+        <div class="flex gap-3">
+          <span class="step-num bg-blue-600 text-white">1</span>
+          <div class="flex-1">
+            <p class="font-bold text-sm">Open Terminal</p>
+            <p class="text-xs text-gray-500">Press <span class="font-mono">Cmd+Space</span> → type <span class="font-mono">Terminal</span> → Enter.</p>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <span class="step-num bg-blue-600 text-white">2</span>
+          <div class="flex-1">
+            <p class="font-bold text-sm">Run (will ask for password)</p>
+            <div class="relative group mt-2">
+              <pre class="bg-[#0f1221] text-white rounded-xl p-3 pr-12 text-sm overflow-x-auto"><code id="mac-cmd">echo "127.0.0.1   r" | sudo tee -a /etc/hosts && dscacheutil -flushcache && sudo killall -HUP mDNSResponder && echo "Done! Try r/docs"</code></pre>
+              <button onclick="copyCmd('mac-cmd', this)" class="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold"><i class="fa-regular fa-copy"></i> Copy</button>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <span class="step-num bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">3</span>
+          <div class="flex-1">
+            <p class="font-bold text-sm">Verify</p>
+            <p class="text-xs text-gray-500">Open <a href="http://r/" class="text-blue-600 underline font-mono">http://r/</a> — you may need to fully quit and reopen your browser.</p>
+            <button onclick="testR()" class="mt-2 px-3 py-1.5 rounded-full bg-green-600 text-white text-xs font-bold">Test r/ now</button> <span id="mac-test" class="text-xs ml-2"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Linux -->
+      <div id="tab-linux" class="tab-panel hidden space-y-4">
+        <div class="flex gap-3">
+          <span class="step-num bg-blue-600 text-white">1</span>
+          <div class="flex-1">
+            <p class="font-bold text-sm">Open Terminal</p>
+            <p class="text-xs text-gray-500"><span class="font-mono">Ctrl+Alt+T</span></p>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <span class="step-num bg-blue-600 text-white">2</span>
+          <div class="flex-1">
+            <p class="font-bold text-sm">Run</p>
+            <div class="relative group mt-2">
+              <pre class="bg-[#0f1221] text-white rounded-xl p-3 pr-12 text-sm overflow-x-auto"><code id="linux-cmd">echo "127.0.0.1   r" | sudo tee -a /etc/hosts && sudo systemd-resolve --flush-caches 2>/dev/null || true; echo "Done!"</code></pre>
+              <button onclick="copyCmd('linux-cmd', this)" class="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold"><i class="fa-regular fa-copy"></i> Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-3 flex items-center gap-3 border">
+        <i class="fa-solid fa-shield-halved text-green-600"></i>
+        <p class="text-xs text-gray-600 dark:text-gray-400"><b>Safe & reversible:</b> This only adds one line pointing <span class="font-mono">r</span> to your own computer. Remove it anytime by deleting <span class="font-mono">127.0.0.1   r</span> from the same file.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Company-wide -->
+  <div id="company" class="bg-white dark:bg-gray-800 rounded-2xl border shadow-sm overflow-hidden mb-6">
+    <div class="px-6 py-4 border-b bg-gradient-to-r from-purple-600 to-blue-600 text-white flex items-center gap-3">
+      <i class="fa-solid fa-building text-xl"></i>
+      <div>
+        <h2 class="font-black">For IT — Company-wide (everyone at once)</h2>
+        <p class="text-sm text-white/80">Add one DNS record so <span class="font-mono bg-white/20 px-1 rounded">r</span> works for the whole office, no per-laptop setup.</p>
+      </div>
+    </div>
+    <div class="p-6 space-y-4">
+      <div class="grid sm:grid-cols-3 gap-4">
+        <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border">
+          <p class="font-bold text-sm"><i class="fa-solid fa-cloud"></i> Cloudflare</p>
+          <p class="text-xs font-mono mt-1">Type: A<br>Name: r<br>Content: <span class="bg-yellow-100 dark:bg-yellow-900/30 px-1 rounded">YOUR_SERVER_IP</span><br>TTL: Auto</p>
+          <button onclick="copyText('r A YOUR_SERVER_IP')" class="text-xs text-blue-600 underline mt-2">Copy</button>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border">
+          <p class="font-bold text-sm"><i class="fa-solid fa-network-wired"></i> Internal DNS / AD</p>
+          <p class="text-xs font-mono mt-1">A record: <span class="bg-yellow-100 px-1 rounded">r → 10.0.0.5</span> (your redirector server)</p>
+          <p class="text-xs text-gray-500 mt-2">Or CNAME: <span class="font-mono">r → redirector.company.com</span></p>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border">
+          <p class="font-bold text-sm"><i class="fa-solid fa-route"></i> Reverse proxy</p>
+          <p class="text-xs font-mono mt-1">Nginx: <span class="font-mono">server_name r;</span><br>→ <span class="font-mono">proxy_pass http://localhost:80;</span></p>
+          <a href="https://github.com/authoritydmc/redirector#reverse-proxy-example-nginx" target="_blank" class="text-xs text-blue-600 underline">Docs →</a>
+        </div>
+      </div>
+      <details class="border rounded-xl">
+        <summary class="px-4 py-3 font-bold text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">How to verify company DNS</summary>
+        <div class="px-4 pb-3 text-xs text-gray-600 dark:text-gray-400 font-mono bg-gray-50 dark:bg-gray-900 rounded-b-xl p-3">
+          nslookup r<br>
+          # should return your server IP<br>
+          curl -I http://r/health<br>
+          # should be 200
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- Browser search engine -->
+  <div class="bg-white dark:bg-gray-800 rounded-2xl border p-6 mb-6">
+    <h2 class="font-black flex items-center gap-2"><i class="fa-solid fa-magnifying-glass text-blue-600"></i> Make <span class="font-mono">r/</span> even faster — browser search</h2>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Type <span class="font-mono bg-gray-100 dark:bg-gray-900 px-1 rounded">r</span> + <span class="font-mono bg-gray-100 px-1 rounded">Tab</span> + your shortcut — no need to type full `http://r/`.</p>
+    <div class="grid sm:grid-cols-2 gap-4 mt-4">
+      <div class="border rounded-xl p-4 bg-gray-50 dark:bg-gray-900">
+        <p class="font-bold text-sm">Chrome / Edge</p>
+        <p class="text-xs text-gray-500 mt-1">Settings → Search engine → Manage → Add:</p>
+        <p class="text-xs font-mono mt-2 bg-white dark:bg-gray-800 p-2 rounded border">Search engine: Redirector<br>Keyword: r<br>URL: %s → https://r.company.com/%s<br>Or local: http://r/%s</p>
+        <button onclick="copyText('http://r/%s')" class="text-xs text-blue-600 underline mt-2">Copy URL</button>
+      </div>
+      <div class="border rounded-xl p-4 bg-gray-50 dark:bg-gray-900">
+        <p class="font-bold text-sm">Firefox</p>
+        <p class="text-xs text-gray-500 mt-1">Bookmarks → Add bookmark:</p>
+        <p class="text-xs font-mono mt-2 bg-white dark:bg-gray-800 p-2 rounded border">Location: http://r/%s<br>Keyword: r</p>
+        <p class="text-xs text-gray-500 mt-2">Then type <span class="font-mono">r docs</span> in address bar.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div class="bg-white dark:bg-gray-800 rounded-2xl border p-6 mb-6">
+    <h2 class="font-black mb-3">FAQ</h2>
+    <div class="space-y-3">
+      <details class="border rounded-xl px-4 py-3"><summary class="font-bold text-sm cursor-pointer">Is it safe? Can I undo it?</summary><p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Yes — it only maps <span class="font-mono">r</span> to your own machine (127.0.0.1). Delete the line from your hosts file to undo. No data leaves your device.</p></details>
+      <details class="border rounded-xl px-4 py-3"><summary class="font-bold text-sm cursor-pointer">r/ shows my search engine, not Redirector</summary><p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Fully quit your browser (not just close tab) and reopen. Chrome sometimes caches the old non-existent host. Also clear `chrome://net-internals/#dns` → Clear host cache.</p></details>
+      <details class="border rounded-xl px-4 py-3"><summary class="font-bold text-sm cursor-pointer">Can I use <span class="font-mono">go/</span> instead of <span class="font-mono">r/</span>?</summary><p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Yes — add <span class="font-mono">127.0.0.1   go</span> as well, or set <span class="font-mono">hostnames</span> in <span class="font-mono">data/redirect.config.json</span>. Then use <span class="font-mono">go/docs</span>.</p></details>
+      <details class="border rounded-xl px-4 py-3"><summary class="font-bold text-sm cursor-pointer">Company wants <span class="font-mono">r.company.com</span> not plain <span class="font-mono">r</span></summary><p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Works too — just use DNS for <span class="font-mono">r.company.com</span> and set that as your redirector's public URL. Short links become <span class="font-mono">r.company.com/docs</span>.</p></details>
+    </div>
+  </div>
+
+  <div class="text-center">
+    <a href="/" class="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl shadow hover:bg-blue-700 font-bold"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+    <span class="text-xs text-gray-400 ml-3">Need help? <a href="https://github.com/authoritydmc/redirector" class="underline">GitHub</a></span>
   </div>
 </div>
 
-<!-- Updated script with DOMContentLoaded wrapper -->
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  window.copyCmd = function(id, btn) {
-    const el = document.getElementById(id);
-    if (!el) return;
-
-    const text = el.textContent.trim();
-
-    navigator.clipboard.writeText(text).then(() => {
-      const originalHTML = btn.innerHTML;
-      btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
-      btn.classList.add('bg-green-600');
-
-      let feedback = btn.parentElement.querySelector('.copy-feedback');
-      if (feedback) {
-        feedback.style.display = "block";
-        feedback.style.opacity = "1";
-
-        setTimeout(() => {
-          btn.innerHTML = originalHTML;
-          btn.classList.remove('bg-green-600');
-
-          feedback.style.opacity = "0";
-          setTimeout(() => {
-            feedback.style.display = "none";
-          }, 500);
-        }, 2000);
-      }
-    }).catch(() => {
-      alert("Failed to copy. Please try manually.");
-    });
-  };
-});
-</script>
-
-<style>
-.copy-feedback {
-  transition: opacity 0.5s ease;
+function copyCmd(id, btn){
+  const el=document.getElementById(id);
+  if(!el) return;
+  const text=el.textContent.trim();
+  navigator.clipboard.writeText(text).then(()=>{
+    const orig=btn.innerHTML;
+    btn.innerHTML='<i class="fa-solid fa-check"></i> Copied!';
+    btn.classList.add('bg-green-600');
+    setTimeout(()=>{btn.innerHTML=orig; btn.classList.remove('bg-green-600');},1500);
+  });
 }
-</style>
+function copyText(t){
+  navigator.clipboard.writeText(t);
+  // toast could be added
+}
+// tabs
+document.querySelectorAll('.tab-btn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(x=>{x.classList.remove('tab-active'); x.classList.add('bg-white','dark:bg-gray-800')});
+    b.classList.add('tab-active'); b.classList.remove('bg-white','dark:bg-gray-800');
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.add('hidden'));
+    document.getElementById('tab-'+b.dataset.tab).classList.remove('hidden');
+  });
+});
+// auto-detect OS
+(function(){
+  const ua=navigator.userAgent.toLowerCase();
+  let tab='windows';
+  if(ua.includes('mac')) tab='macos';
+  else if(ua.includes('linux')) tab='linux';
+  const btn=document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+  if(btn) btn.click();
+})();
+// live r/ status
+async function checkR(){
+  const card=document.getElementById('status-card');
+  const icon=document.getElementById('status-icon');
+  const title=document.getElementById('status-title');
+  const desc=document.getElementById('status-desc');
+  const detail=document.getElementById('status-detail');
+  const cta=document.getElementById('status-cta');
+  icon.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i>';
+  icon.className='w-12 h-12 rounded-xl bg-yellow-500 text-white flex items-center justify-center flex-shrink-0';
+  title.textContent='Checking r/…';
+  desc.textContent='Testing if r resolves to 127.0.0.1';
+  try{
+    const r=await fetch('/api/r-status');
+    const d=await r.json();
+    detail.textContent = d.ip ? `r → ${d.ip}` : '';
+    if(d.is_local && d.resolves){
+      card.className='rounded-2xl border p-5 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800';
+      icon.className='w-12 h-12 rounded-xl bg-green-600 text-white flex items-center justify-center flex-shrink-0';
+      icon.innerHTML='<i class="fa-solid fa-check"></i>';
+      title.textContent='r/ is working! 🎉';
+      desc.textContent='You can now type r/docs in your address bar.';
+      cta.classList.add('hidden');
+      if(d.reachable) detail.textContent += ' • reachable';
+    } else if(d.resolves && !d.is_local){
+      card.className='rounded-2xl border p-5 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800';
+      icon.innerHTML='<i class="fa-solid fa-triangle-exclamation"></i>';
+      title.textContent='r/ points to '+d.ip+' (not 127.0.0.1)';
+      desc.textContent='If you use company DNS, this may be correct. For local use, it should be 127.0.0.1.';
+      cta.classList.remove('hidden');
+    } else {
+      card.className='rounded-2xl border p-5 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800';
+      icon.className='w-12 h-12 rounded-xl bg-red-600 text-white flex items-center justify-center flex-shrink-0';
+      icon.innerHTML='<i class="fa-solid fa-xmark"></i>';
+      title.textContent='r/ not yet set up';
+      desc.textContent='Follow the 30-second fix below.';
+      detail.textContent = d.error ? 'Error: '+d.error : 'r does not resolve';
+      cta.classList.remove('hidden');
+    }
+  }catch(e){
+    card.className='rounded-2xl border p-5 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800';
+    icon.innerHTML='<i class="fa-solid fa-xmark"></i>';
+    title.textContent='Could not check';
+    desc.textContent=e.message;
+  }
+}
+async function testR(){
+  const els=document.querySelectorAll('[id$="-test"]');
+  els.forEach(el=>el.textContent='Testing…');
+  try{
+    // Try to fetch via r/ using Host header trick via current server
+    const r=await fetch('/api/r-status');
+    const d=await r.json();
+    const ok=d.is_local;
+    els.forEach(el=>{
+      el.textContent = ok ? '✓ Working!' : '✗ Not yet — complete steps above and Test again';
+      el.className = ok ? 'text-xs ml-2 text-green-600' : 'text-xs ml-2 text-red-600';
+    });
+    checkR();
+  }catch{
+    els.forEach(el=>{el.textContent='Could not test';});
+  }
+}
+document.addEventListener('DOMContentLoaded', checkR);
+</script>
 {% endblock %}
