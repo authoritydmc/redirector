@@ -8,7 +8,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
     send_file, flash
 from flask import session as flask_session
 
-from app.routes.routesUtils import login_required
+from app.routes.routesUtils import login_required, get_safe_next_url
 from app.utils import utils
 from model.redirect import Redirect  # Import Redirect model for export/import
 from model.user_param import UserParam
@@ -40,7 +40,7 @@ def admin_login():
                     if any(pk.get('credentialId') == passkey_cred for pk in passkeys):
                         session['admin_logged_in'] = True
                         session.pop('mfa_pending', None)
-                        next_url = request.args.get('next') or url_for('main.dashboard')
+                        next_url = get_safe_next_url()
                         logger.info("Admin login via passkey successful")
                         return redirect(next_url)
                     else:
@@ -49,14 +49,15 @@ def admin_login():
                         return render_template('admin_login.html', error=error, mfa_enabled=mfa_enabled, show_passkey=bool(passkeys))
                 # TOTP flow - set pending and redirect to MFA verify
                 session['mfa_pending'] = True
-                # Save next url for after mfa
-                if request.args.get('next'):
-                    session['mfa_next'] = request.args.get('next')
+                # Save next url for after mfa (validated)
+                safe_next = get_safe_next_url(fallback='')
+                if safe_next and safe_next != '/':
+                    session['mfa_next'] = safe_next
                 logger.info("Admin password correct, redirecting to MFA verify")
-                return redirect(url_for('mfa.mfa_verify', next=request.args.get('next', '')))
+                return redirect(url_for('mfa.mfa_verify', next=safe_next))
             else:
                 session['admin_logged_in'] = True
-                next_url = request.args.get('next') or url_for('main.dashboard')
+                next_url = get_safe_next_url()
                 logger.info("Admin user logged in successfully.")
                 return redirect(next_url)
         else:

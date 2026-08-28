@@ -92,8 +92,9 @@ def system_info_page():
             with open(config_path, 'w', encoding='utf-8') as f:
                 json.dump(config_data, f, indent=2)
             config_update_success = 'Configuration updated successfully.'
-        except Exception as e:
-            config_update_error = f'Failed to update config: {e}'
+        except Exception:
+            logger.exception("Config update failed")
+            config_update_error = 'Failed to update config.'
     try:
         commit_count = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD'], encoding='utf-8').strip()
         commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], encoding='utf-8').strip()
@@ -118,7 +119,7 @@ def system_info_page():
 # Health & readiness endpoints for K8s/Docker probes
 @bp.route('/health')
 def health_check():
-    """Liveness probe - checks DB and Redis connectivity."""
+    """Liveness probe - checks DB and Redis connectivity. Does not expose exception details."""
     from app.config import config
     from model import db
     status = {"status": "ok", "version": get_semver(), "checks": {}}
@@ -127,8 +128,9 @@ def health_check():
         with current_app.app_context():
             db.session.execute(db.text("SELECT 1"))
         status["checks"]["database"] = "up"
-    except Exception as e:
-        status["checks"]["database"] = f"down: {e}"
+    except Exception:
+        logger.exception("Health check DB failed")
+        status["checks"]["database"] = "down"
         status["status"] = "degraded"
     # Redis check
     if config.redis_enabled:
@@ -138,8 +140,9 @@ def health_check():
                 status["checks"]["redis"] = "up"
             else:
                 status["checks"]["redis"] = "disabled/disconnected"
-        except Exception as e:
-            status["checks"]["redis"] = f"down: {e}"
+        except Exception:
+            logger.exception("Health check Redis failed")
+            status["checks"]["redis"] = "down"
             status["status"] = "degraded"
     else:
         status["checks"]["redis"] = "disabled"
@@ -176,9 +179,9 @@ def api_metrics():
             f'redirector_version_info{{version="{get_semver()}"}} 1',
         ]
         return "\n".join(lines) + "\n", 200, {"Content-Type": "text/plain; version=0.0.4"}
-    except Exception as e:
+    except Exception:
         logger.exception("Metrics collection failed")
-        return f"# error collecting metrics: {e}\n", 500, {"Content-Type": "text/plain"}
+        return "# error collecting metrics\n", 500, {"Content-Type": "text/plain"}
 
 # Changelog page + API (like Tax_Scripts)
 @bp.route('/changelog')
@@ -190,7 +193,6 @@ def changelog_page():
 def api_changelog():
     """Return raw CHANGELOG.md content for frontend parsing."""
     import os
-    # version_routes.py is at app/routes/version_routes.py -> project root is 3 levels up
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     changelog_path = os.path.join(root, "CHANGELOG.md")
     if os.path.isfile(changelog_path):
@@ -198,9 +200,9 @@ def api_changelog():
             with open(changelog_path, "r", encoding="utf-8") as f:
                 content = f.read()
             return jsonify({"changelog": content})
-        except Exception as e:
-            logger.error(f"Failed to read changelog: {e}")
-            return jsonify({"changelog": "", "error": str(e)}), 500
+        except Exception:
+            logger.exception("Failed to read changelog")
+            return jsonify({"changelog": "", "error": "Failed to read changelog"}), 500
     return jsonify({"changelog": "Changelog not found."}), 404
 
 # Simple in-memory cache for version check
@@ -263,9 +265,9 @@ def api_latest_version():
                 'error': True
             }
             return result
-    except Exception as e:
-        logger.error(f"Error checking latest version: {e}", exc_info=True)
-        result = {'success': False, 'error': str(e), 'current': get_semver()}
+    except Exception:
+        logger.exception("Error checking latest version")
+        result = {'success': False, 'error': 'Failed to check version', 'current': get_semver()}
         _version_check_cache = {
             'timestamp': now,
             'result': result,

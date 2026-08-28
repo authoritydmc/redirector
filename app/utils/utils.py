@@ -929,3 +929,32 @@ def should_cache_upstream_result(upstream: dict, resolved_url: str) -> bool:
         logger.warning(f"SSO URL detected - NEVER caching: {resolved_url} (upstream: {upstream.get('name')})")
         return False
     return True
+
+def is_safe_redirect_target(url: str) -> bool:
+    """Validate redirect target is safe (http/https only, no javascript/data)."""
+    if not url or not isinstance(url, str):
+        return False
+    url = url.strip()
+    lower = url.lower()
+    # Block dangerous schemes
+    if lower.startswith(('javascript:', 'data:', 'vbscript:', 'file:', 'blob:')):
+        return False
+    # Must be http/https or protocol-relative (which we treat as https)
+    # Allow only http/https
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        # If no scheme, it could be relative path - block for open redirect (we want absolute http/https)
+        # For shortener, we require absolute http/https
+        if not parsed.scheme:
+            return False
+        return parsed.scheme.lower() in ('http', 'https')
+    except Exception:
+        return False
+
+def sanitize_redirect_target(url: str, fallback: str = "/") -> str:
+    """Return safe redirect target or fallback if unsafe."""
+    if is_safe_redirect_target(url):
+        return url
+    logger.warning(f"Blocked unsafe redirect target: {url}")
+    return fallback

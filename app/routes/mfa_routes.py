@@ -5,7 +5,7 @@ import json
 import logging
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, flash
 
-from app.routes.routesUtils import login_required
+from app.routes.routesUtils import login_required, get_safe_next_url
 from app.config import config
 
 logger = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ def mfa_setup():
                     return render_template('mfa_setup.html', secret=temp_secret, qr_b64=qr_b64, uri=uri, enabled=False, step='verify', error='Invalid code')
             except Exception as e:
                 logger.exception("MFA verify error")
-                flash(f'Error: {e}', 'error')
+                flash('Error verifying code. Please try again.', 'error')
                 return redirect(url_for('mfa.mfa_setup'))
         elif action == 'disable':
             cfg['mfa'] = {'enabled': False, 'secret': None, 'backup_codes': [], 'passkeys': mfa.get('passkeys', [])}
@@ -146,9 +146,10 @@ def mfa_verify():
     error = None
     if request.method == 'POST':
         token = request.form.get('token', '').strip()
-        # Check backup codes too
+        # Check backup codes too (safe next)
         mfa = config.get_configuration().get('mfa', {})
         backup_codes = mfa.get('backup_codes', [])
+        safe_next = get_safe_next_url()
         if token in backup_codes:
             # consume backup code
             backup_codes.remove(token)
@@ -160,18 +161,15 @@ def mfa_verify():
             session.pop('mfa_pending', None)
             session['admin_logged_in'] = True
             logger.info("Admin MFA via backup code success")
-            return redirect(request.args.get('next') or url_for('main.dashboard'))
+            return redirect(safe_next)
         if verify_totp(token):
             session.pop('mfa_pending', None)
             session['admin_logged_in'] = True
             logger.info("Admin MFA TOTP success")
-            return redirect(request.args.get('next') or url_for('main.dashboard'))
+            return redirect(safe_next)
         # Also allow passkey verification via POST with credential (handled by JS)
-        # If we receive passkey assertion, we would verify here; for now check header
         credential = request.form.get('passkey_credential')
         if credential:
-            # Simple passkey check: verify stored credentialId matches (we store raw id)
-            # In real WebAuthn, need to verify signature with challenge; here we do simple string match for demo
             mfa = config.get_configuration().get('mfa', {})
             passkeys = mfa.get('passkeys', [])
             for pk in passkeys:
@@ -179,7 +177,7 @@ def mfa_verify():
                     session.pop('mfa_pending', None)
                     session['admin_logged_in'] = True
                     logger.info("Admin MFA passkey success")
-                    return redirect(request.args.get('next') or url_for('main.dashboard'))
+                    return redirect(safe_next)
         error = 'Invalid code or backup code.'
     
     # GET - show verify page
@@ -220,7 +218,7 @@ def mfa_passkey_register():
         return jsonify({'success': True})
     except Exception as e:
         logger.exception("Passkey register failed")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Failed to register passkey'}), 500
 
 @bp.route('/admin/mfa/passkey/delete', methods=['POST'])
 @login_required
@@ -238,7 +236,8 @@ def mfa_passkey_delete():
         config.reload()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.exception("Passkey delete failed")
+        return jsonify({'success': False, 'error': 'Failed to delete passkey'}), 500
 
 @bp.route('/admin/mfa/backup-codes', methods=['POST'])
 @login_required
@@ -254,4 +253,5 @@ def mfa_regenerate_backup_codes():
         config.reload()
         return jsonify({'success': True, 'codes': codes})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.exception("Backup code regen failed")
+        return jsonify({'success': False, 'error': 'Failed to generate codes'}), 500

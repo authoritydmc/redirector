@@ -56,6 +56,10 @@ def edit_redirect(subpath):
         ip_address = request.remote_addr or 'unknown'
         import re as _re
         user_dynamic_type = getattr(CONSTANTS, 'DATA_TYPE_USER_DYNAMIC', 'user-dynamic')
+        # Validate target URL (allow placeholders, replace with dummy for check)
+        dummy = _re.sub(r'\{[^}]+\}|\[[^\]]+\]', 'dummy', target)
+        if target and not utils.is_safe_redirect_target(dummy):
+            return render_template('error.html', message='Invalid target URL. Only http/https URLs are allowed.'), 400
         if type_ == user_dynamic_type:
             user_placeholder_names = _re.findall(r'\[([^\]]+)\]', target)
             param_descriptions = {}
@@ -100,12 +104,12 @@ def edit_redirect(subpath):
             return render_template(
                 'success_create.html', pattern=subpath, target=target
             )
-        except Exception as e:
+        except Exception:
             logger.exception(
                 f"Failed to {'update' if shortcut else 'create'} shortcut '{subpath}'."
             )
             return render_template(
-                'error.html', message=f"Failed to save shortcut: {e}"
+                'error.html', message='Failed to save shortcut.'
             )
     else:
         if not shortcut:
@@ -136,6 +140,10 @@ def handle_redirect(subpath):
                 f"Redirecting static shortcut: '{subpath}' (matched '{pattern}') -> '{target}' "
                 f"(Source: {data_source}, Time: {resp_time:.4f}s)"
             )
+            # Validate target is safe (http/https only) - prevents javascript: open redirect
+            if not utils.is_safe_redirect_target(target):
+                logger.warning(f"Blocked unsafe redirect target for '{pattern}': {target}")
+                return render_template('error.html', message='Invalid redirect target. Only http/https URLs are allowed.'), 400
             if utils.get_auto_redirect_delay() > 0:
                 resp = make_response(render_template(
                     'redirect.html',
@@ -155,6 +163,9 @@ def handle_redirect(subpath):
                 f"Redirecting upstream shortcut: '{subpath}' -> '{resolved}' "
                 f"(Source: {data_source}, Time: {resp_time:.4f}s)"
             )
+            if not utils.is_safe_redirect_target(resolved):
+                logger.warning(f"Blocked unsafe upstream redirect for '{pattern}': {resolved}")
+                return render_template('error.html', message='Invalid upstream redirect target.'), 400
             if utils.get_auto_redirect_delay() > 0:
                 resp = make_response(render_template(
                     'redirect.html',
@@ -231,6 +242,9 @@ def handle_redirect(subpath):
             for name in all_placeholders:
                 dest_url = dest_url.replace('{' + name + '}', param_values.get(name, ''))
                 dest_url = dest_url.replace('[' + name + ']', param_values.get(name, ''))
+            if not utils.is_safe_redirect_target(dest_url):
+                logger.warning(f"Blocked unsafe dynamic redirect for '{pattern}': {dest_url}")
+                return render_template('error.html', message='Invalid dynamic redirect target.'), 400
             utils.increment_access_count(pattern)
             logger.info(
                 f"Redirecting dynamic shortcut: '{subpath}' -> '{dest_url}' (Source: {data_source})"
@@ -267,6 +281,10 @@ def edit_redirect_blank():
         current_time = datetime.now(timezone.utc).isoformat(sep=' ', timespec='seconds')
         ip_address = request.remote_addr or 'unknown'
         import re as _re
+        # Validate target
+        dummy2 = _re.sub(r'\{[^}]+\}|\[[^\]]+\]', 'dummy', target)
+        if target and not utils.is_safe_redirect_target(dummy2):
+            return render_template('error.html', message='Invalid target URL. Only http/https URLs are allowed.'), 400
         user_dynamic_type = getattr(CONSTANTS, 'DATA_TYPE_USER_DYNAMIC', 'user-dynamic')
         if type_ == user_dynamic_type:
             user_placeholder_names = _re.findall(r'\[([^\]]+)\]', target)
@@ -313,12 +331,12 @@ def edit_redirect_blank():
                 return render_template(
                     'success_create.html', pattern=pattern, target=target
                 )
-            except Exception as e:
+            except Exception:
                 logger.exception(
                     f"Failed to update shortcut '{pattern}' via edit route."
                 )
                 return render_template(
-                    'error.html', message=f"Failed to update shortcut: {e}"
+                    'error.html', message='Failed to update shortcut.'
                 )
         try:
             utils.set_shortcut(
@@ -336,12 +354,12 @@ def edit_redirect_blank():
             return render_template(
                 'success_create.html', pattern=pattern, target=target
             )
-        except Exception as e:
+        except Exception:
             logger.exception(
                 f"Failed to create new shortcut '{pattern}' via blank edit route."
             )
             return render_template(
-                'error.html', message=f"Failed to create shortcut: {e}"
+                'error.html', message='Failed to create shortcut.'
             )
     logger.debug("Rendering blank create shortcut page.")
     return render_template('create_shortcut.html', pattern='')
