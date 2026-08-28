@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Upgrade Guide — Redirector{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden">
+    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-6 text-white">
+      <h1 class="text-2xl font-black flex items-center gap-3"><i class="fa-solid fa-circle-arrow-up"></i> Upgrade Guide</h1>
+      <p class="text-sm text-white/80 mt-1">Keep your <span class="font-mono bg-white/20 px-1 rounded">r/</span> links secure and fast — update in 2 minutes.</p>
+      <p class="text-xs font-mono mt-2">Current: {{ version }} • <a href="/api/upgrade-guide" target="_blank" class="underline">API</a> • <a href="https://github.com/authoritydmc/redirector/blob/main/docs/UPGRADE.md" target="_blank" class="underline">GitHub docs</a></p>
+    </div>
+    <div class="p-6">
+      <div id="upgrade-content" class="prose dark:prose-invert max-w-none prose-sm">
+        <div class="flex items-center gap-2 text-gray-500"><i class="fa-solid fa-spinner fa-spin"></i> Loading guide…</div>
+      </div>
+      <div class="mt-6 flex gap-3">
+        <a href="/system-info" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm">← System Info</a>
+        <a href="/changelog" class="px-4 py-2 rounded-xl bg-white dark:bg-white/10 border hover:bg-gray-50 dark:hover:bg-white/20 font-bold text-sm">View Changelog</a>
+        <a href="https://github.com/authoritydmc/redirector/releases" target="_blank" class="px-4 py-2 rounded-xl bg-gray-100 dark:bg-white/10 border hover:bg-gray-200 dark:hover:bg-white/20 font-bold text-sm">Releases</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-6 grid sm:grid-cols-3 gap-4">
+    <a href="/health" class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border hover:shadow flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-green-500/10 text-green-600 flex items-center justify-center"><i class="fa-solid fa-heart-pulse"></i></div>
+      <div><p class="font-bold text-sm">Health</p><p class="text-xs text-gray-500">/health</p></div>
+    </a>
+    <a href="/changelog" class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border hover:shadow flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center"><i class="fa-solid fa-file-lines"></i></div>
+      <div><p class="font-bold text-sm">Changelog</p><p class="text-xs text-gray-500">What's new</p></div>
+    </a>
+    <a href="https://github.com/authoritydmc/redirector" target="_blank" class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border hover:shadow flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gray-900 dark:bg-white/10 text-white flex items-center justify-center"><i class="fa-brands fa-github"></i></div>
+      <div><p class="font-bold text-sm">GitHub</p><p class="text-xs text-gray-500">Report issue</p></div>
+    </a>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+async function loadGuide(){
+  const el=document.getElementById('upgrade-content');
+  try{
+    const r=await fetch('/api/upgrade-guide');
+    const d=await r.json();
+    const md=d.guide||'';
+    if(!md) throw new Error('No guide');
+    // Use marked if available, fallback to pre
+    if(window.marked){
+      el.innerHTML = marked.parse(md);
+      // Style the generated markdown
+      el.querySelectorAll('h1').forEach(h=>h.className='text-xl font-black mt-6 mb-2');
+      el.querySelectorAll('h2').forEach(h=>h.className='text-lg font-bold mt-5 mb-2 flex items-center gap-2');
+      el.querySelectorAll('h3').forEach(h=>h.className='font-bold mt-4 mb-1');
+      el.querySelectorAll('pre').forEach(p=>{p.className='bg-gray-900 dark:bg-[#0f1221] text-white rounded-xl p-3 text-xs overflow-auto border';});
+      el.querySelectorAll('code').forEach(c=>{ if(!c.parentElement.matches('pre')) c.className='font-mono bg-gray-100 dark:bg-white/10 px-1 rounded text-xs'; });
+      el.querySelectorAll('a').forEach(a=>{a.className='text-blue-600 hover:underline'; a.target='_blank';});
+    } else {
+      el.innerHTML='<pre class="bg-gray-50 dark:bg-[#0f1221] p-4 rounded-xl text-xs overflow-auto border whitespace-pre-wrap">'+md.replace(/</g,'&lt;')+'</pre>';
+    }
+  }catch(e){
+    el.innerHTML='<p class="text-red-600">Failed to load guide. See <a href="https://github.com/authoritydmc/redirector/blob/main/docs/UPGRADE.md" class="underline">GitHub</a>.</p><pre class="text-xs bg-gray-50 dark:bg-[#0f1221] p-3 rounded border mt-2">'+e.message+'</pre>';
+  }
+}
+loadGuide();
+</script>
+{% endblock %}
