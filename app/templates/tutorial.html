@@ -1,95 +1,261 @@
 {% extends "base.html" %}
-{% block title %}Shortcut Creation Tutorial - URL Shortener/Redirector{% endblock %}
-
+{% block title %}How to Create Shortcuts — Interactive Guide{% endblock %}
+{% block head %}
+<style>
+  @keyframes typing { from { width: 0; } to { width: 100%; } }
+  @keyframes blink { 50% { border-color: transparent; } }
+  @keyframes highlight { 0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.7); } 100% { box-shadow: 0 0 0 8px rgba(59,130,246,0); } }
+  .typewriter { overflow: hidden; white-space: nowrap; border-right: 2px solid #3b82f6; animation: typing 1.2s steps(30) forwards, blink 0.6s step-end infinite; }
+  .field-highlight { animation: highlight 1.2s ease-out; border-color: #3b82f6 !important; background: #eff6ff !important; }
+  .dark .field-highlight { background: #1e3a5f !important; border-color: #3b82f6 !important; }
+  .step-active { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
+  .dark .step-active { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
+  .demo-card { transition: all 0.3s ease; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="flex items-center justify-center min-h-[calc(100vh-160px)] px-4">
-  <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-8 w-full max-w-3xl text-gray-800 dark:text-gray-200">
-    <h2 class="text-3xl font-bold mb-6 text-blue-700 dark:text-blue-300 flex items-center gap-3">
-      <i class="fa-solid fa-graduation-cap text-blue-400"></i> How to Create Shortcuts
-    </h2>
-    <div class="mb-6">
-      <div class="flex gap-2 mb-4">
-        <button class="tab-btn bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 px-4 py-2 rounded font-semibold flex items-center gap-2 active" data-tab="static"><i class="fa-solid fa-link"></i> Static</button>
-        <button class="tab-btn bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 px-4 py-2 rounded font-semibold flex items-center gap-2" data-tab="dynamic"><i class="fa-solid fa-code"></i> Dynamic</button>
-        <button class="tab-btn bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 px-4 py-2 rounded font-semibold flex items-center gap-2" data-tab="user-dynamic"><i class="fa-solid fa-user-gear"></i> User Dynamic</button>
-      </div>
-      <div class="tab-content" id="tab-static">
-        <div class="bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-200 px-4 py-3 rounded mb-3 flex items-center gap-3">
-          <i class="fa-solid fa-link fa-lg"></i>
-          <div>
-            <b>Static Shortcut:</b> Always redirects to the same URL.
-          </div>
+<div class="max-w-5xl mx-auto">
+  <!-- Header -->
+  <div class="text-center mb-8">
+    <h1 class="text-3xl font-black text-gray-900 dark:text-white flex items-center justify-center gap-3">
+      <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white"><i class="fa-solid fa-graduation-cap"></i></span>
+      How to Create Shortcuts
+    </h1>
+    <p class="text-gray-600 dark:text-white/60 mt-2">Master <span class="font-mono bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded">r/</span> links in 60 seconds — live demos, no screenshots.</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex justify-center gap-2 mb-6 bg-gray-100 dark:bg-white/5 p-1.5 rounded-2xl w-fit mx-auto border border-gray-200 dark:border-white/10">
+    <button data-tab="static" class="tab-btn px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 bg-blue-600 text-white shadow"><i class="fa-solid fa-link"></i> Static</button>
+    <button data-tab="dynamic" class="tab-btn px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 text-gray-600 dark:text-white/60 hover:bg-white dark:hover:bg-white/10"><i class="fa-solid fa-code"></i> Dynamic</button>
+    <button data-tab="user-dynamic" class="tab-btn px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 text-gray-600 dark:text-white/60 hover:bg-white dark:hover:bg-white/10"><i class="fa-solid fa-user-gear"></i> User Dynamic</button>
+  </div>
+
+  <!-- Static -->
+  <div id="tab-static" class="tab-panel">
+    <div class="grid lg:grid-cols-2 gap-6">
+      <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl border border-gray-200 dark:border-white/10 p-6">
+        <div class="bg-green-100 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-800 dark:text-green-300 px-4 py-3 rounded-xl mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-link"></i><b>Static:</b> Always goes to the same URL. Perfect for docs, dashboards, and team pages.
         </div>
-        <ol class="list-decimal list-inside space-y-2 mb-4">
-          <li>Click <b>New Shortcut</b> on the dashboard.</li>
-          <li>Enter a unique shortcut pattern (e.g. <span class="font-mono">google</span>).</li>
-          <li>Select <b>Static</b> as the type.</li>
-          <li>Enter the target URL (e.g. <span class="font-mono">https://www.google.com</span>).</li>
-          <li>Click <b>Create Shortcut</b>. Now, visiting <span class="font-mono">/google</span> will redirect to Google.</li>
+        <ol class="space-y-3">
+          <li id="s-step1" class="step flex gap-3 p-3 rounded-xl border-2 border-transparent"><span class="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span><div><p class="font-bold text-sm">Click <b>New Shortcut</b></p><p class="text-xs text-gray-500">On the dashboard, top right.</p></div></li>
+          <li id="s-step2" class="step flex gap-3 p-3 rounded-xl border-2 border-transparent"><span class="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-xs font-bold flex-shrink-0">2</span><div><p class="font-bold text-sm">Pattern: <span class="font-mono bg-gray-100 dark:bg-white/10 px-1 rounded">google</span></p><p class="text-xs text-gray-500">Unique, lowercase, no spaces. Try <span class="font-mono">eng/handbook</span> for teams.</p></div></li>
+          <li id="s-step3" class="step flex gap-3 p-3 rounded-xl border-2 border-transparent"><span class="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-xs font-bold flex-shrink-0">3</span><div><p class="font-bold text-sm">Type: <span class="px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 text-xs font-bold">Static</span></p><p class="text-xs text-gray-500">Auto-detected when target has no <span class="font-mono">{ }</span> or <span class="font-mono">[ ]</span>.</p></div></li>
+          <li id="s-step4" class="step flex gap-3 p-3 rounded-xl border-2 border-transparent"><span class="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-xs font-bold flex-shrink-0">4</span><div><p class="font-bold text-sm">Target: <span class="font-mono bg-gray-100 dark:bg-white/10 px-1 rounded">https://google.com</span></p><p class="text-xs text-gray-500">Must start with <span class="font-mono">https://</span>.</p></div></li>
+          <li id="s-step5" class="step flex gap-3 p-3 rounded-xl border-2 border-transparent"><span class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">5</span><div><p class="font-bold text-sm">Create → <span class="font-mono">r/google</span> works!</p><p class="text-xs text-gray-500">Share <span class="font-mono">r/google</span> in Slack — everyone lands on Google.</p></div></li>
         </ol>
-        <div class="flex justify-center mt-4">
-          <img src="/static/assets/static-shortcut-example.png" alt="Static Shortcut Example" class="rounded-lg shadow max-w-md w-full border border-green-200 dark:border-green-700">
+        <div class="flex gap-2 mt-4">
+          <button onclick="playStatic()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-play"></i> Play Demo</button>
+          <button onclick="resetStatic()" class="px-4 py-2.5 rounded-xl border bg-white dark:bg-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-sm">Reset</button>
         </div>
       </div>
-      <div class="tab-content hidden" id="tab-dynamic">
-        <div class="bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-200 px-4 py-3 rounded mb-3 flex items-center gap-3">
-          <i class="fa-solid fa-code fa-lg"></i>
+
+      <!-- Live demo -->
+      <div class="bg-[#0f1221] rounded-2xl border border-white/10 p-6 text-white">
+        <p class="text-xs font-bold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2"><i class="fa-solid fa-desktop"></i> Live Demo — Watch the fields highlight</p>
+        <div class="bg-white rounded-xl p-4 space-y-3 demo-card" id="s-demo">
           <div>
-            <b>Dynamic Shortcut:</b> Uses curly braces (<span class="font-mono">{param}</span>) in the target URL. The value is filled in from the URL path.
+            <label class="block text-xs font-bold text-gray-700 mb-1">Shortcut Pattern</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-mono text-sm">r/</span>
+              <input id="s-pattern" type="text" value="" placeholder="google" class="w-full pl-8 pr-3 py-2.5 rounded-xl border-2 border-gray-200 focus:border-blue-500 outline-none font-mono text-sm transition-all">
+            </div>
           </div>
-        </div>
-        <ol class="list-decimal list-inside space-y-2 mb-4">
-          <li>Click <b>New Shortcut</b> on the dashboard.</li>
-          <li>Enter a unique shortcut pattern (e.g. <span class="font-mono">json</span>).</li>
-          <li>Select <b>Dynamic</b> as the type (or let the app auto-detect curly braces).</li>
-          <li>Enter the target URL with a variable, e.g. <span class="font-mono">https://jsonplaceholder.typicode.com/posts/{id}</span>.</li>
-          <li>Click <b>Create Shortcut</b>. Now, visiting <span class="font-mono">/json/10</span> will redirect to <span class="font-mono">https://jsonplaceholder.typicode.com/posts/10</span>.</li>
-        </ol>
-        <div class="flex justify-center mt-4">
-          <img src="/static/assets/dynamic-shortcut-tutorial.png" alt="Dynamic Shortcut Example" class="rounded-lg shadow max-w-md w-full border border-blue-100 dark:border-blue-700">
-        </div>
-      </div>
-      <div class="tab-content hidden" id="tab-user-dynamic">
-        <div class="bg-yellow-100 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded mb-3 flex items-center gap-3">
-          <i class="fa-solid fa-user-gear fa-lg"></i>
           <div>
-            <b>User Dynamic Shortcut:</b> Uses square brackets (<span class="font-mono">[param]</span>) in the target URL. The value is prompted for and stored in your browser.
+            <label class="block text-xs font-bold text-gray-700 mb-1">Type</label>
+            <select id="s-type" class="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm"><option>Static</option><option>Dynamic</option><option>User Dynamic</option></select>
           </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Target URL</label>
+            <input id="s-target" type="text" value="" placeholder="https://google.com" class="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 focus:border-blue-500 outline-none font-mono text-sm transition-all">
+          </div>
+          <button id="s-btn" class="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-sm opacity-50" disabled>Create Shortcut</button>
+          <div id="s-success" class="hidden bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-xl text-sm flex items-center gap-2"><i class="fa-solid fa-check-circle"></i> Created! <span class="font-mono">r/google</span> → google.com <i class="fa-solid fa-arrow-right ml-auto"></i></div>
         </div>
-        <ol class="list-decimal list-inside space-y-2 mb-4">
-          <li>Click <b>New Shortcut</b> on the dashboard.</li>
-          <li>Enter a unique shortcut pattern (e.g. <span class="font-mono">apikey</span>).</li>
-          <li>Select <b>User Dynamic</b> as the type (or let the app auto-detect square brackets).</li>
-          <li>Enter the target URL with a variable, e.g. <span class="font-mono">https://api.example.com/data?key=[apikey]</span>.</li>
-          <li>For each <span class="font-mono">[param]</span>, you will be asked for a description. This helps users know what to enter.</li>
-          <li>Click <b>Create Shortcut</b>. The first time you visit <span class="font-mono">/apikey</span>, you will be prompted for your value, which is saved in your browser for future use.</li>
-        </ol>
-        <div class="flex justify-center mt-4">
-          <img src="/static/assets/user-dynamic-shortcut-example.png" alt="User Dynamic Shortcut Example" class="rounded-lg shadow max-w-md w-full border border-yellow-200 dark:border-yellow-700">
+        <div class="mt-4 bg-white/5 rounded-xl p-3 border border-white/10">
+          <p class="text-xs font-bold text-white/80">Try it:</p>
+          <p class="font-mono text-sm text-blue-400">r/<span id="s-live">google</span> → <span id="s-live-target" class="text-white/60">https://google.com</span></p>
+          <div class="mt-2 h-1 bg-white/10 rounded-full overflow-hidden"><div id="s-progress" class="h-full bg-blue-500 w-0 transition-all duration-500"></div></div>
         </div>
       </div>
-    </div>
-    <div class="text-center mt-8">
-      <a href="/" class="text-blue-600 dark:text-blue-400 hover:underline"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
     </div>
   </div>
+
+  <!-- Dynamic -->
+  <div id="tab-dynamic" class="tab-panel hidden">
+    <div class="grid lg:grid-cols-2 gap-6">
+      <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl border p-6">
+        <div class="bg-blue-100 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-800 dark:text-blue-300 px-4 py-3 rounded-xl mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-code"></i><b>Dynamic:</b> <span class="font-mono">{param}</span> is filled from the URL path.
+        </div>
+        <ol class="space-y-3">
+          <li id="d-step1" class="step flex gap-3 p-3 rounded-xl border-2 border-transparent"><span class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</span><div><p class="font-bold text-sm">Pattern: <span class="font-mono">jira</span></p><p class="text-xs text-gray-500">Short, memorable.</p></div></li>
+          <li id="d-step2" class="step flex gap-3 p-3 rounded-xl border-2 border-transparent"><span class="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-xs font-bold">2</span><div><p class="font-bold text-sm">Target: <span class="font-mono">https://jira.company.com/browse/{ticket}</span></p><p class="text-xs text-gray-500">Use <span class="font-mono">{ticket}</span> for the variable.</p></div></li>
+          <li id="d-step3" class="step flex gap-3 p-3 rounded-xl border-2 border-transparent"><span class="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-xs font-bold">3</span><div><p class="font-bold text-sm">Visit: <span class="font-mono">r/jira/PROJ-123</span></p><p class="text-xs text-gray-500">→ <span class="font-mono">…/browse/PROJ-123</span>. Try any ticket!</p></div></li>
+          <li id="d-step4" class="step flex gap-3 p-3 rounded-xl border-2 border-transparent"><span class="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-xs font-bold">4</span><div><p class="font-bold text-sm">Multiple: <span class="font-mono">{org}/{repo}</span></p><p class="text-xs text-gray-500">Maps path segments in order.</p></div></li>
+        </ol>
+        <button onclick="playDynamic()" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-play"></i> Play Dynamic Demo</button>
+      </div>
+      <div class="bg-[#0f1221] rounded-2xl border border-white/10 p-6 text-white">
+        <p class="text-xs font-bold text-white/60 uppercase tracking-wider mb-4">Live — Type a ticket and see the redirect</p>
+        <div class="bg-white rounded-xl p-4 space-y-3">
+          <div class="flex gap-2">
+            <span class="px-2 py-2 bg-gray-100 rounded-lg font-mono text-sm">r/</span>
+            <input id="d-pattern" type="text" value="jira" readonly class="flex-1 px-3 py-2 rounded-xl border-2 border-blue-200 bg-blue-50 font-mono text-sm">
+            <span class="px-2 py-2 bg-gray-100 rounded-lg font-mono text-sm">/</span>
+            <input id="d-input" type="text" placeholder="PROJ-123" class="flex-1 px-3 py-2 rounded-xl border-2 border-blue-500 focus:border-blue-600 outline-none font-mono text-sm">
+          </div>
+          <div class="bg-gray-50 rounded-xl p-3 font-mono text-xs break-all">
+            <span class="text-gray-500">→</span> <span id="d-preview" class="text-blue-600">https://jira.company.com/browse/PROJ-123</span>
+          </div>
+          <button onclick="testDynamic()" class="w-full bg-blue-600 text-white py-2 rounded-xl font-bold text-sm">Test Redirect →</button>
+          <p id="d-result" class="hidden text-xs text-center p-2 rounded-xl bg-green-50 border border-green-200 text-green-700"></p>
+        </div>
+        <div class="mt-4 flex gap-2 text-xs">
+          <span class="px-2 py-1 rounded-full bg-white/10 border border-white/10">Hierarchical: <span class="font-mono">eng/docs</span></span>
+          <span class="px-2 py-1 rounded-full bg-white/10 border border-white/10">Try: <span class="font-mono">gh/{repo}</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Dynamic -->
+  <div id="tab-user-dynamic" class="tab-panel hidden">
+    <div class="grid lg:grid-cols-2 gap-6">
+      <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl border p-6">
+        <div class="bg-amber-100 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-300 px-4 py-3 rounded-xl mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-user-gear"></i><b>User Dynamic:</b> <span class="font-mono">[param]</span> saved per browser.
+        </div>
+        <ol class="space-y-3">
+          <li class="flex gap-3 p-3 rounded-xl border-2 border-transparent"><span class="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">1</span><div><p class="font-bold text-sm">Target: <span class="font-mono">https://github.com/pulls?q=author:[username]</span></p><p class="text-xs text-gray-500">Square brackets = per-user.</p></div></li>
+          <li class="flex gap-3 p-3 rounded-xl border-2 border-transparent"><span class="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-xs font-bold">2</span><div><p class="font-bold text-sm">Add description: <span class="font-mono">[username]</span> → “Your GitHub username”</p><p class="text-xs text-gray-500">Helps teammates know what to enter.</p></div></li>
+          <li class="flex gap-3 p-3 rounded-xl border-2 border-transparent"><span class="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-xs font-bold">3</span><div><p class="font-bold text-sm">First visit: prompt → saved in <span class="font-mono">localStorage</span></p><p class="text-xs text-gray-500">Never leaves your browser. Clear anytime.</p></div></li>
+          <li class="flex gap-3 p-3 rounded-xl border-2 border-transparent"><span class="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-xs font-bold">4</span><div><p class="font-bold text-sm">Next visits: auto-filled, no prompt</p><p class="text-xs text-gray-500">Update at <span class="font-mono">/admin/setup</span> → Clear.</p></div></li>
+        </ol>
+        <button onclick="playUser()" class="w-full mt-4 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-play"></i> Play User Demo</button>
+      </div>
+      <div class="bg-[#0f1221] rounded-2xl border border-white/10 p-6 text-white">
+        <p class="text-xs font-bold text-white/60 uppercase tracking-wider mb-4">Live — simulates localStorage</p>
+        <div class="bg-white rounded-xl p-4 space-y-3">
+          <label class="block text-xs font-bold text-gray-700">Target with [username]</label>
+          <input value="https://github.com/pulls?q=author:[username]" readonly class="w-full px-3 py-2 rounded-xl border-2 border-amber-200 bg-amber-50 font-mono text-sm">
+          <div class="flex gap-2">
+            <input id="u-input" type="text" placeholder="octocat" class="flex-1 px-3 py-2 rounded-xl border-2 border-amber-500 focus:border-amber-600 outline-none font-mono text-sm">
+            <button onclick="saveUser()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm">Save</button>
+          </div>
+          <div id="u-saved" class="hidden bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-xl text-xs flex items-center gap-2"><i class="fa-solid fa-check"></i> Saved to localStorage: <span class="font-mono" id="u-saved-val"></span> <button onclick="clearUser()" class="ml-auto text-xs underline">Clear</button></div>
+          <div class="bg-gray-50 rounded-xl p-3 font-mono text-xs break-all">
+            Preview: <span id="u-preview" class="text-amber-600">https://github.com/pulls?q=author:octocat</span>
+          </div>
+          <p class="text-xs text-gray-500"><i class="fa-solid fa-shield-halved text-green-500"></i> Stored as <span class="font-mono">localStorage['user_param_my-prs_username']</span> — never on server.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-center mt-8 flex gap-3 justify-center">
+    <a href="/edit/" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"><i class="fa-solid fa-plus"></i> Try it now</a>
+    <a href="/" class="bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/20 px-6 py-3 rounded-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white"><i class="fa-solid fa-house"></i> Dashboard</a>
+  </div>
 </div>
-{% endblock %}
-{% block scripts %}
+
 <script>
-// Tab switching logic
-const tabBtns = document.querySelectorAll('.tab-btn');
-const tabContents = document.querySelectorAll('.tab-content');
-tabBtns.forEach(btn => {
-  btn.addEventListener('click', function() {
-    tabBtns.forEach(b => b.classList.remove('active'));
-    this.classList.add('active');
-    const tab = this.getAttribute('data-tab');
-    tabContents.forEach(tc => tc.classList.add('hidden'));
-    document.getElementById('tab-' + tab).classList.remove('hidden');
+const tabs=document.querySelectorAll('.tab-btn');
+const panels=document.querySelectorAll('.tab-panel');
+tabs.forEach(b=>b.addEventListener('click',()=>{
+  tabs.forEach(x=>{ x.classList.remove('bg-blue-600','text-white','shadow'); x.classList.add('text-gray-600','dark:text-white/60'); });
+  b.classList.add('bg-blue-600','text-white','shadow'); b.classList.remove('text-gray-600','dark:text-white/60');
+  panels.forEach(p=>p.classList.add('hidden'));
+  document.getElementById('tab-'+b.dataset.tab).classList.remove('hidden');
+}));
+tabs[0].click();
+
+// Static demo typing
+function highlightStep(id){
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('step-active'));
+  const el=document.getElementById(id);
+  if(el){ el.classList.add('step-active'); el.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+}
+function typeInto(el, text, cb){
+  el.value=''; el.classList.add('field-highlight');
+  let i=0;
+  const iv=setInterval(()=>{
+    el.value=text.slice(0,++i);
+    document.getElementById('s-live').textContent=el.value||'google';
+    document.getElementById('s-live-target').textContent=document.getElementById('s-target').value||'https://google.com';
+    document.getElementById('s-progress').style.width=(i/text.length*100)+'%';
+    if(i>=text.length){ clearInterval(iv); setTimeout(()=>el.classList.remove('field-highlight'), 600); if(cb) cb(); }
+  }, 60);
+}
+function playStatic(){
+  highlightStep('s-step2');
+  typeInto(document.getElementById('s-pattern'), 'google', ()=>{
+    highlightStep('s-step4');
+    typeInto(document.getElementById('s-target'), 'https://google.com', ()=>{
+      document.getElementById('s-type').value='Static';
+      document.getElementById('s-type').classList.add('field-highlight');
+      setTimeout(()=>document.getElementById('s-type').classList.remove('field-highlight'), 800);
+      highlightStep('s-step5');
+      document.getElementById('s-btn').disabled=false;
+      document.getElementById('s-btn').classList.remove('opacity-50');
+      document.getElementById('s-btn').classList.add('bg-green-600');
+      setTimeout(()=>{ document.getElementById('s-success').classList.remove('hidden'); }, 400);
+    });
   });
+}
+function resetStatic(){
+  ['s-pattern','s-target'].forEach(id=>{ const el=document.getElementById(id); el.value=''; el.classList.remove('field-highlight'); });
+  document.getElementById('s-type').value='Static';
+  document.getElementById('s-btn').disabled=true;
+  document.getElementById('s-btn').classList.add('opacity-50');
+  document.getElementById('s-success').classList.add('hidden');
+  document.getElementById('s-progress').style.width='0%';
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('step-active'));
+  document.getElementById('s-live').textContent='google';
+  document.getElementById('s-live-target').textContent='https://google.com';
+}
+document.getElementById('s-target')?.addEventListener('input', e=>{
+  document.getElementById('s-live-target').textContent=e.target.value||'https://google.com';
 });
-// Set default tab
-if (tabBtns.length) tabBtns[0].click();
+function playDynamic(){
+  highlightStep('d-step2');
+  const inp=document.getElementById('d-input');
+  inp.value=''; inp.focus(); inp.classList.add('field-highlight');
+  let txt='PROJ-123'; let i=0;
+  const iv=setInterval(()=>{
+    inp.value=txt.slice(0,++i);
+    document.getElementById('d-preview').textContent='https://jira.company.com/browse/'+inp.value;
+    if(i>=txt.length){ clearInterval(iv); inp.classList.remove('field-highlight'); highlightStep('d-step3'); }
+  }, 80);
+}
+function testDynamic(){
+  const v=document.getElementById('d-input').value.trim()||'PROJ-123';
+  document.getElementById('d-result').textContent='Would redirect to https://jira.company.com/browse/'+v+' → try r/jira/'+v;
+  document.getElementById('d-result').classList.remove('hidden');
+}
+function playUser(){
+  const inp=document.getElementById('u-input');
+  inp.value='octocat'; inp.classList.add('field-highlight');
+  document.getElementById('u-preview').textContent='https://github.com/pulls?q=author:octocat';
+  setTimeout(()=>inp.classList.remove('field-highlight'), 800);
+}
+function saveUser(){
+  const v=document.getElementById('u-input').value.trim()||'octocat';
+  localStorage.setItem('user_param_my-prs_username', v);
+  document.getElementById('u-saved-val').textContent=v;
+  document.getElementById('u-saved').classList.remove('hidden');
+  document.getElementById('u-preview').textContent='https://github.com/pulls?q=author:'+v;
+}
+function clearUser(){
+  localStorage.removeItem('user_param_my-prs_username');
+  document.getElementById('u-saved').classList.add('hidden');
+  document.getElementById('u-input').value='';
+}
+document.getElementById('u-input')?.addEventListener('input', e=>{
+  document.getElementById('u-preview').textContent='https://github.com/pulls?q=author:'+(e.target.value||'octocat');
+});
+// preload saved
+try{ const v=localStorage.getItem('user_param_my-prs_username'); if(v){ document.getElementById('u-input').value=v; document.getElementById('u-saved-val').textContent=v; document.getElementById('u-saved').classList.remove('hidden'); document.getElementById('u-preview').textContent='https://github.com/pulls?q=author:'+v; } }catch{}
 </script>
 {% endblock %}

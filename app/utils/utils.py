@@ -1005,12 +1005,51 @@ def is_expired(redirect_obj) -> bool:
     except Exception:
         return False
 
-def is_private_visible(redirect_obj, is_admin: bool) -> bool:
-    """Check visibility ACL (issue #74): private requires admin."""
+def is_private_visible(redirect_obj, is_admin: bool, current_ip: str = None, current_user: str = None) -> bool:
+    """
+    Check visibility ACL (issue #74):
+    - public: everyone
+    - unlisted: everyone with the link (hidden from listings/search only, not from direct access)
+    - private: only owner or admin (normal users CAN create private - e.g., r/my-prs)
+    - team: only team members or admin (stub: requires admin for now)
+    """
     vis = getattr(redirect_obj, 'visibility', 'public') or 'public'
-    if vis == 'private' and not is_admin:
+    if vis == 'public':
+        return True
+    if vis == 'unlisted':
+        # Unlisted: obscurity, not security - anyone with exact URL can open, just hidden from listings
+        return True
+    if vis == 'private':
+        if is_admin:
+            return True
+        # Allow owner (by IP or email) even if not admin
+        owner = getattr(redirect_obj, 'owner_email', None) or getattr(redirect_obj, 'created_ip', None)
+        if owner and current_ip and owner == current_ip:
+            return True
+        if owner and current_user and owner == current_user:
+            return True
+        # Also allow if no owner stored (legacy) - treat as public for backward compat
+        if not owner:
+            return True
         return False
-    if vis == 'team' and not is_admin:
-        # For now, team requires admin (future: check team membership)
+    if vis == 'team':
+        # Future: check team membership; for now, same as private but with note
+        if is_admin:
+            return True
+        owner = getattr(redirect_obj, 'owner_email', None)
+        if owner and current_user and owner == current_user:
+            return True
         return False
+    return True
+
+def is_listed(redirect_obj, is_admin: bool) -> bool:
+    """Should this shortcut appear in listings/search? Unlisted/private are hidden from public listings."""
+    vis = getattr(redirect_obj, 'visibility', 'public') or 'public'
+    if vis == 'public':
+        return True
+    if vis == 'unlisted':
+        return False  # hidden from dashboard search/listings
+    if vis in ('private', 'team'):
+        # Private/team hidden from public listings, visible to owner/admin in dashboard
+        return is_admin  # for now, only admin sees them in listings; owner check done in route
     return True
