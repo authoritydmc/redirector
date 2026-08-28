@@ -21,22 +21,18 @@ logger = logging.getLogger(__name__)
 
 def get_accessible_urls(port):
     urls = []
-    # Localhost
     urls.append(f"http://localhost:{port}/")
     urls.append(f"http://127.0.0.1:{port}/")
-    # All local IPs
     try:
         hostname = socket.gethostname()
         local_ip = socket.gethostbyname(hostname)
         if local_ip not in ('127.0.0.1', 'localhost'):
             urls.append(f"http://{local_ip}:{port}/")
-        # All interfaces
         for ip in socket.gethostbyname_ex(hostname)[2]:
             if ip not in ('127.0.0.1', local_ip) and not ip.startswith('169.'):
                 urls.append(f"http://{ip}:{port}/")
     except Exception:
         pass
-    # Try to get all IPv4 addresses from all interfaces
     try:
         import psutil
         for iface, addrs in psutil.net_if_addrs().items():
@@ -45,8 +41,49 @@ def get_accessible_urls(port):
                     urls.append(f"http://{addr.address}:{port}/")
     except Exception:
         pass
-    # Remove duplicates
     return sorted(set(urls))
+
+def get_system_info():
+    info = {}
+    try:
+        info['python_version'] = platform.python_version()
+        info['platform'] = platform.platform()
+        info['os'] = platform.system()
+        info['arch'] = platform.machine()
+        info['hostname'] = socket.gethostname()
+        # Docker detection
+        info['in_docker'] = os.path.exists('/.dockerenv') or os.getenv('DOCKER_CONTAINER') is not None
+        # Uptime (from process start)
+        try:
+            import psutil
+            p = psutil.Process()
+            info['uptime_seconds'] = int(time.time() - p.create_time())
+            info['memory_mb'] = round(p.memory_info().rss / 1024 / 1024, 1)
+            info['cpu_percent'] = p.cpu_percent(interval=0.1)
+        except Exception:
+            info['uptime_seconds'] = None
+        # Disk for data dir
+        try:
+            import shutil
+            total, used, free = shutil.disk_usage(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data'))
+            info['disk_free_mb'] = round(free / 1024 / 1024, 1)
+        except Exception:
+            pass
+    except Exception as e:
+        logger.warning(f"get_system_info failed: {e}")
+    return info
+
+def parse_semver(v):
+    m = re.match(r'(\d+)\.(\d+)\.(\d+)', v or '')
+    if not m:
+        return None
+    return tuple(int(x) for x in m.groups())
+
+def compare_semver(a, b):
+    pa, pb = parse_semver(a), parse_semver(b)
+    if not pa or not pb:
+        return 0
+    return (pa > pb) - (pa < pb)
 
 @bp.route('/system-info', methods=['GET', 'POST'])
 def system_info_page():
@@ -108,17 +145,25 @@ def system_info_page():
         commit_count = commit_hash = commit_date = semver = 'unknown'
     port = get_port()
     urls = get_accessible_urls(port)
+    sys_info = get_system_info()
+    # Stats for dashboard link
+    try:
+        from model.redirect import Redirect
+        total_shortcuts = Redirect.query.count()
+        total_hits = sum((r.access_count or 0) for r in Redirect.query.all())
+    except Exception:
+        total_shortcuts = 0
+        total_hits = 0
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config_data = json.load(f)
-        # Remove sensitive fields for read-only mode
         if not (session.get('admin_logged_in') and request.method == 'POST'):
             if 'database' in config_data:
                 config_data['database'] = '***hidden***'
         config_data = {k: v for k, v in config_data.items() if 'password' not in k.lower() and k != 'upstreams'}
     except Exception:
         config_data = {}
-    return render_template('system_info.html', version=semver, commit_count=commit_count, commit_hash=commit_hash, commit_date=commit_date, urls=urls, config_data=config_data, config_update_success=config_update_success, config_update_error=config_update_error)
+    return render_template('system_info.html', version=semver, commit_count=commit_count, commit_hash=commit_hash, commit_date=commit_date, urls=urls, config_data=config_data, config_update_success=config_update_success, config_update_error=config_update_error, sys_info=sys_info, total_shortcuts=total_shortcuts, total_hits=total_hits)
 
 # Health & readiness endpoints for K8s/Docker probes
 @bp.route('/health')
@@ -234,8 +279,21 @@ def api_latest_version():
         if resp.status_code == 200:
             data = resp.json()
             latest = data.get('tag_name') or data.get('name')
-            logger.info(f"Version check success: current={get_semver()}, latest={latest}")
-            result = {'success': True, 'latest': latest, 'current': get_semver()}
+            # Fallback to raw VERSION file if no releases
+            if not latest:
+                try:
+                    raw = requests.get("https://raw.githubusercontent.com/authoritydmc/redirector/main/VERSION", timeout=2)
+                    if raw.ok:
+                        latest = raw.text.strip()
+                except Exception:
+                    pass
+            # Proper semver compare
+            cur_base = parse_semver(get_semver()) or (0,0,0)
+            lat_base = parse_semver(latest) or (0,0,0)
+            cmp = compare_semver(latest or '', get_semver())
+            update_available = cmp > 0
+            logger.info(f"Version check success: current={get_semver()}, latest={latest}, update={update_available}")
+            result = {'success': True, 'latest': latest, 'current': get_semver(), 'update_available': update_available, 'cur_base': '.'.join(map(str, cur_base)) if cur_base else get_semver(), 'lat_base': '.'.join(map(str, lat_base)) if lat_base else latest}
             _version_check_cache = {
                 'timestamp': now,
                 'result': result,

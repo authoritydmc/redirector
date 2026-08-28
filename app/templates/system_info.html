@@ -1,107 +1,193 @@
 {% extends "base.html" %}
-{% block title %}Version Info - URL Shortener/Redirector{% endblock %}
-
+{% block title %}System Info — Redirector{% endblock %}
+{% block head %}
+<style>
+  .version-badge { font-variant-numeric: tabular-nums; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="flex items-center justify-center min-h-[calc(100vh-160px)]">
-  <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-8 w-full max-w-2xl text-center">
-    <h1 class="text-2xl font-bold text-blue-700 dark:text-blue-200 mb-4 flex items-center gap-2"><i class="fa-solid fa-server"></i> Version Info</h1>
+<div class="max-w-6xl mx-auto">
+  <!-- Update banner (hidden until JS checks) -->
+  <div id="update-banner" class="hidden mb-6 rounded-2xl border p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
+    <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-circle-arrow-up"></i></div>
+    <div class="flex-1 min-w-0">
+      <p class="font-black text-amber-900 dark:text-amber-200">Update available — <span id="update-latest" class="font-mono"></span></p>
+      <p class="text-sm text-amber-800 dark:text-amber-300">You’re on <span id="update-current" class="font-mono"></span>. See what’s new and update via <span class="font-mono">git pull</span> or Docker <span class="font-mono">docker pull rajlabs/redirector</span>.</p>
+    </div>
+    <div class="flex gap-2">
+      <a id="update-changelog" href="/changelog" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm">View changelog</a>
+      <a href="https://github.com/authoritydmc/redirector/releases" target="_blank" class="px-4 py-2 rounded-xl bg-white dark:bg-gray-800 border hover:bg-gray-50 dark:hover:bg-white/10 text-sm font-bold">Releases</a>
+    </div>
+  </div>
 
-    <div class="text-gray-700 dark:text-gray-200 space-y-2 mb-6">
-      <p><strong>Version:</strong> <span id="version-string">{{ version }}</span>
-        <span id="version-status-icon" class="inline-block align-middle ml-1" title="Checking version..."><i class="fa-solid fa-spinner fa-spin"></i></span>
-      </p>
-      <p><strong>Commit Count:</strong> {{ commit_count }}</p>
-      <p><strong>Commit Hash:</strong> {{ commit_hash }}</p>
-      <p><strong>Commit Date:</strong> {{ commit_date }}</p>
+  <!-- Header stats -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10">
+      <p class="text-xs text-gray-500 dark:text-white/60">Version</p>
+      <p class="font-mono font-black text-lg text-gray-900 dark:text-white version-badge" id="version-string">{{ version }}</p>
+      <p class="text-xs flex items-center gap-1 mt-1"><span id="version-status-icon"><i class="fa-solid fa-spinner fa-spin text-gray-400"></i></span> <span id="version-status-text" class="text-gray-500 dark:text-white/40">Checking…</span></p>
+    </div>
+    <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10">
+      <p class="text-xs text-gray-500 dark:text-white/60">Commits</p>
+      <p class="font-black text-lg text-gray-900 dark:text-white">{{ commit_count }} <span class="font-mono text-sm font-normal text-gray-500">#{{ commit_hash }}</span></p>
+      <p class="text-xs text-gray-500 dark:text-white/40">{{ commit_date }}</p>
+    </div>
+    <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10">
+      <p class="text-xs text-gray-500 dark:text-white/60">Shortcuts</p>
+      <p class="font-black text-lg text-gray-900 dark:text-white">{{ total_shortcuts }} <span class="text-xs font-normal text-gray-500">· {{ total_hits }} hits</span></p>
+      <p class="text-xs text-gray-500 dark:text-white/40">Across all links</p>
+    </div>
+    <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10">
+      <p class="text-xs text-gray-500 dark:text-white/60">System</p>
+      <p class="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1.5"><i class="fa-solid fa-server text-blue-500"></i> {{ sys_info.platform.split(' ')[0] if sys_info.platform else 'Unknown' }}</p>
+      <p class="text-xs font-mono text-gray-500 dark:text-white/40">Python {{ sys_info.python_version }} • {{ 'Docker' if sys_info.in_docker else 'Local' }}</p>
+    </div>
+  </div>
+
+  <div class="grid lg:grid-cols-3 gap-6">
+    <!-- Left: URLs + System -->
+    <div class="lg:col-span-2 space-y-6">
+      <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+          <h2 class="font-black flex items-center gap-2 text-gray-900 dark:text-white"><i class="fa-solid fa-link text-blue-500"></i> Accessible URLs</h2>
+          <span class="text-xs px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border">Click to copy</span>
+        </div>
+        <div class="p-4 space-y-2">
+          {% for url in urls %}
+          <div class="flex items-center gap-2 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 group">
+            <span class="w-2 h-2 rounded-full bg-green-500"></span>
+            <a href="{{ url }}" target="_blank" class="font-mono text-sm text-blue-600 dark:text-blue-400 hover:underline truncate flex-1">{{ url }}</a>
+            <button onclick="copyToClipboard('{{ url }}')" class="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 flex items-center justify-center" title="Copy"><i class="fa-regular fa-copy text-xs"></i></button>
+            <a href="{{ url }}" target="_blank" class="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center" title="Open"><i class="fa-solid fa-arrow-up-right-from-square text-xs"></i></a>
+            <a href="/qr/{{ url.split('/')[-1] if url.endswith('/') else url.split('/')[-1] }}" target="_blank" class="w-7 h-7 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 flex items-center justify-center hover:bg-gray-50" title="QR"><i class="fa-solid fa-qrcode text-xs"></i></a>
+          </div>
+          {% endfor %}
+          {% if not urls %}<p class="text-sm text-gray-500 dark:text-white/40 text-center py-4">No URLs detected.</p>{% endif %}
+        </div>
+        <div class="px-6 py-3 bg-gray-50 dark:bg-white/5 border-t border-gray-200 dark:border-white/10 text-xs text-gray-500 dark:text-white/40">
+          Tip: Add <span class="font-mono bg-white dark:bg-white/10 px-1 rounded border">127.0.0.1 r</span> to use <span class="font-mono">http://r/</span> — see <a href="/enable-r-instructions" class="text-blue-600 underline">guide</a>.
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl border border-gray-200 dark:border-white/10 p-6">
+        <h2 class="font-black flex items-center gap-2 text-gray-900 dark:text-white"><i class="fa-solid fa-microchip text-purple-500"></i> System Health</h2>
+        <div class="grid sm:grid-cols-2 gap-4 mt-4 text-sm">
+          <div class="space-y-2">
+            <p class="flex justify-between"><span class="text-gray-500 dark:text-white/60">OS</span> <span class="font-mono text-gray-900 dark:text-white">{{ sys_info.platform or '—' }}</span></p>
+            <p class="flex justify-between"><span class="text-gray-500">Python</span> <span class="font-mono">{{ sys_info.python_version }}</span></p>
+            <p class="flex justify-between"><span class="text-gray-500">Hostname</span> <span class="font-mono truncate max-w-32">{{ sys_info.hostname }}</span></p>
+          </div>
+          <div class="space-y-2">
+            <p class="flex justify-between"><span class="text-gray-500">Docker</span> <span class="font-bold {{ 'text-green-600' if sys_info.in_docker else 'text-gray-500' }}">{{ 'Yes' if sys_info.in_docker else 'No (local)' }}</span></p>
+            <p class="flex justify-between"><span class="text-gray-500">Uptime</span> <span class="font-mono">{{ (sys_info.uptime_seconds // 3600) if sys_info.uptime_seconds else '—' }}h</span></p>
+            <p class="flex justify-between"><span class="text-gray-500">Memory</span> <span class="font-mono">{{ sys_info.memory_mb }} MB</span></p>
+          </div>
+        </div>
+        <div class="mt-4 flex gap-2">
+          <a href="/health" target="_blank" class="px-3 py-1.5 rounded-full bg-green-500 text-white text-xs font-bold flex items-center gap-1"><i class="fa-solid fa-heart-pulse"></i> /health</a>
+          <a href="/ready" target="_blank" class="px-3 py-1.5 rounded-full bg-blue-500 text-white text-xs font-bold">/ready</a>
+          <a href="/api/metrics" target="_blank" class="px-3 py-1.5 rounded-full bg-gray-100 dark:bg-white/10 text-xs font-bold">/metrics</a>
+        </div>
+      </div>
     </div>
 
-    <div class="mb-6">
-      <h2 class="text-lg font-semibold text-blue-600 dark:text-blue-400 mb-2">Accessible URLs</h2>
-      <ul class="list-disc list-inside text-left text-gray-600 dark:text-gray-300">
-        {% for url in urls %}
-          <li class="flex items-center gap-2 mb-1">
-            <a href="{{ url }}" class="text-blue-500 dark:text-blue-300 hover:underline" target="_blank">{{ url }}</a>
-            <button onclick="copyToClipboard('{{ url }}')" class="ml-1 text-gray-500 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400" title="Copy URL"><i class="fa-regular fa-copy"></i></button>
-            <a href="{{ url }}" target="_blank" class="ml-1 text-gray-500 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400" title="Open in new tab"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
-          </li>
-        {% endfor %}
-      </ul>
-      <div class="text-xs text-gray-400 dark:text-gray-500 mt-2">You can copy or open any URL above with one click.</div>
-    </div>
+    <!-- Right: Config -->
+    <div class="space-y-6">
+      <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl border border-gray-200 dark:border-white/10 p-6">
+        <h2 class="font-black flex items-center gap-2 text-gray-900 dark:text-white"><i class="fa-solid fa-tag text-blue-500"></i> Version Details</h2>
+        <div class="mt-3 space-y-2 text-sm">
+          <p class="flex justify-between"><span class="text-gray-500">Version</span> <span class="font-mono font-bold">{{ version }}</span></p>
+          <p class="flex justify-between"><span class="text-gray-500">Commit</span> <a href="https://github.com/authoritydmc/redirector/commit/{{ commit_hash }}" target="_blank" class="font-mono text-blue-600 hover:underline">{{ commit_hash }}</a></p>
+          <p class="flex justify-between"><span class="text-gray-500">Date</span> <span class="font-mono">{{ commit_date }}</span></p>
+          <p class="flex justify-between"><span class="text-gray-500">Count</span> <span class="font-mono">{{ commit_count }}</span></p>
+        </div>
+        <div class="mt-4 space-y-2">
+          <a href="/changelog" class="block w-full text-center py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm">View changelog</a>
+          <a href="https://github.com/authoritydmc/redirector/releases" target="_blank" class="block w-full text-center py-2 rounded-xl bg-white dark:bg-white/10 border hover:bg-gray-50 dark:hover:bg-white/20 font-bold text-sm">GitHub Releases</a>
+        </div>
+        <p class="text-xs text-gray-400 dark:text-white/30 mt-3 text-center">We check once per day and cache for 24h.</p>
+      </div>
 
-    <div class="mb-6 text-left">
-      <h2 class="text-lg font-semibold text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-2"><i class="fa-solid fa-gear"></i> Redirector Config (Read-only)</h2>
-      <pre class="bg-gray-100 dark:bg-gray-900 rounded p-4 text-xs text-left overflow-x-auto text-gray-800 dark:text-blue-100 border border-blue-200 dark:border-blue-700" style="max-height: 350px;">
-{{ config_data | tojson(indent=2) | safe | replace('"database": "' ~ config_data.get('database', '') ~ '"', '"database": "***hidden***"') | replace('"admin_password": "' ~ config_data.get('admin_password', '') ~ '"', '"admin_password": "***hidden***"') }}
-</pre>
-      <div class="text-xs text-gray-400 dark:text-gray-500 mt-2">Sensitive fields (like passwords, database path) and upstreams are hidden. Use the dedicated page for upstreams.</div>
+      <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+          <h2 class="font-black flex items-center gap-2 text-gray-900 dark:text-white"><i class="fa-solid fa-gear text-gray-500"></i> Config <span class="text-xs font-normal text-gray-500">(read-only)</span></h2>
+          {% if session.admin_logged_in %}<span class="text-xs px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-500/20 text-green-700">Admin can edit</span>{% endif %}
+        </div>
+        <div class="p-4">
+          {% if session.admin_logged_in %}
+          <form method="post" class="space-y-3">
+            <label class="block text-xs font-bold">Auto redirect delay (seconds)</label>
+            <input type="number" name="auto_redirect_delay" value="{{ config_data.get('auto_redirect_delay', 1) }}" class="w-full border rounded-xl px-3 py-2 text-sm bg-white dark:bg-[#0f1221] dark:border-white/10">
+            <label class="block text-xs font-bold">Log level</label>
+            <select name="log_level" class="w-full border rounded-xl px-3 py-2 text-sm bg-white dark:bg-[#0f1221]">
+              <option value="DEBUG" {% if config_data.get('log_level')=='DEBUG' %}selected{% endif %}>DEBUG</option>
+              <option value="INFO" {% if config_data.get('log_level')=='INFO' %}selected{% endif %}>INFO</option>
+              <option value="WARNING" {% if config_data.get('log_level')=='WARNING' %}selected{% endif %}>WARNING</option>
+            </select>
+            <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="upstream_cache.enabled" value="true" {% if config_data.get('upstream_cache', {}).get('enabled') %}checked{% endif %}> Cache upstreams</label>
+            <button class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl font-bold text-sm">Save</button>
+            {% if config_update_success %}<p class="text-xs text-green-600">{{ config_update_success }}</p>{% endif %}
+            {% if config_update_error %}<p class="text-xs text-red-600">{{ config_update_error }}</p>{% endif %}
+          </form>
+          {% else %}
+          <pre class="bg-gray-50 dark:bg-[#0f1221] rounded-xl p-4 text-xs overflow-auto max-h-64 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/80">{{ config_data | tojson(indent=2) }}</pre>
+          <p class="text-xs text-gray-400 dark:text-white/30 mt-2">Log in as admin to edit. Sensitive fields are hidden.</p>
+          {% endif %}
+        </div>
+      </div>
     </div>
+  </div>
 
-    <a href="/" class="text-blue-600 dark:text-blue-400 hover:underline">← Back to Dashboard</a>
-    <div class="mt-6 text-xs text-gray-500 dark:text-gray-400">
-      <i class="fa-solid fa-circle-info mr-1"></i>
-      <span>Theme preference is saved in your browser. Use the toggle in the header to switch dark/light mode.</span>
-    </div>
+  <div class="mt-6 text-center">
+    <a href="/" class="text-blue-600 dark:text-blue-400 hover:underline text-sm">← Back to Dashboard</a>
   </div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(function() {
-    // Optionally show feedback
-  });
+function copyToClipboard(t){ navigator.clipboard.writeText(t); }
+function parseSemver(v){ const m=(v||'').match(/(\d+)\.(\d+)\.(\d+)/); return m ? m.slice(1).map(Number) : null; }
+function compareSemver(a,b){
+  const pa=parseSemver(a), pb=parseSemver(b);
+  if(!pa||!pb) return 0;
+  for(let i=0;i<3;i++){ if(pa[i]>pb[i]) return 1; if(pa[i]<pb[i]) return -1; }
+  return 0;
 }
-function parseBaseVersion(ver) {
-  if (!ver) return '';
-  let m = ver.match(/(\d+\.\d+\.\d+)/);
-  return m ? m[1] : ver;
-}
-async function checkVersionPage() {
-  const iconSpan = document.getElementById('version-status-icon');
-  const versionSpan = document.getElementById('version-string');
-  let current = versionSpan.textContent.trim();
-  try {
-    const resp = await fetch('/api/latest-version');
-    const data = await resp.json();
-    if (!data.success) throw new Error(data.error || 'Unknown error');
-    const latest = data.latest;
-    current = data.current || current;
-    versionSpan.textContent = current;
-    const baseCurrent = parseBaseVersion(current);
-    const baseLatest = parseBaseVersion(latest);
-    if (baseLatest && baseCurrent && baseLatest === baseCurrent) {
-      iconSpan.innerHTML = '<i class="fa-solid fa-circle-check text-green-500" title="You are running the latest version (v' + current + ')."></i>';
-    } else if (baseLatest && baseCurrent && baseLatest > baseCurrent) {
-      iconSpan.innerHTML = '<i class="fa-solid fa-circle-exclamation text-yellow-400" title="A newer version (v' + latest + ') is available! You are running v' + current + '."></i>';
-      showUpgradeNotice(latest, current);
+async function checkVersionSystem(){
+  const icon=document.getElementById('version-status-icon');
+  const text=document.getElementById('version-status-text');
+  const banner=document.getElementById('update-banner');
+  const latestEl=document.getElementById('update-latest');
+  const curEl=document.getElementById('update-current');
+  let cur=document.getElementById('version-string')?.textContent.trim() || '{{ version }}';
+  try{
+    const r=await fetch('/api/latest-version');
+    const d=await r.json();
+    if(!d.success) throw new Error(d.error);
+    const latest=d.latest;
+    cur=d.current||cur;
+    document.getElementById('version-string').textContent=cur;
+    const cmp=compareSemver(latest, cur);
+    if(cmp===0){
+      icon.innerHTML='<i class="fa-solid fa-circle-check text-green-500"></i>';
+      text.textContent='Up to date';
+      text.className='text-green-600 dark:text-green-400 font-bold';
+    } else if(cmp>0){
+      icon.innerHTML='<i class="fa-solid fa-circle-exclamation text-amber-500"></i>';
+      text.textContent='Update available';
+      text.className='text-amber-600 font-bold';
+      banner.classList.remove('hidden');
+      latestEl.textContent=latest;
+      curEl.textContent=cur;
     } else {
-      iconSpan.innerHTML = '<i class="fa-solid fa-circle-question text-gray-400" title="Version status unknown. Current: v' + current + ', Latest: v' + latest + '"></i>';
+      icon.innerHTML='<i class="fa-solid fa-circle-question text-gray-400"></i>';
+      text.textContent='Unknown';
     }
-  } catch (e) {
-    iconSpan.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500" title="Could not check for updates. Current version: v' + current + ' (' + e + ')"></i>';
-    showUpgradeNotice(null, current, true);
+  }catch(e){
+    icon.innerHTML='<i class="fa-solid fa-circle-xmark text-red-500"></i>';
+    text.textContent='Check failed';
   }
 }
-function showUpgradeNotice(latest, current, error) {
-  let notice = document.getElementById('upgrade-notice');
-  if (!notice) {
-    notice = document.createElement('div');
-    notice.id = 'upgrade-notice';
-    notice.className = 'mt-4 p-3 rounded bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 text-sm font-semibold flex items-center gap-2 justify-center';
-    versionSpan = document.getElementById('version-string');
-    versionSpan.parentNode.parentNode.insertBefore(notice, versionSpan.parentNode.nextSibling);
-  }
-  if (error) {
-    notice.textContent = 'Could not check for updates. You are running v' + current + '.';
-    notice.style.display = '';
-  } else if (latest && latest !== current) {
-    notice.textContent = `Upgrade available: v${latest} (You are running v${current})`;
-    notice.style.display = '';
-  } else {
-    notice.style.display = 'none';
-  }
-}
-checkVersionPage();
+checkVersionSystem();
 </script>
 {% endblock %}
