@@ -6,6 +6,29 @@ We follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic
 
 ---
 
+## [3.2.0] — 2026-09-26
+
+**Upgrades you can't lose data to, and metrics that show everything.**
+
+### Added
+- **Upgrade-safe persistence** — single data directory (`REDIRECTOR_DATA_DIR`, `/app/data` in Docker) holding the database, config, install state and backups; stale absolute DB paths self-heal to the data dir; config writes are atomic with a `.bak` fallback; the admin password and MFA/session secrets survive restarts and image swaps.
+- **Backup & restore** — `python -m app.utils.backup` CLI (`create/list/inspect/stage/restore/apply-pending/paths`), `/admin/backup` web UI with inventory, download and staged restores, plus `scripts/backup-linux.sh`, `scripts/backup-macos.sh`, `scripts/backup-windows.ps1` for every OS.
+- **Entrypoint guards** — refuses to run an old image against newer data, snapshots only when a migration is pending, retries migrations a bounded number of times, applies staged restores before migrating.
+- **Team KPI dashboard** — `/metrics` (admin): totals, averages, never-used share, 7/30-day creation, 30-day creation chart, mix by type/visibility/tags, hit distribution, top 10, recently updated, expired/expiring, upstream health, instance health, and cache performance. Same payload as JSON at `/api/kpi`.
+- **Realtime metrics** — `/metrics/live` (admin): 5-second polling of `/api/metrics/live` with uptime, CPU, memory, DB/Redis latency, totals, schema drift, top/recent tables and SVG trend sparklines, plus Redis and upstream-cache hit-rate tiles.
+- **Cache hit/miss stats** — Redis `keyspace_hits`/`keyspace_misses` with hit rate when connected (unknown, never zero, when not), and exact upstream check-cache hits/misses from the check log.
+- **Named-volume deploy option** — `docker-compose.volumes.yml` with a copy-across migration path; default compose stays on the existing `./data` bind mount. New docs: `docs/DATA-PERSISTENCE.md`, rewritten `docs/UPGRADE.md` and `/upgrade` page.
+
+### Fixed
+- **Fresh installs no longer warn about "moved" data** — a relative DB path with no file yet is a new install, not damage.
+- **Migrations no longer depend on the working directory** — `FLASK_APP=wsgi:app` is pinned and the Alembic directory is absolute, so `flask db upgrade` works from systemd, launchd, Task Scheduler or any shell without migrating the wrong database.
+- **Maintenance CLI is instant and side-effect free** — importing a helper no longer builds the app, connects to Redis, or purges the database.
+
+### Security
+- Metrics/KPI pages and APIs require admin login; backup doc serving returns 404 for traversal variants (`../`, encoded, backslash) and 401 unauthenticated.
+
+---
+
 ## [3.1.1] — 2026-08-28
 
 ### Added
