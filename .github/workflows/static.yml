@@ -6,7 +6,9 @@ on:
     branches: ["main"]
     paths:
       - "index.html"
+      - "VERSION"
       - "app/static/**"
+      - "scripts/sync-landing-version.py"
       - ".github/workflows/static.yml"
   workflow_dispatch:
 
@@ -28,6 +30,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Stamp landing page version from VERSION file
+        run: python3 scripts/sync-landing-version.py
 
       - name: Prepare site directory
         run: |
