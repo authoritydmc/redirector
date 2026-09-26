@@ -391,6 +391,12 @@ def test_restore_round_trip(install):
     )
 
 
+def test_stage_rejects_paths(install):
+    """Staging opens no caller-supplied path; streams only."""
+    with pytest.raises(B.BackupError, match="open binary stream"):
+        B.stage_pending_restore(install["data_dir"], install["db_file"])
+
+
 def test_deferred_restore_is_applied_at_start(install):
     """The web UI path: park the archive, the entrypoint applies it."""
     archive = B.create_backup(
@@ -399,7 +405,11 @@ def test_deferred_restore_is_applied_at_start(install):
     )["path"]
     os.remove(install["db_file"])
 
-    staged = B.stage_pending_restore(install["data_dir"], archive)
+    with open(archive, "rb") as handle:
+        staged = B.stage_pending_restore(install["data_dir"], handle)
+    assert staged["staged"] is True
+    assert os.path.isfile(B.pending_restore_path(install["data_dir"]))
+    assert not os.path.exists(install["db_file"])
     assert os.path.isfile(B.pending_restore_path(install["data_dir"]))
     assert not os.path.exists(install["db_file"])
 

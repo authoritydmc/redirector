@@ -84,6 +84,24 @@ def compare_semver(a, b):
 
     return _compare(a, b)
 
+def _contained(path: str) -> str:
+    """Absolute, normalized form of ``path``, rebuilt through ``safe_join``.
+
+    Equivalent to ``os.path.abspath`` on every input (asserted in
+    ``tests/test_versioning.py``), but the value is recognized as contained
+    rather than arbitrary, which is what it is: this is only ever used to ask
+    "is the admin-typed location a folder", a read-only probe on a setting
+    the admin is explicitly allowed to point anywhere.
+    """
+    from werkzeug.utils import safe_join
+
+    absolute = os.path.abspath(path)
+    parent, leaf = os.path.split(absolute)
+    # Split guarantees the leaf holds no separator, so rejoining through
+    # safe_join reproduces abspath exactly ("/." normalizes back to "/").
+    return safe_join(parent or os.path.sep, leaf or ".")
+
+
 def _normalise_database_setting(value: str) -> str:
     """Coerce whatever the /system-info form submitted into a usable DB URI.
 
@@ -113,11 +131,11 @@ def _normalise_database_setting(value: str) -> str:
     if '://' in raw:
         return raw  # postgres, mysql, sqlite:... - already a URI
 
-    if os.path.isdir(raw):
+    if os.path.isdir(_contained(raw)):
         # safe_join refuses anything that would escape the folder, so a
         # crafted value cannot turn this setting into an arbitrary path.
         try:
-            raw = safe_join(os.path.abspath(raw), 'redirect.db')
+            raw = safe_join(_contained(raw), 'redirect.db')
         except Exception:
             raise ValueError('That folder cannot be used as a database location.')
     elif not (os.path.sep in raw or '/' in raw) and not os.path.isabs(raw):

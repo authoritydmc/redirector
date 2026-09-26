@@ -151,3 +151,22 @@ def test_endpoint_caches_for_a_day(monkeypatch):
     assert second["cached"] is True
     assert second["latest"] == first["latest"]
     assert len(calls) == 1  # second call served from cache
+
+
+def test_contained_matches_abspath(tmp_path):
+    """The canonicalization helper must be exactly abspath with no surprises."""
+    import os
+
+    from app.routes.version_routes import _contained
+
+    cases = [
+        str(tmp_path),
+        str(tmp_path) + os.path.sep,
+        os.path.join(str(tmp_path), "sub", "..", "other"),
+        os.path.join(str(tmp_path), "."),
+        "relative.db",
+    ]
+    for case in cases:
+        # normpath("/.") == "/", so equality holds after normalization.
+        assert os.path.normpath(_contained(case)) == os.path.abspath(case), case
+        assert os.path.isdir(_contained(case)) == os.path.isdir(os.path.abspath(case))

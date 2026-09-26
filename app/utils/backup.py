@@ -539,6 +539,11 @@ def pending_restore_path(data_dir: str) -> str:
 def stage_pending_restore(data_dir: str, source, kind: str = "manual") -> dict:
     """Park an archive to be applied on the next application start.
 
+    ``source`` is an open binary stream (``io.BytesIO`` or a file handle),
+    never a path. Callers resolve and open the file themselves, so this
+    function - which runs with the privileges of the restore pipeline - never
+    turns a caller-supplied string into a file open.
+
     A restore requested through the running web UI cannot safely overwrite the
     database it is being served from: on Windows the file is locked outright,
     and on Linux it would pull the file out from under a live connection pool.
@@ -549,17 +554,15 @@ def stage_pending_restore(data_dir: str, source, kind: str = "manual") -> dict:
     report = ensure_data_dir(data_dir)
     if not report["writable"]:
         raise BackupError(f"Cannot stage a restore: {report['error']}")
+    if isinstance(source, (str, bytes, os.PathLike)):
+        raise BackupError("stage_pending_restore takes an open binary stream, not a path")
 
     target = pending_restore_path(data_dir)
     tmp = f"{target}.tmp.{os.getpid()}"
     try:
         with open(tmp, "wb") as dst:
-            if isinstance(source, (str, bytes, os.PathLike)):
-                with open(os.fspath(source), "rb") as src:
-                    shutil.copyfileobj(src, dst, 1024 * 1024)
-            else:
-                source.seek(0)
-                shutil.copyfileobj(source, dst, 1024 * 1024)
+            source.seek(0)
+            shutil.copyfileobj(source, dst, 1024 * 1024)
             dst.flush()
             os.fsync(dst.fileno())
         os.replace(tmp, target)
@@ -764,7 +767,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if command == "stage":
-        result = stage_pending_restore(data_dir, args.archive)
+        try:
+            with open(args.archive, "rb") as handle:
+                result = stage_pending_restore(data_dir, handle)
+        except OSError as exc:
+            print(f"Cannot read archive: {exc}")
+            return 1
         print(result["pending"])
         print("Restart the app to apply it.")
         return 0
