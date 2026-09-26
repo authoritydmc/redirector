@@ -85,10 +85,15 @@
         <option value="user-dynamic">User</option>
       </select>
       <select id="shortcut-count" class="px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0f1221] text-sm text-gray-900 dark:text-white">
-        <option value="5">5</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
+        <option value="5" {% if count==5 %}selected{% endif %}>5</option>
+        <option value="10" {% if count==10 %}selected{% endif %}>10</option>
+        <option value="20" {% if count==20 %}selected{% endif %}>20</option>
+        <option value="50" {% if count==50 %}selected{% endif %}>50</option>
       </select>
       <select id="shortcut-sort" class="px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0f1221] text-sm text-gray-900 dark:text-white hidden sm:block">
-        <option value="updated">Last updated</option><option value="created">Created</option><option value="popular">Most hits</option>
+        <option value="updated" {% if sort=='updated' %}selected{% endif %}>Last updated</option>
+        <option value="created" {% if sort=='created' %}selected{% endif %}>Created</option>
+        <option value="popular" {% if sort=='popular' %}selected{% endif %}>Most hits</option>
       </select>
     </div>
   </div>
@@ -182,10 +187,10 @@
       <h3 class="font-black text-sm mb-2 flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> Quick create</h3>
       <p class="text-xs text-white/80 mb-3">Type a shortcut and destination, we handle `r/` for you.</p>
       <form action="/edit/" method="post" class="space-y-2">
-        <input name="pattern" placeholder="my-link" class="w-full px-3 py-2 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400" required>
-        <input name="target" placeholder="https://example.com" class="w-full px-3 py-2 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400" required>
+        <input name="pattern" placeholder="my-link" class="w-full px-3 py-2 rounded-xl text-sm bg-white/10 dark:bg-black/20 border border-white/20 text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/40" required>
+        <input name="target" placeholder="https://example.com" class="w-full px-3 py-2 rounded-xl text-sm bg-white/10 dark:bg-black/20 border border-white/20 text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/40" required>
         <input type="hidden" name="type" value="static">
-        <button class="w-full bg-white text-blue-600 py-2 rounded-xl font-bold text-sm hover:bg-gray-50">Create r/ link</button>
+        <button class="w-full bg-white text-blue-600 py-2 rounded-xl font-bold text-sm hover:bg-gray-50 transition shadow-sm">Create r/ link</button>
       </form>
       <p class="text-xs text-white/60 mt-2">Tip: use <span class="font-mono bg-white/20 px-1 rounded">jira/{ticket}</span> for dynamic</p>
     </div>
@@ -250,18 +255,14 @@ function filter(){
 }
 search?.addEventListener('input', filter);
 typeFilter?.addEventListener('change', filter);
-// Count/sort still reload from server (keeps pagination)
+// Count/sort reload with query params
 function reload(){
-  const c=countSel.value, s=sortSel.value, q=search.value.trim();
-  let url='/dashboard-shortcuts?count='+c+'&sort='+(s==='popular'?'updated':s);
-  if(q) url+='&q='+encodeURIComponent(q);
-  fetch(url).then(r=>r.json()).then(d=>{
-    if(!d.success) return;
-    const tb=document.getElementById('shortcuts-tbody');
-    tb.innerHTML='';
-    // Simple re-render (preserves design via reload page for now)
-    location.reload();
-  });
+  const c = countSel.value;
+  const s = sortSel.value;
+  const url = new URL(window.location.href);
+  url.searchParams.set('count', c);
+  url.searchParams.set('sort', s);
+  window.location.href = url.toString();
 }
 countSel?.addEventListener('change', reload);
 sortSel?.addEventListener('change', reload);

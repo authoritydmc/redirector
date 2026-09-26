@@ -93,9 +93,8 @@ def setup_wizard():
         total = Redirect.query.count()
     except Exception:
         total = 0
-    # If setup completed and DB has content, don't allow public setup (require admin)
-    if is_completed and total > 0 and not session.get('admin_logged_in'):
-        # For security, require admin for re-setup after initial
+    # If setup completed, don't allow public setup (require admin login)
+    if is_completed and not session.get('admin_logged_in'):
         return redirect(url_for('main.admin_login', next=url_for('main.setup_wizard')))
     error = None
     success = None
@@ -132,9 +131,7 @@ def setup_wizard():
             except Exception as e:
                 logger.exception("Setup failed")
                 error = f'Failed to save: {e}'
-    # Show current generated password hint (last 4 chars) for first run
-    current_pwd = data.get('admin_password', '')
-    hint = f"••••{current_pwd[-4:]}" if len(current_pwd) > 4 else "not set"
+    hint = "Password is required for admin actions"
     return render_template('setup_wizard.html', error=error, success=success, hint=hint, is_completed=is_completed)
 
 # GET: Dashboard page. Triggered when user visits the root URL '/'.
@@ -160,6 +157,8 @@ def dashboard():
         sort = request.args.get('sort', 'updated')
         if sort == 'created':
             latest_shortcuts = Redirect.query.order_by(Redirect.created_at.desc()).limit(count).all()
+        elif sort == 'popular':
+            latest_shortcuts = Redirect.query.order_by(Redirect.access_count.desc(), Redirect.updated_at.desc()).limit(count).all()
         else:
             latest_shortcuts = Redirect.query.order_by(Redirect.updated_at.desc()).limit(count).all()
         total = Redirect.query.count()
@@ -438,6 +437,8 @@ def dashboard_shortcuts():
             query = query.filter((Redirect.pattern.ilike(like)) | (Redirect.target.ilike(like)))
         if sort == 'created':
             shortcuts = query.order_by(Redirect.created_at.desc()).limit(count).all()
+        elif sort == 'popular':
+            shortcuts = query.order_by(Redirect.access_count.desc(), Redirect.updated_at.desc()).limit(count).all()
         else:
             shortcuts = query.order_by(Redirect.updated_at.desc()).limit(count).all()
         result = []
@@ -446,11 +447,12 @@ def dashboard_shortcuts():
                 'pattern': s.pattern,
                 'type': s.type,
                 'target': s.target,
-                'access_count': s.access_count,
+                'access_count': s.access_count or 0,
                 'created_at': s.created_at,
-                'updated_at': s.updated_at
+                'updated_at': s.updated_at,
+                'tags': s.tags or ''
             })
-        return jsonify({'success': True, 'shortcuts': result})
+        return jsonify({'success': True, 'shortcuts': result, 'count': len(result)})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
