@@ -55,3 +55,23 @@ jobs:
       - uses: actions/checkout@v5
       - name: Landing page version must match VERSION file
         run: python3 scripts/sync-landing-version.py --check
+
+  backend-smoke:
+    # v3 FastAPI scaffold. Runs in its OWN process because the v2 Flask app's
+    # gevent monkey-patching deadlocks Starlette's TestClient when both share
+    # one pytest run (see tests/test_backend_smoke.py, EPIC-01).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install v3 backend deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest backend/requirements.txt
+      - name: Backend smoke tests (isolated process)
+        run: |
+          export PYTHONPATH=$(pwd)
+          pytest tests/test_backend_smoke.py -v
