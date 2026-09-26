@@ -336,7 +336,10 @@ def inspect_archive(source) -> dict:
             try:
                 manifest = json.loads(archive.read(MANIFEST_NAME).decode("utf-8"))
             except (ValueError, UnicodeDecodeError) as exc:
-                errors.append(f"manifest.json is unreadable: {exc}")
+                # Curated literal: the raw parse error can carry file content
+                # fragments, and this list is returned verbatim by the API.
+                logger.warning("Backup manifest unreadable: %s", exc)
+                errors.append("manifest.json is unreadable - not a Redirector backup")
                 return {"ok": False, "manifest": {}, "errors": errors}
 
             for member, meta in (manifest.get("files") or {}).items():
@@ -351,9 +354,11 @@ def inspect_archive(source) -> dict:
                 if required not in names:
                     errors.append(f"missing payload file: {required}")
     except zipfile.BadZipFile as exc:
-        errors.append(f"not a valid zip archive: {exc}")
+        logger.warning("Backup failed validation (bad zip): %s", exc)
+        errors.append("not a valid zip archive")
     except OSError as exc:
-        errors.append(f"could not read archive: {exc}")
+        logger.warning("Backup failed validation (unreadable): %s", exc)
+        errors.append("could not read archive")
 
     return {"ok": not errors, "manifest": manifest, "errors": errors}
 

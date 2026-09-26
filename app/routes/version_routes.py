@@ -106,6 +106,7 @@ def _normalise_database_setting(value: str) -> str:
     from app.config import config
     from app.utils.paths import portable_uri_for_path
     from app.utils.utils import get_db_uri
+    from werkzeug.utils import safe_join
 
     raw = (value or '').strip()
     if not raw:
@@ -114,7 +115,12 @@ def _normalise_database_setting(value: str) -> str:
         return raw  # postgres, mysql, sqlite:... - already a URI
 
     if os.path.isdir(raw):
-        raw = os.path.join(raw, 'redirect.db')
+        # safe_join refuses anything that would escape the folder, so a
+        # crafted value cannot turn this setting into an arbitrary path.
+        try:
+            raw = safe_join(os.path.abspath(raw), 'redirect.db')
+        except Exception:
+            raise ValueError('That folder cannot be used as a database location.')
     elif not (os.path.sep in raw or '/' in raw) and not os.path.isabs(raw):
         # Bare filename: it means "in the data directory", full stop.
         raw = os.path.join(config.DATA_DIR, raw)

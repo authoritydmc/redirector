@@ -336,7 +336,10 @@ def ensure_data_dir(data_dir: str) -> dict:
                 os.makedirs(target, exist_ok=True)
                 report["created"].append(target)
             except OSError as exc:
-                report["error"] = f"cannot create {target}: {exc}"
+                # Curated literal: this report is served verbatim by the public
+                # health endpoint, so OS error text stays in the log only.
+                logger.warning("Cannot create data directory %s: %s", target, exc)
+                report["error"] = f"cannot create {target}"
                 return report
     probe = os.path.join(data_dir, ".write-probe")
     try:
@@ -345,5 +348,6 @@ def ensure_data_dir(data_dir: str) -> dict:
         os.remove(probe)
         report["writable"] = True
     except OSError as exc:
-        report["error"] = f"{data_dir} is not writable: {exc}"
+        logger.warning("Data directory %s is not writable: %s", data_dir, exc)
+        report["error"] = f"{data_dir} is not writable"
     return report

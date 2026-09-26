@@ -26,6 +26,7 @@ from app.routes.routesUtils import login_required
 from app.utils import backup as backup_mod
 from app.utils import state as state_mod
 from app.utils.paths import project_root, relative_to_data
+from werkzeug.utils import safe_join
 
 bp = Blueprint('backup', __name__)
 
@@ -33,6 +34,26 @@ logger = logging.getLogger(__name__)
 
 MAX_UPLOAD_BYTES = 512 * 1024 * 1024
 DOC_FILES = ("docs/UPGRADE.md", "docs/DATA-PERSISTENCE.md", "UPGRADE.md")
+
+
+def _local_archive(name):
+    """Map a user-supplied archive name onto a file in our backups directory.
+
+    Returns ``(path, safe_name)`` or ``(None, None)``. Basename strips any
+    directory component, ``safe_join`` refuses anything that would escape the
+    backups directory, and only a real ``.zip`` on disk resolves - so a
+    crafted ``?name=`` can never read or delete an arbitrary file.
+    """
+    safe = os.path.basename((name or "").strip())
+    if not safe.endswith(".zip"):
+        return None, None
+    try:
+        path = safe_join(state_mod.backup_dir(config.DATA_DIR), safe)
+    except Exception:
+        return None, None
+    if not path or not os.path.isfile(path):
+        return None, None
+    return path, safe
 
 
 def _db_uri():
@@ -153,7 +174,13 @@ def api_backup_list():
 @login_required
 def api_backup_create():
     """Write a fresh archive into data/backups/ and return its manifest."""
-    label = (request.form.get('label') or request.json and request.json.get('label') or '')
+    # Form posts and JSON posts both land here. request.json raises on a form
+    # post, so only touch it when the content type is actually JSON - otherwise
+    # the UI's "Create backup" button 400s whenever the label field is empty.
+    label = (request.form.get('label') or '').strip()
+    if not label:
+        data = request.get_json(silent=True) or {}
+        label = (data.get('label') or '').strip()
     try:
         result = backup_mod.create_backup(
             config.DATA_DIR,
@@ -164,8 +191,10 @@ def api_backup_create():
             label=label or '',
         )
     except backup_mod.BackupError as exc:
-        logger.warning("Manual backup refused: %s", exc)
-        return jsonify({'success': False, 'error': str(exc)}), 400
+        # Generic in the response (it can carry OS/database detail); the
+        # specifics stay in the server log.
+        logger.warning("Manual backup failed: %s", exc)
+        return jsonify({'success': False, 'error': 'Could not create a backup. Check the server log.'}), 400
     return jsonify({
         'success': True,
         'name': result['name'],
@@ -184,9 +213,8 @@ def admin_backup_download():
     """
     name = (request.args.get('name') or '').strip()
     if name:
-        safe = os.path.basename(name)
-        path = os.path.join(state_mod.backup_dir(config.DATA_DIR), safe)
-        if not os.path.isfile(path) or not safe.endswith('.zip'):
+        path, safe = _local_archive(name)
+        if not path:
             return jsonify({'success': False, 'error': 'No such backup on disk.'}), 404
     else:
         try:
@@ -195,14 +223,16 @@ def admin_backup_download():
                 app_version=_semver(), kind='manual', label='',
             )
         except backup_mod.BackupError as exc:
-            return jsonify({'success': False, 'error': str(exc)}), 400
+            logger.warning("Backup for download failed: %s", exc)
+            return jsonify({'success': False, 'error': 'Could not create a backup. Check the server log.'}), 400
         path = result['path']
         safe = result['name']
 
     try:
         stream = backup_mod.to_stream(path)
     except OSError as exc:
-        return jsonify({'success': False, 'error': str(exc)}), 500
+        logger.warning("Backup download unreadable %s: %s", path, exc)
+        return jsonify({'success': False, 'error': 'Could not read the backup file.'}), 500
     return send_file(
         stream,
         mimetype='application/zip',
@@ -214,16 +244,14 @@ def admin_backup_download():
 @bp.route('/admin/backup/<name>', methods=['DELETE'])
 @login_required
 def admin_backup_delete(name):
-    safe = os.path.basename(name)
-    if not safe.endswith('.zip'):
-        return jsonify({'success': False, 'error': 'Invalid backup name.'}), 400
-    path = os.path.join(state_mod.backup_dir(config.DATA_DIR), safe)
-    if not os.path.isfile(path):
+    path, _safe = _local_archive(name)
+    if not path:
         return jsonify({'success': False, 'error': 'No such backup.'}), 404
     try:
         os.remove(path)
     except OSError as exc:
-        return jsonify({'success': False, 'error': str(exc)}), 500
+        logger.warning("Backup delete failed %s: %s", path, exc)
+        return jsonify({'success': False, 'error': 'Could not delete the backup file.'}), 500
     return jsonify({'success': True})
 
 
@@ -256,30 +284,36 @@ def admin_backup_restore():
     head = state_mod.migration_graph()["head"]
     wants_json = request.accept_mimetypes.best == 'application/json' or bool(upload)
 
+    def _refuse(message, code=400):
+        if wants_json:
+            return jsonify({'success': False, 'error': message}), code
+        flash(message, 'error')
+        return redirect(url_for('backup.admin_backup'))
+
+    # Name, presence and size checks answer with fixed literals - no exception
+    # text, no archive content, ever reaches the response from this handler.
+    if target:
+        source, _safe = _local_archive(target)
+        if not source:
+            return _refuse('Choose a valid local backup or upload a .zip file.')
+    else:
+        blob = upload.read(MAX_UPLOAD_BYTES + 1)
+        if len(blob) > MAX_UPLOAD_BYTES:
+            return _refuse('Archive exceeds the 512 MiB limit.')
+        source = io.BytesIO(blob)
+
+    # Validate before staging: a corrupt archive must never be parked, or
+    # the next start would fail with a far more confusing error.
+    check = backup_mod.inspect_archive(source)
+    if not check["ok"]:
+        # Curated by inspect_archive: fixed literals, safe to show.
+        return _refuse("Refusing to restore: " + "; ".join(check["errors"]))
+    blocked = backup_mod.guard_revision(check["manifest"], head)
+    # Curated by guard_revision: fixed wording plus schema revision labels.
+    if blocked:
+        return _refuse(blocked)
+
     try:
-        if target:
-            safe = os.path.basename(target)
-            if not safe.endswith('.zip'):
-                raise backup_mod.BackupError('Invalid backup name.')
-            path = os.path.join(state_mod.backup_dir(config.DATA_DIR), safe)
-            if not os.path.isfile(path):
-                raise backup_mod.BackupError(f'Backup {safe} is not on disk.')
-            source = path
-        else:
-            blob = upload.read(MAX_UPLOAD_BYTES + 1)
-            if len(blob) > MAX_UPLOAD_BYTES:
-                raise backup_mod.BackupError('Archive exceeds the 512 MiB limit.')
-            source = io.BytesIO(blob)
-
-        # Validate before staging: a corrupt archive must never be parked, or
-        # the next start would fail with a far more confusing error.
-        check = backup_mod.inspect_archive(source)
-        if not check["ok"]:
-            raise backup_mod.BackupError("Refusing to restore: " + "; ".join(check["errors"]))
-        blocked = backup_mod.guard_revision(check["manifest"], head)
-        if blocked:
-            raise backup_mod.BackupError(blocked)
-
         if defer:
             result = backup_mod.stage_pending_restore(config.DATA_DIR, source)
             message = (
@@ -301,11 +335,10 @@ def admin_backup_restore():
                 "Restart the app so the remaining migrations run."
             )
     except backup_mod.BackupError as exc:
-        logger.warning("Restore refused: %s", exc)
-        if wants_json:
-            return jsonify({'success': False, 'error': str(exc)}), 400
-        flash(str(exc), 'error')
-        return redirect(url_for('backup.admin_backup'))
+        # Staging/writing failed after validation passed: an OS-level problem
+        # whose detail belongs in the log, not the response.
+        logger.warning("Restore failed after validation: %s", exc)
+        return _refuse('Restore failed. Check the server log for details.')
 
     logger.warning("Admin restore requested: %s", result.get('pending') or result.get('restored'))
     if wants_json:
