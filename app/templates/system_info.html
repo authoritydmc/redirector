@@ -147,49 +147,35 @@
 {% block scripts %}
 <script>
 function copyToClipboard(t){ navigator.clipboard.writeText(t); }
-function parseSemver(v){ const m=(v||'').match(/(\d+)\.(\d+)\.(\d+)/); return m ? m.slice(1).map(Number) : null; }
-function compareSemver(a,b){
-  const pa=parseSemver(a), pb=parseSemver(b);
-  if(!pa||!pb) return 0;
-  for(let i=0;i<3;i++){ if(pa[i]>pb[i]) return 1; if(pa[i]<pb[i]) return -1; }
-  return 0;
-}
 async function checkVersionSystem(){
   const icon=document.getElementById('version-status-icon');
   const text=document.getElementById('version-status-text');
   const banner=document.getElementById('update-banner');
   const latestEl=document.getElementById('update-latest');
   const curEl=document.getElementById('update-current');
-  let cur=document.getElementById('version-string')?.textContent.trim() || '{{ version }}';
+  const fail=()=>{
+    icon.innerHTML='<i class="fa-solid fa-circle-xmark text-red-500"></i>';
+    text.textContent='Check failed';
+  };
   try{
     const r=await fetch('/api/latest-version');
     const d=await r.json();
     if(!d.success) throw new Error(d.error);
-    const latest=d.latest;
-    cur=d.current||cur;
+    const cur=d.current_full || d.current;
     document.getElementById('version-string').textContent=cur;
-    const cmp=compareSemver(latest, cur);
-    // Use backend update_available if present, else cmp
-    const hasUpdate = (typeof d.update_available === 'boolean') ? d.update_available : (cmp>0);
-    if(cmp===0 || (!hasUpdate && cmp<=0)){
-      icon.innerHTML='<i class="fa-solid fa-circle-check text-green-500"></i>';
-      text.textContent= cmp<0 ? 'Up to date (dev ahead)' : 'Up to date';
-      text.className='text-green-600 dark:text-green-400 font-bold';
-    } else if(hasUpdate || cmp>0){
+    if(d.update_available && d.latest){
       icon.innerHTML='<i class="fa-solid fa-circle-exclamation text-amber-500"></i>';
       text.textContent='Update available';
       text.className='text-amber-600 font-bold';
       banner.classList.remove('hidden');
-      latestEl.textContent=latest;
+      latestEl.textContent='v'+d.latest;
       curEl.textContent=cur;
-    } else {
-      icon.innerHTML='<i class="fa-solid fa-circle-question text-gray-400"></i>';
-      text.textContent='Unknown';
+    }else{
+      icon.innerHTML='<i class="fa-solid fa-circle-check text-green-500"></i>';
+      text.textContent='Up to date';
+      text.className='text-green-600 dark:text-green-400 font-bold';
     }
-  }catch(e){
-    icon.innerHTML='<i class="fa-solid fa-circle-xmark text-red-500"></i>';
-    text.textContent='Check failed';
-  }
+  }catch(e){ fail(); }
 }
 checkVersionSystem();
 </script>

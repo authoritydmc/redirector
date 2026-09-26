@@ -23,6 +23,7 @@ We follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic
 - **Fresh installs no longer warn about "moved" data** — a relative DB path with no file yet is a new install, not damage.
 - **Migrations no longer depend on the working directory** — `FLASK_APP=wsgi:app` is pinned and the Alembic directory is absolute, so `flask db upgrade` works from systemd, launchd, Task Scheduler or any shell without migrating the wrong database.
 - **Maintenance CLI is instant and side-effect free** — importing a helper no longer builds the app, connects to Redis, or purges the database.
+- **Version checking, properly** — one canonical parser/comparer (`app/utils/versioning.py`): `v`-prefixed tags, dev build suffixes and plain versions all compare as the same triple, so an older published tag can never read as "Unknown" or hide an update; the endpoint fails closed (says "check failed", never "up to date") when GitHub is unreachable; the footer banner and system-info badge render the backend verdict with per-release dismissal; Docker images stamp `APP_VERSION`/`GIT_COMMIT` at build time so they report their own tag.
 
 ### Security
 - Metrics/KPI pages and APIs require admin login; backup doc serving returns 404 for traversal variants (`../`, encoded, backslash) and 401 unauthenticated.

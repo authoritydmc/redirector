@@ -34,6 +34,9 @@ jobs:
       - name: Set PR number for tagging
         run: echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
 
+      - name: Set version for image stamping
+        run: echo "APP_VERSION=$(tr -d '[:space:]' < VERSION)" >> $GITHUB_ENV
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
@@ -50,5 +53,8 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            APP_VERSION=${{ env.APP_VERSION }}
+            GIT_COMMIT=${{ github.sha }}
           tags: |
             ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:pr-${{ env.PR_NUMBER }}

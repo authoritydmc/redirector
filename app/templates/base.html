@@ -167,78 +167,71 @@
   else if (localStorage.getItem('theme') === 'light') document.documentElement.classList.remove('dark');
   updateToggleIcon();
 
-  function parseBaseVersion(ver) {
-    if (!ver) return '';
-    let m = ver.match(/(\d+\.\d+\.\d+)/);
-    return m ? m[1] : ver;
-  }
-  function compareSemver(a,b){
-    const pa=a.split('.').map(Number), pb=b.split('.').map(Number);
-    for(let i=0;i<3;i++){ if((pa[i]||0) > (pb[i]||0)) return 1; if((pa[i]||0) < (pb[i]||0)) return -1; }
-    return 0;
-  }
-  async function checkVersionFooter() {
+  // Footer version badge + update banner. The backend (/api/latest-version)
+  // is the single place that decides "is there an update": it normalizes the
+  // VERSION file, dev build suffixes and v-prefixed GitHub tags to the same
+  // triple before comparing. This script only renders that verdict.
+  function renderVersionState(data, checkedAt) {
     const iconSpan = document.getElementById('footer-version-icon');
     const versionSpan = document.getElementById('footer-version-string');
-    let current = '{{ version if version is defined else "unknown" }}';
+    const current = data.current_full || data.current || '{{ version if version is defined else "unknown" }}';
+    versionSpan.textContent = 'Version: ' + current;
+    const when = checkedAt ? new Date(checkedAt).toLocaleString() : 'just now';
+    if (!data.success) {
+      iconSpan.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500" title="Could not check for updates (' + (data.error || 'network error') + '). Running ' + current + '."></i>';
+      return;
+    }
+    if (data.update_available && data.latest) {
+      iconSpan.innerHTML = '<i class="fa-solid fa-circle-exclamation text-yellow-400" title="Update available: v' + data.latest + ' (you run ' + current + '). Last checked: ' + when + '"></i>';
+      showUpdateBanner(data.latest, current);
+    } else {
+      iconSpan.innerHTML = '<i class="fa-solid fa-circle-check text-green-500" title="Up to date (' + current + '). Last checked: ' + when + '"></i>';
+    }
+  }
+  function showUpdateBanner(latest, current) {
+    if (document.getElementById('update-notice')) return;
+    try {
+      if (localStorage.getItem('update_dismissed_' + latest)) return;
+    } catch {}
+    const notice = document.createElement('div');
+    notice.id = 'update-notice';
+    notice.className = 'fixed bottom-4 right-4 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold flex items-center gap-2 z-50';
+    notice.innerHTML = '<i class="fa-solid fa-circle-arrow-up"></i> Update available: v' + latest +
+      ' <a href="/upgrade" class="underline ml-2">How to upgrade</a>' +
+      ' <a href="/changelog" class="underline">Changelog</a>' +
+      ' <button id="update-notice-x" class="ml-2 text-white/80 hover:text-white" title="Dismiss">&times;</button>';
+    document.body.appendChild(notice);
+    document.getElementById('update-notice-x').onclick = () => {
+      try { localStorage.setItem('update_dismissed_' + latest, '1'); } catch {}
+      notice.remove();
+    };
+    setTimeout(() => { try { notice.remove(); } catch {} }, 30000);
+  }
+  async function checkVersionFooter() {
     const CACHE_KEY = 'version_check_cache';
     const CACHE_TTL = 24 * 60 * 60 * 1000;
+    const present = (data, checkedAt) => {
+      renderVersionState(data, checkedAt);
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data })); } catch {}
+    };
     try {
       const cachedRaw = localStorage.getItem(CACHE_KEY);
       if (cachedRaw) {
         const cached = JSON.parse(cachedRaw);
         if (cached.timestamp && (Date.now() - cached.timestamp < CACHE_TTL) && cached.data) {
-          const data = cached.data;
-          versionSpan.textContent = `Version: ${data.current || current}`;
-          const baseCurrent = parseBaseVersion(data.current || current);
-          const baseLatest = parseBaseVersion(data.latest);
-          const cmp = compareSemver(baseLatest, baseCurrent);
-          if (cmp===0) {
-            iconSpan.innerHTML = '<i class="fa-solid fa-circle-check text-green-500" title="You are running the latest version (v' + (data.current||current) + '). Last checked: ' + new Date(cached.timestamp).toLocaleString() + '"></i>';
-          } else if (cmp>0) {
-            iconSpan.innerHTML = '<i class="fa-solid fa-circle-exclamation text-yellow-400" title="A newer version (v' + data.latest + ') is available! You are running v' + (data.current||current) + '."></i>';
-          } else {
-            iconSpan.innerHTML = '<i class="fa-solid fa-circle-question text-gray-400" title="Version status unknown. Current: v' + (data.current||current) + ', Latest: v' + data.latest + '"></i>';
+          renderVersionState(cached.data, cached.timestamp);
+          if (Date.now() - cached.timestamp > 12 * 60 * 60 * 1000) {
+            fetch('/api/latest-version').then(r => r.json()).then(d => present(d, Date.now())).catch(() => {});
           }
-          if (Date.now() - cached.timestamp > 12*60*60*1000) fetchVersionAndCache(true);
           return;
         }
       }
     } catch {}
-    await fetchVersionAndCache(false);
-  }
-  async function fetchVersionAndCache(isBackground){
-    const iconSpan = document.getElementById('footer-version-icon');
-    const versionSpan = document.getElementById('footer-version-string');
-    let current = '{{ version if version is defined else "unknown" }}';
     try {
-      let resp = await fetch('/api/latest-version');
-      let data = await resp.json();
-      if (!data.success) throw new Error(data.error || 'Unknown error');
-      const latest = data.latest;
-      current = data.current || current;
-      versionSpan.textContent = `Version: ${current}`;
-      const baseCurrent = parseBaseVersion(current);
-      const baseLatest = parseBaseVersion(latest);
-      const cmp = compareSemver(baseLatest, baseCurrent);
-      if (cmp===0) {
-        iconSpan.innerHTML = '<i class="fa-solid fa-circle-check text-green-500" title="You are running the latest version (v' + current + ')."></i>';
-      } else if (cmp>0) {
-        iconSpan.innerHTML = '<i class="fa-solid fa-circle-exclamation text-yellow-400" title="A newer version (v' + latest + ') is available! You are running v' + current + '. Click changelog to see what is new."></i>';
-        if(!isBackground){
-          const notice = document.createElement('div');
-          notice.id='update-notice';
-          notice.className='fixed bottom-4 right-4 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold flex items-center gap-2 z-50';
-          notice.innerHTML='<i class="fa-solid fa-circle-arrow-up"></i> Update available: v'+latest+' <a href="/changelog" class="underline ml-2">View changelog</a> <button onclick="this.parentElement.remove()" class="ml-2 text-white/80 hover:text-white">&times;</button>';
-          document.body.appendChild(notice);
-          setTimeout(()=>{ try{notice.remove();}catch{} }, 15000);
-        }
-      } else {
-        iconSpan.innerHTML = '<i class="fa-solid fa-circle-question text-gray-400" title="Version status unknown. Current: v' + current + ', Latest: v' + latest + '"></i>';
-      }
-      try { localStorage.setItem('version_check_cache', JSON.stringify({timestamp: Date.now(), data: data})); } catch {}
+      const resp = await fetch('/api/latest-version');
+      present(await resp.json(), Date.now());
     } catch (e) {
-      iconSpan.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500" title="Could not check for updates. Current version: v' + current + '"></i>';
+      renderVersionState({ success: false, error: 'network error' }, null);
     }
   }
   checkVersionFooter();

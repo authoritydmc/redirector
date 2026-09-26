@@ -4,9 +4,7 @@ import socket
 import platform
 import sys
 import os
-import re
 from app.utils.utils import  get_port
-import requests
 from app.CONSTANTS import __version__, get_semver
 import logging
 import time
@@ -14,6 +12,7 @@ from flask import current_app
 
 bp = Blueprint('version', __name__)
 
+# Canonical home is app.utils.versioning; kept here so old links keep working.
 GITHUB_REPO = "authoritydmc/redirector"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
@@ -74,16 +73,16 @@ def get_system_info():
     return info
 
 def parse_semver(v):
-    m = re.match(r'(\d+)\.(\d+)\.(\d+)', v or '')
-    if not m:
-        return None
-    return tuple(int(x) for x in m.groups())
+    """Kept for compatibility; canonical implementation lives in versioning."""
+    from app.utils.versioning import parse_semver as _parse
+
+    return _parse(v)
 
 def compare_semver(a, b):
-    pa, pb = parse_semver(a), parse_semver(b)
-    if not pa or not pb:
-        return 0
-    return (pa > pb) - (pa < pb)
+    """Kept for compatibility; canonical implementation lives in versioning."""
+    from app.utils.versioning import compare_semver as _compare
+
+    return _compare(a, b)
 
 def _normalise_database_setting(value: str) -> str:
     """Coerce whatever the /system-info form submitted into a usable DB URI.
@@ -341,86 +340,41 @@ _version_check_cache = {
 
 @bp.route('/api/latest-version')
 def api_latest_version():
+    """What this install runs vs what GitHub publishes.
+
+    The comparison itself lives in :mod:`app.utils.versioning` so the footer
+    banner, the system-info badge and the upgrade page cannot disagree. The
+    result is cached in-process for 24h; every gunicorn worker keeps its own
+    copy, which only means the first request after a restart checks again.
+    """
+    from app.utils.versioning import CHECK_TTL_SECONDS, check_for_updates
+
     global _version_check_cache
     logger.info("Checking for latest version from GitHub...")
     now = time.time()
-    cache_valid = (
-        _version_check_cache['result'] is not None and
-        (now - _version_check_cache['timestamp'] < 86400) and  # 24h cache - once per day
-        not _version_check_cache['error']
-    )
-    if cache_valid:
+    cached = _version_check_cache['result']
+    if (
+        cached is not None
+        and (now - _version_check_cache['timestamp'] < CHECK_TTL_SECONDS)
+        and not _version_check_cache['error']
+    ):
         logger.debug("Returning cached version check result.")
-        return _version_check_cache['result']
-    try:
-        resp = requests.get(GITHUB_API_URL, timeout=3)
-        if resp.status_code == 200:
-            data = resp.json()
-            latest = data.get('tag_name') or data.get('name')
-            # Fallback to raw VERSION file if no releases
-            if not latest:
-                try:
-                    raw = requests.get("https://raw.githubusercontent.com/authoritydmc/redirector/main/VERSION", timeout=2)
-                    if raw.ok:
-                        latest = raw.text.strip()
-                except Exception:
-                    pass
-            # Proper semver compare
-            cur_base = parse_semver(get_semver()) or (0,0,0)
-            lat_base = parse_semver(latest) or (0,0,0)
-            cmp = compare_semver(latest or '', get_semver())
-            update_available = cmp > 0
-            logger.info(f"Version check success: current={get_semver()}, latest={latest}, update={update_available}")
-            result = {'success': True, 'latest': latest, 'current': get_semver(), 'update_available': update_available, 'cur_base': '.'.join(map(str, cur_base)) if cur_base else get_semver(), 'lat_base': '.'.join(map(str, lat_base)) if lat_base else latest}
-            _version_check_cache = {
-                'timestamp': now,
-                'result': result,
-                'error': False
-            }
-            return result
-        elif resp.status_code == 404:
-            logger.warning(f"GitHub API 404: No releases yet for {GITHUB_REPO} — falling back to raw VERSION file")
-            # Try raw VERSION file as fallback (project URL + VERSION)
-            try:
-                raw = requests.get(f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/VERSION", timeout=2)
-                if raw.ok:
-                    latest = raw.text.strip()
-                    # Compare with current
-                    cmp = compare_semver(latest or '', get_semver())
-                    update_available = cmp > 0
-                    logger.info(f"Fallback raw VERSION: latest={latest}, current={get_semver()}, update={update_available}")
-                    result = {'success': True, 'latest': latest, 'current': get_semver(), 'update_available': update_available, 'fallback': True}
-                    _version_check_cache = {'timestamp': now, 'result': result, 'error': False}
-                    return result
-            except Exception as e:
-                logger.warning(f"Fallback raw VERSION failed: {e}")
-            result = {'success': True, 'latest': get_semver(), 'current': get_semver(), 'update_available': False, 'message': 'No releases yet — you are up to date'}
-            _version_check_cache = {'timestamp': now, 'result': result, 'error': False}
-            return result
-        elif resp.status_code == 403 and 'rate limit' in resp.text.lower():
-            logger.warning(f"GitHub API rate limit exceeded: {resp.text}")
-            result = {'success': False, 'error': 'GitHub API rate limit exceeded. Please try again later or set a GitHub token for higher limits.', 'current': get_semver()}
-            _version_check_cache = {
-                'timestamp': now,
-                'result': result,
-                'error': True
-            }
-            return result
-        else:
-            logger.warning(f"GitHub API error: status_code={resp.status_code}, text={resp.text}")
-            result = {'success': False, 'error': f'GitHub API error: {resp.status_code}', 'current': get_semver()}
-            _version_check_cache = {
-                'timestamp': now,
-                'result': result,
-                'error': True
-            }
-            return result
-    except Exception:
-        logger.exception("Error checking latest version")
-        result = {'success': False, 'error': 'Failed to check version', 'current': get_semver()}
-        _version_check_cache = {
-            'timestamp': now,
-            'result': result,
-            'error': True
-        }
+        result = dict(cached)
+        result['cached'] = True
         return result
+    result = check_for_updates(get_semver())
+    result['cached'] = False
+    _version_check_cache = {
+        'timestamp': now,
+        'result': result,
+        'error': not result['success'],
+    }
+    if result['success']:
+        logger.info(
+            "Version check success: current=%s, latest=%s, update=%s (%s)",
+            result['current_full'], result['latest'],
+            result['update_available'], result['source'],
+        )
+    else:
+        logger.warning("Version check failed: %s", result['error'])
+    return result
