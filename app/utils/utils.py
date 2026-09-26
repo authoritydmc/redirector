@@ -9,6 +9,7 @@ from model.upstream_check_log import UpstreamCheckLog
 from model.upstream_cache import UpstreamCache
 from model.redirect import Redirect
 from app import CONSTANTS  # Import CONSTANTS for data source strings
+from app.utils.paths import PORTABLE_DB_SUFFIX, SQLITE_PREFIX
 
 
 # Get a logger instance for this module
@@ -16,21 +17,31 @@ logger = logging.getLogger(__name__)
 
 from ..config import config
 def get_db_uri():
-    cfg=config.get_configuration()
-    if "database" in cfg:
-        db_url=cfg["database"]
+    """Database URI for this host, as an absolute value SQLAlchemy can use.
+
+    ``config`` stores a *portable* URI (``sqlite:///redirect.db``) so the data
+    directory can be copied between machines, but SQLAlchemy resolves a
+    relative SQLite path against the process working directory. The resolved
+    absolute URI is therefore kept separately and this is what hands it over.
+    """
+    resolved = getattr(config, 'resolved_database', None)
+    if resolved:
+        return resolved
+    cfg = config.get_configuration()
+    db_url = cfg.get("database")
+    if db_url:
         return db_url
-    default_db_uri = "sqlite:///" + os.path.join(config.DATA_DIR, "redirect.db")
+    default_db_uri = SQLITE_PREFIX + PORTABLE_DB_SUFFIX
     logger.warning(f"Database URI not found in config, defaulting to {default_db_uri}")
+    config.set_value("database", default_db_uri)
     return default_db_uri
 
 def _save_config():
+    """Persist the config through the atomic writer (temp file + os.replace)."""
     try:
-        with open(config.CONFIG_FILE, 'w') as f:
-            # Save config sorted by keys
-            json.dump(config.get_configuration(), f, indent=2, sort_keys=True)
+        config.save()
         config.logger.debug(f"✅ Configuration saved (sorted) to {config.CONFIG_FILE}")
-    except IOError as e:
+    except OSError as e:
         config.logger.error(f"❌ Failed to save configuration file {config.CONFIG_FILE}: {e}")
 
 

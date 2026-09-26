@@ -78,7 +78,7 @@ docker run -d --name redirector --restart unless-stopped -p 80:80 -v /absolute/p
 
 Replace `/absolute/path/to/your/data` with your desired directory.
 
-#### 🚀 **Recommended: With Named Volume (Best for Upgrades & Backups)**
+#### Optional: With a Named Volume
 
 ```sh
 # Create a persistent named volume (only once)
@@ -88,7 +88,18 @@ docker volume create redirector_data
 docker run -d --name redirector --restart unless-stopped -p 80:80 -v redirector_data:/app/data -e REDIS_HOST=redis -e REDIS_PORT=6379 --link redis:redis rajlabs/redirector
 ```
 
-> **Recommended:** Using a Docker named volume (`redirector_data`) keeps your data safe and makes upgrades and backups easy.
+> **Read this before switching an existing install.** A named volume is a
+> *different* location from `./data`. Pointing `/app/data` at an empty volume
+> makes the app start with a fresh database and a new admin password, which looks
+> exactly like an upgrade destroying your data — it hasn't, it's still in
+> `./data`. If you already have shortcuts, use the bind mount above, or follow
+> the copy-across procedure in
+> [`docs/DATA-PERSISTENCE.md`](docs/DATA-PERSISTENCE.md) first.
+>
+> `docker-compose.volumes.yml` is provided for people who want the named volume
+> on a **fresh** install. `docker-compose.yml` uses a bind mount, because that is
+> what every existing install already has and it is the only option where
+> `git pull && docker compose up -d` cannot change where your data lives.
 
 ---
 
@@ -168,7 +179,7 @@ All configuration is managed in the `data/redirect.config.json` file (auto-creat
   "upstream_cache": {
     "enabled": true // Enable upstream shortcut caching (recommended)
   },
-  "database": "sqlite:///data/redirect.db"  // URI for database (default: SQLite at data/redirect.db)
+  "database": "sqlite:///redirect.db"  // URI for database (default: SQLite file in the data directory)
 }
 ```
 
@@ -214,12 +225,22 @@ dialect+driver://username:password@host:port/database
 ### **🔹 SQLite (Local File-Based Database)**
 SQLite doesn’t require authentication:
 ```sh
-sqlite:///absolute/path/to/database.db
+sqlite:///redirect.db   # the default: a file named redirect.db in the data directory
 ```
-For relative paths:
+A **bare filename** is resolved against the data directory, not the process
+working directory, so it keeps working when the install moves between machines
+or platforms. To point somewhere else, give a full path:
 ```sh
-sqlite:///data/mydatabase.db  # Stored inside 'data' folder
+sqlite:////var/lib/redirector/redirect.db   # absolute, outside the data directory
 ```
+
+> **Why not a full absolute path?** SQLAlchemy resolves a relative SQLite path
+> against the *current working directory*. A config holding an absolute path from
+> another checkout, container or user account therefore starts up pointing at
+> nothing — and SQLite responds by creating a brand new, empty database, which
+> looks like total data loss. Storing the portable form and resolving it at
+> startup is what makes moving `data/` safe. See
+> [`docs/DATA-PERSISTENCE.md`](docs/DATA-PERSISTENCE.md) §5.
 
 ### **🔹 PostgreSQL (Production-Grade Database)**
 Use PostgreSQL with credentials:
@@ -295,8 +316,57 @@ If you prefer to edit your hosts file manually:
 
 ## Data Persistence
 
-- All data (config, DB) is in the `data/` directory.
-- For Docker, always use a bind mount or volume for `/app/data` to persist data.
+Everything that matters is in **one directory** — the data directory:
+
+```
+data/
+├── redirect.db               # shortcuts, upstreams, counters
+├── redirect.config.json      # settings, admin password, MFA seeds, session secret
+├── .redirector-state.json    # installed version + schema revision
+└── backups/                  # .zip snapshots from /admin/backup
+```
+
+- Inside Docker this directory is mounted at `/app/data`. **Keep that mount on
+  every start** — it is the only thing an upgrade cannot recreate.
+- Outside Docker, set `REDIRECTOR_DATA_DIR` to wherever you want it.
+- The database path stored in the config is relative (`sqlite:///redirect.db`)
+  so the directory can be copied to another machine or another OS. A stale
+  absolute path from a previous location is re-anchored automatically at startup
+  rather than silently creating a new empty database.
+- Upgrades are covered in [`docs/UPGRADE.md`](docs/UPGRADE.md) — per-platform
+  commands, verification and rollback. Storage and migration details are in
+  [`docs/DATA-PERSISTENCE.md`](docs/DATA-PERSISTENCE.md).
+
+### Backups
+
+`/admin/backup` (Admin → Backup & Restore) writes a single `.zip` containing the
+database, the configuration and the install state. It is safe to run while the
+app is serving traffic. The same thing from a terminal:
+
+```sh
+# Docker
+docker compose exec app python -m app.utils.backup create --label "before upgrade"
+docker compose exec app python -m app.utils.backup list
+
+# Bare metal
+python -m app.utils.backup create --label "before upgrade"
+python -m app.utils.backup list
+```
+
+Restores are staged and applied on the next start, because a running process
+cannot safely replace the database it is serving from. Archives from a newer
+schema are refused rather than guessed at.
+
+### Never do these
+
+```sh
+docker compose down -v      # -v deletes named volumes
+docker volume rm redirector_data
+rm -rf data/                # rm -rf data\ on Windows
+```
+
+Copy at least one archive off the host. An archive in the same directory as the
+data protects you from a bad upgrade, not from a lost disk.
 
 ---
 

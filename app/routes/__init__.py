@@ -7,6 +7,8 @@ from .routes import bp as route_bp
 from .upstream_routes import bp as upstream_bp
 from .version_routes import bp as system_info_bp
 from .mfa_routes import bp as mfa_bp
+from .backup_routes import bp as backup_bp
+from .metrics_routes import bp as metrics_bp
 from .. import CONSTANTS
 from ..config import config
 
@@ -18,7 +20,9 @@ ALL_APP_BLUEPRINTS = [
     error_bp,
     redirection_bp,
     upstream_bp,
-    mfa_bp
+    mfa_bp,
+    backup_bp,
+    metrics_bp
 
 ]
 

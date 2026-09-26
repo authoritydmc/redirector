@@ -45,6 +45,9 @@
             <a href="/admin/upstreams" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10 text-gray-700 dark:text-white/80"><i class="fa-solid fa-cloud-arrow-up text-blue-500 w-4"></i> Upstreams</a>
             <a href="/admin/upstream-logs" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10"><i class="fa-solid fa-list-alt w-4 text-gray-400"></i> Upstream Logs</a>
             <a href="/admin/import-redirects" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10"><i class="fa-solid fa-file-arrow-up w-4 text-gray-400"></i> Import/Export</a>
+            <a href="/admin/backup" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10 text-gray-700 dark:text-white/80"><i class="fa-solid fa-shield-halved w-4 text-gray-400"></i> Backup &amp; Restore</a>
+            <a href="/metrics" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10 text-gray-700 dark:text-white/80"><i class="fa-solid fa-chart-line w-4 text-blue-500"></i> Metrics &amp; KPIs</a>
+            <a href="/metrics/live" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10 text-gray-700 dark:text-white/80"><i class="fa-solid fa-heart-pulse w-4 text-emerald-500"></i> Live metrics</a>
             <a href="/admin/redis-cache" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10"><i class="fa-solid fa-database w-4 text-gray-400"></i> Redis Cache</a>
             <a href="/admin/mfa/setup" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10"><i class="fa-solid fa-shield-halved w-4 text-emerald-500"></i> MFA / Passkeys</a>
             <a href="/admin/config" class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-white/10"><i class="fa-solid fa-sliders w-4"></i> Config <span class="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 border">WIP</span></a>
@@ -71,6 +74,7 @@
     <div id="mobile-menu" class="hidden md:hidden border-t border-gray-200 dark:border-white/10 bg-white dark:bg-[#0f1221] px-4 py-3 space-y-2">
       <a href="/system-info" class="flex items-center gap-2 py-2 text-sm font-semibold"><i class="fa-solid fa-server w-4"></i> System Info</a>
       {% if session.admin_logged_in %}<a href="/admin/upstreams" class="flex items-center gap-2 py-2 text-sm"><i class="fa-solid fa-toolbox w-4"></i> Admin Tools</a>{% endif %}
+      {% if session.admin_logged_in %}<a href="/metrics" class="flex items-center gap-2 py-2 text-sm"><i class="fa-solid fa-chart-line w-4"></i> Metrics &amp; KPIs</a>{% endif %}
       <a href="/changelog" class="flex items-center gap-2 py-2 text-sm"><i class="fa-solid fa-file-lines w-4"></i> Changelog</a>
       <a href="/tutorial" class="flex items-center gap-2 py-2 text-sm"><i class="fa-solid fa-graduation-cap w-4"></i> Tutorial</a>
       <div class="pt-2 flex gap-2">
@@ -246,7 +250,7 @@
     const path = window.location.pathname;
     const segments = path.split('/').filter(s => s.length > 0);
     const friendly = {
-      'admin': 'Admin','upstreams': 'Upstreams','upstream-logs': 'Upstream Logs','redis-cache': 'Redis Cache','import-redirects': 'Import/Export','config': 'Config','mfa': 'MFA','setup': 'Setup','verify': 'Verify','tutorial': 'Tutorial','changelog': 'Changelog','system-info': 'System Info','enable-r-instructions': 'Enable r/','edit': 'Edit','health': 'Health','version': 'Version'
+      'admin': 'Admin','upstreams': 'Upstreams','upstream-logs': 'Upstream Logs','redis-cache': 'Redis Cache','import-redirects': 'Import/Export','config': 'Config','mfa': 'MFA','setup': 'Setup','verify': 'Verify','tutorial': 'Tutorial','changelog': 'Changelog','system-info': 'System Info','enable-r-instructions': 'Enable r/','edit': 'Edit','health': 'Health','version': 'Version','metrics': 'Metrics','live': 'Live'
     };
     if (segments.length === 0) { bcNav.style.display = 'none'; return; }
     bcNav.style.display = 'block';

@@ -1,15 +1,31 @@
+# Redirector — Docker Compose
+#
+# ── The one rule that makes upgrades safe ──────────────────────────────────
+# /app/data must point at the SAME host folder on every start. The app keeps the
+# database, the configuration, the admin password, MFA secrets and its backups
+# there and nowhere else.
+#
+# This file uses a bind mount (./data) for exactly that reason: it is what every
+# existing install already has, so `git pull` + `docker compose up -d` cannot
+# point the app at an empty volume and look like the data was deleted.
+#
+# Switching to a named volume (see the commented block at the bottom) REQUIRES
+# copying your data across first, or you will start against an empty database.
+# Everything else - pulls, rebuilds, tag changes, `docker compose down` - keeps
+# that folder untouched.
+
 services:
   app:
     build: .
+    image: rajlabs/redirector:latest
     container_name: redirector
     ports:
       - "80:80"
     volumes:
+      # Keep this as a host path. See the note above before changing it.
       - ./data:/app/data
-    depends_on:
-      redis:
-        condition: service_healthy
     environment:
+      - REDIRECTOR_DATA_DIR=/app/data
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     healthcheck:
@@ -17,7 +33,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 10s
     restart: unless-stopped
 
   redis:
@@ -25,9 +41,30 @@ services:
     container_name: redis
     ports:
       - "127.0.0.1:6379:6379"
+    volumes:
+      # Cache only. Losing it costs a slow first request, nothing more.
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 3
     restart: unless-stopped
+
+volumes:
+  redis_data:
+    driver: local
+
+# ── Optional: named volume for /app/data ───────────────────────────────────
+# Only do this on a FRESH install, or after moving your existing data across
+# (the commands are in docs/DATA-PERSISTENCE.md). Doing it on an existing
+# install without the copy step is what makes an upgrade look like data loss.
+#
+#   services:
+#     app:
+#       volumes:
+#         - redirector_data:/app/data
+#
+#   volumes:
+#     redirector_data:
+#       driver: local

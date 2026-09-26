@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Live Metrics — realtime instance view{% endblock %}
+{% block content %}
+
+<div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+  <div>
+    <h1 class="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+      <span class="relative flex h-3 w-3"><span id="live-dot-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>
+      Live metrics
+    </h1>
+    <p class="text-sm text-gray-500 dark:text-white/50 mt-1">
+      Polling <span class="font-mono">/api/metrics/live</span> every <span id="poll-interval-label">5</span>s
+      · last update <span id="last-update" class="font-mono">—</span>
+      · <a href="/metrics" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">Back to KPIs →</a>
+    </p>
+  </div>
+  <button id="pause-btn" class="sm:ml-auto bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 dark:hover:bg-white/20 text-gray-900 dark:text-white flex items-center gap-2 w-fit">
+    <i class="fa-solid fa-pause"></i> <span>Pause</span>
+  </button>
+</div>
+
+<div id="live-error" class="hidden mb-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl p-4 text-sm text-red-700 dark:text-red-300 font-semibold"></div>
+
+<!-- Tiles -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">Uptime</p>
+    <p id="t-uptime" class="text-2xl font-black text-gray-900 dark:text-white">—</p>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">CPU (process)</p>
+    <p id="t-cpu" class="text-2xl font-black text-gray-900 dark:text-white">—</p>
+    <svg id="spark-cpu" viewBox="0 0 100 28" class="w-full h-7 mt-1" preserveAspectRatio="none"><polyline id="spark-cpu-line" fill="none" stroke="#3b82f6" stroke-width="2" points=""/></svg>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">Memory (RSS)</p>
+    <p id="t-mem" class="text-2xl font-black text-gray-900 dark:text-white">—</p>
+    <svg id="spark-mem" viewBox="0 0 100 28" class="w-full h-7 mt-1" preserveAspectRatio="none"><polyline id="spark-mem-line" fill="none" stroke="#10b981" stroke-width="2" points=""/></svg>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">DB latency</p>
+    <p id="t-db" class="text-2xl font-black text-gray-900 dark:text-white">—</p>
+    <svg id="spark-db" viewBox="0 0 100 28" class="w-full h-7 mt-1" preserveAspectRatio="none"><polyline id="spark-db-line" fill="none" stroke="#f59e0b" stroke-width="2" points=""/></svg>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">Shortcuts</p>
+    <p id="t-shortcuts" class="text-2xl font-black text-gray-900 dark:text-white">—</p>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">Total hits</p>
+    <p id="t-hits" class="text-2xl font-black text-gray-900 dark:text-white">—</p>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">Redis</p>
+    <p id="t-redis" class="text-2xl font-black text-gray-900 dark:text-white">—</p>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">Schema drift</p>
+    <p id="t-drift" class="text-2xl font-black text-gray-900 dark:text-white">—</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 gap-4 mb-6">
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">Redis cache · hit rate</p>
+    <p id="t-redis-cache" class="text-2xl font-black text-gray-900 dark:text-white">—</p>
+    <p id="t-redis-cache-sub" class="text-xs text-gray-400 dark:text-white/40 mt-1">—</p>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">Upstream cache · hit rate</p>
+    <p id="t-up-cache" class="text-2xl font-black text-gray-900 dark:text-white">—</p>
+    <p id="t-up-cache-sub" class="text-xs text-gray-400 dark:text-white/40 mt-1">—</p>
+  </div>
+</div>
+
+<div class="grid lg:grid-cols-2 gap-6">
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl shadow border border-gray-200 dark:border-white/10 overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-200 dark:border-white/10"><h2 class="font-black text-gray-900 dark:text-white"><i class="fa-solid fa-trophy text-amber-500"></i> Top 5 right now</h2></div>
+    <div id="live-top" class="p-5 text-sm text-gray-400">Waiting for first poll…</div>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl shadow border border-gray-200 dark:border-white/10 overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-200 dark:border-white/10"><h2 class="font-black text-gray-900 dark:text-white"><i class="fa-solid fa-clock-rotate-left text-blue-500"></i> Recently updated</h2></div>
+    <div id="live-recent" class="p-5 text-sm text-gray-400">Waiting for first poll…</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const INTERVAL_MS = 5000;
+  const HISTORY = 60;
+  let paused = false;
+  const hist = { cpu: [], mem: [], db: [] };
+  const $ = (id) => document.getElementById(id);
+  const errBox = $('live-error');
+
+  function fmtUptime(s) {
+    if (s === null || s === undefined) return '—';
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    if (h > 0) return h + 'h ' + m + 'm';
+    if (m > 0) return m + 'm ' + sec + 's';
+    return sec + 's';
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function sparkline(lineId, values) {
+    const line = $(lineId);
+    if (!values.length) { line.setAttribute('points', ''); return; }
+    const max = Math.max.apply(null, values.concat([1]));
+    const step = 100 / Math.max(values.length - 1, 1);
+    const pts = values.map((v, i) => (i * step).toFixed(1) + ',' + (28 - (v / max) * 26).toFixed(1)).join(' ');
+    line.setAttribute('points', pts);
+  }
+  function push(key, v) {
+    if (v === null || v === undefined || isNaN(v)) return;
+    hist[key].push(v);
+    if (hist[key].length > HISTORY) hist[key].shift();
+  }
+
+  async function poll() {
+    if (paused) return;
+    try {
+      const resp = await fetch('/api/metrics/live', { headers: { 'Accept': 'application/json' } });
+      if (resp.status === 401) { showError('Session expired — <a class="underline" href="/admin-login?next=/metrics/live">log in again</a>.'); setPaused(true); return; }
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const d = await resp.json();
+      errBox.classList.add('hidden');
+      $('last-update').textContent = new Date(d.generated_at).toLocaleTimeString();
+      $('t-uptime').textContent = fmtUptime(d.uptime_seconds);
+      $('t-cpu').textContent = (d.cpu_percent === null || d.cpu_percent === undefined) ? '—' : d.cpu_percent + '%';
+      $('t-mem').textContent = (d.memory_mb === null || d.memory_mb === undefined) ? '—' : d.memory_mb + ' MB';
+      $('t-db').textContent = d.db_up ? ((d.db_latency_ms === null ? '—' : d.db_latency_ms + ' ms')) : 'DOWN';
+      $('t-db').className = 'text-2xl font-black ' + (d.db_up ? 'text-gray-900 dark:text-white' : 'text-red-500');
+      $('t-shortcuts').textContent = d.total_shortcuts;
+      $('t-hits').textContent = d.total_hits;
+      $('t-redis').textContent = !d.redis_enabled ? 'disabled' : (d.redis_up ? (d.redis_latency_ms + ' ms') : 'DOWN');
+      $('t-drift').textContent = d.schema_drift || 'unknown';
+      $('t-drift').className = 'text-2xl font-black ' + (d.schema_drift === 'up-to-date' ? 'text-emerald-500' : 'text-amber-500');
+      const rc = d.redis_cache || {};
+      if (rc.connected) {
+        $('t-redis-cache').textContent = rc.hit_rate + '%';
+        $('t-redis-cache-sub').textContent = rc.hits + ' hits · ' + rc.misses + ' misses';
+      } else {
+        $('t-redis-cache').textContent = '—';
+        $('t-redis-cache-sub').textContent = 'Redis disabled or unreachable';
+      }
+      const uc = d.upstream_cache_stats || { hits: 0, misses: 0, hit_rate: 0 };
+      $('t-up-cache').textContent = uc.hit_rate + '%';
+      $('t-up-cache-sub').textContent = uc.hits + ' from cache · ' + uc.misses + ' fresh';
+      push('cpu', d.cpu_percent); push('mem', d.memory_mb); push('db', d.db_latency_ms);
+      sparkline('spark-cpu-line', hist.cpu);
+      sparkline('spark-mem-line', hist.mem);
+      sparkline('spark-db-line', hist.db);
+      $('live-top').innerHTML = d.top.length ? d.top.map((r, i) =>
+        '<div class="flex items-center gap-2 py-1.5 border-b border-gray-50 dark:border-white/5">' +
+        '<span class="text-gray-400 w-5">' + (i + 1) + '</span>' +
+        '<a class="font-mono font-bold text-gray-900 dark:text-white truncate hover:underline" href="/' + esc(r.pattern) + '">r/' + esc(r.pattern) + '</a>' +
+        '<span class="ml-auto font-bold text-gray-900 dark:text-white">' + r.hits + '</span></div>'
+      ).join('') : '<p class="text-gray-400">No shortcuts yet.</p>';
+      $('live-recent').innerHTML = d.recent.length ? d.recent.map(r =>
+        '<div class="flex items-center gap-2 py-1.5 border-b border-gray-50 dark:border-white/5">' +
+        '<a class="font-mono font-bold text-gray-900 dark:text-white truncate hover:underline" href="/' + esc(r.pattern) + '">r/' + esc(r.pattern) + '</a>' +
+        '<span class="ml-auto text-xs text-gray-500 dark:text-white/50">' + esc(r.updated_at || '') + '</span></div>'
+      ).join('') : '<p class="text-gray-400">No shortcuts yet.</p>';
+    } catch (e) {
+      showError('Live update failed (' + esc(e.message) + '). Retrying…');
+    }
+  }
+  function showError(html) { errBox.innerHTML = html; errBox.classList.remove('hidden'); }
+  function setPaused(v) {
+    paused = v;
+    $('pause-btn').querySelector('span').textContent = paused ? 'Resume' : 'Pause';
+    $('pause-btn').querySelector('i').className = paused ? 'fa-solid fa-play' : 'fa-solid fa-pause';
+    $('live-dot-ping').style.display = paused ? 'none' : '';
+  }
+  $('pause-btn').addEventListener('click', () => setPaused(!paused));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+  poll();
+  setInterval(poll, INTERVAL_MS);
+})();
+</script>
+{% endblock %}

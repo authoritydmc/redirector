@@ -11,6 +11,12 @@ import re
 import os
 
 def _base_version():
+    # A version stamped at build time wins. Containers get this from the
+    # Dockerfile so /system-info reports the published tag rather than
+    # whatever commit happened to be in the build context.
+    stamped = os.environ.get("REDIRECTOR_APP_VERSION", "").strip()
+    if stamped:
+        return stamped
     # Read VERSION file at project root
     try:
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

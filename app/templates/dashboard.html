@@ -50,6 +50,10 @@
     <i class="fa-solid fa-wand-magic-sparkles text-purple-500"></i> Starter Pack
   </a>
   <a href="/qr/docs" target="_blank" class="hidden sm:flex bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 px-4 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/10 items-center gap-2 text-gray-900 dark:text-white"><i class="fa-solid fa-qrcode"></i> QR Demo</a>
+  {% if session.admin_logged_in %}
+  <a href="/metrics" class="hidden sm:flex bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 px-4 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/10 items-center gap-2 text-gray-900 dark:text-white"><i class="fa-solid fa-chart-line text-blue-500"></i> KPIs</a>
+  <a href="/metrics/live" class="hidden sm:flex bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 px-4 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/10 items-center gap-2 text-gray-900 dark:text-white"><i class="fa-solid fa-heart-pulse text-emerald-500"></i> Live</a>
+  {% endif %}
   <div class="ml-auto flex gap-2">
     {% if not r_hostname_enabled %}
     <a href="/enable-r-instructions" class="bg-yellow-500 text-white px-4 py-2.5 rounded-xl shadow hover:bg-yellow-600 font-semibold flex items-center gap-2 text-sm">

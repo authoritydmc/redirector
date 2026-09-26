@@ -85,20 +85,60 @@ def compare_semver(a, b):
         return 0
     return (pa > pb) - (pa < pb)
 
+def _normalise_database_setting(value: str) -> str:
+    """Coerce whatever the /system-info form submitted into a usable DB URI.
+
+    The form accepts a folder or a file path, because that is what a human
+    types, and both stay supported. Two things are *not* preserved from the old
+    behaviour:
+
+    * A bare filename is resolved against the data directory, not the process
+      working directory. The old code ran the input through ``os.path.join``,
+      which produced a CWD-relative path - the very thing that makes an install
+      break when it is moved or started from a different directory.
+    * A directory input means "the database inside it", not "the database *is*
+      this directory". Pointing the app at the data folder itself produced a
+      connection failure on the next request.
+
+    Files inside the data directory are stored in the portable relative form
+    (``sqlite:///redirect.db``); external engines are passed through untouched.
+    """
+    from app.config import config
+    from app.utils.paths import portable_uri_for_path
+    from app.utils.utils import get_db_uri
+
+    raw = (value or '').strip()
+    if not raw:
+        return get_db_uri()
+    if '://' in raw:
+        return raw  # postgres, mysql, sqlite:... - already a URI
+
+    if os.path.isdir(raw):
+        raw = os.path.join(raw, 'redirect.db')
+    elif not (os.path.sep in raw or '/' in raw) and not os.path.isabs(raw):
+        # Bare filename: it means "in the data directory", full stop.
+        raw = os.path.join(config.DATA_DIR, raw)
+    elif not os.path.isabs(raw):
+        # An explicit relative path was typed, so the CWD is what was meant.
+        raw = os.path.abspath(raw)
+
+    return portable_uri_for_path(raw, config.DATA_DIR)
+
+
 @bp.route('/system-info', methods=['GET', 'POST'])
 def system_info_page():
     from app.CONSTANTS import get_semver
-    from datetime import datetime
-    from app.utils.utils import get_config, set_config
-    import json
-    config_path = 'data/redirect.config.json'
+    from app.config import config
+    from app.utils.utils import get_config, get_db_uri, set_config
     config_update_success = None
     config_update_error = None
     allowed_keys = {'upstream_cache.enabled', 'log_level', 'port', 'auto_redirect_delay', 'database'}
     if request.method == 'POST' and session.get('admin_logged_in'):
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config_data = json.load(f)
+            # Mutate the in-memory config, then persist once through the atomic
+            # writer. Writing the JSON file inline was both CWD-dependent (it
+            # used the relative path 'data/redirect.config.json') and
+            # non-atomic, so an interrupted write could destroy every setting.
             for k, v in request.form.items():
                 if k == 'config_version':
                     continue  # Prevent editing config_version
@@ -106,32 +146,26 @@ def system_info_page():
                     continue
                 # Handle nested key for upstream_cache.enabled
                 if k == 'upstream_cache.enabled':
-                    if 'upstream_cache' not in config_data:
-                        config_data['upstream_cache'] = {}
-                    config_data['upstream_cache']['enabled'] = v.lower() == 'true'
-                elif k == 'auto_redirect_delay':
-                    # Store as int seconds
+                    config.set_value(k, v.lower() == 'true')
+                elif k in ('auto_redirect_delay', 'port'):
                     try:
-                        config_data[k] = int(float(v))
-                    except Exception:
-                        config_data[k] = v
-                elif k == 'port':
-                    try:
-                        config_data[k] = int(v)
-                    except Exception:
-                        config_data[k] = v
+                        config.set_value(k, int(v))
+                    except (TypeError, ValueError):
+                        config.set_value(k, v)
                 elif k == 'database':
-                    # Only allow folder, append redirects.db
-                    import os
-                    folder = v
-                    if folder.endswith('redirect.db'):
-                        folder = os.path.dirname(folder)
-                    db_path = os.path.join(folder, 'redirect.db')
-                    config_data[k] = db_path
+                    # The 'database' setting is a SQLAlchemy URI, and for a
+                    # SQLite file inside the data directory it is stored in the
+                    # portable relative form (sqlite:///redirect.db) so the
+                    # install survives being moved. Writing a bare filesystem
+                    # path here produced a value get_db_uri() could not use,
+                    # which broke the *next* boot rather than this request.
+                    config.set_value(k, _normalise_database_setting(v))
                 else:
-                    config_data[k] = v
-            with open(config_path, 'w', encoding='utf-8') as f:
-                json.dump(config_data, f, indent=2)
+                    config.set_value(k, v)
+            # A changed database location has to be re-resolved for this
+            # process too, not just persisted.
+            config.resolved_database = get_db_uri()
+            config.save()
             config_update_success = 'Configuration updated successfully.'
         except Exception:
             logger.exception("Config update failed")
@@ -155,12 +189,15 @@ def system_info_page():
         total_shortcuts = 0
         total_hits = 0
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config_data = json.load(f)
+        config_data = dict(config.get_configuration())
         if not (session.get('admin_logged_in') and request.method == 'POST'):
             if 'database' in config_data:
                 config_data['database'] = '***hidden***'
-        config_data = {k: v for k, v in config_data.items() if 'password' not in k.lower() and k != 'upstreams'}
+        config_data = {
+            k: v
+            for k, v in config_data.items()
+            if 'password' not in k.lower() and k not in ('upstreams', 'session_secret')
+        }
     except Exception:
         config_data = {}
     return render_template('system_info.html', version=semver, commit_count=commit_count, commit_hash=commit_hash, commit_date=commit_date, urls=urls, config_data=config_data, config_update_success=config_update_success, config_update_error=config_update_error, sys_info=sys_info, total_shortcuts=total_shortcuts, total_hits=total_hits)
@@ -257,8 +294,21 @@ def api_changelog():
 @bp.route('/upgrade')
 @bp.route('/docs/upgrade')
 def upgrade_guide():
-    """Upgrade guide page — where to find update instructions."""
-    return render_template('upgrade.html', version=get_semver())
+    """Upgrade guide, rendered against this install's actual state.
+
+    The commands on this page are built from the live data directory, schema
+    revision and run mode rather than being static prose, so they are correct
+    for the deployment the reader is actually looking at.
+    """
+    from app.routes.backup_routes import build_upgrade_info
+
+    try:
+        info = build_upgrade_info()
+    except Exception as exc:  # never let a diagnostic page 500
+        current_app.logger.warning("upgrade-info unavailable: %s", exc)
+        info = None
+
+    return render_template('upgrade.html', version=get_semver(), info=info)
 
 @bp.route('/api/upgrade-guide')
 def api_upgrade_guide():

@@ -1,12 +1,44 @@
-# Ignore the entire data directory
+# Never bake local data into an image. Everything here is user state that must
+# only ever exist in the mounted volume.
 data/
-scripts/
+**/data/
+
+# Version control: a baked .git makes `git describe` report a version that has
+# nothing to do with the published tag. The Dockerfile stamps APP_VERSION
+# instead, and deletes .git as a second line of defence.
+.git/
+.gitignore
 .github/
-.pytest_cache/
+.github
+
+# Local environments and caches
 .venv
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
 .vscode/
+.idea/
+tests/
+load_testing/
+scripts/
+*.bat
+test_docker.*
+
+# Docs are ignored by default (they bloat the image) but the two that the app
+# serves over HTTP are explicitly kept: /api/changelog and /api/upgrade-guide
+# read them at runtime, and without them those endpoints return a 404 stub in
+# exactly the container where an operator needs the upgrade instructions.
 *.md
 !CHANGELOG.md
 !README.md
 !VERSIONING.md
 !SECURITY.md
+!docs/
+docs/*
+!docs/UPGRADE.md
+!docs/DATA-PERSISTENCE.md

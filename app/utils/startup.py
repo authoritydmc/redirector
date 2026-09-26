@@ -1,9 +1,16 @@
 import logging
 import platform
 
-from .. import get_port
+# Imported from its own module rather than re-exported through app/__init__.py:
+# the package __init__ no longer pulls in app.utils.utils at import time.
+from .utils import get_port
 from ..config import config
+from .console import force_utf8_streams
+
 logger = logging.getLogger(__name__)
+
+force_utf8_streams()
+
 ascii_art = r'''
 
 ██████╗ ███████╗██████╗ ██╗██████╗ ███████╗ ██████╗████████╗ ██████╗ ██████╗ 
@@ -25,6 +32,7 @@ def app_startup_banner(app=None):
     print("This app is designed to help you shorten and redirect URLs easily. 🌐\n")
     print("For more information, visit:https://github.com/authoritydmc/redirector")
     print(f"Running Mode : {config.start_mode}")
+    print(f"Data Directory : {config.DATA_DIR}")
     print("+" + "=" * 80 + "\n")
 
     if app is not None:

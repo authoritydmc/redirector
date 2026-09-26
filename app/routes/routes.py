@@ -111,8 +111,7 @@ def setup_wizard():
                 cfg_data = cfg.get_configuration()
                 cfg_data['admin_password'] = pwd
                 cfg_data['setup_completed'] = True
-                with open(cfg.CONFIG_FILE, 'w') as f:
-                    json.dump(cfg_data, f, indent=2, sort_keys=True)
+                cfg.save()
                 cfg.reload()
                 session['admin_logged_in'] = True
                 flash('Admin password set! You are now logged in.', 'success')

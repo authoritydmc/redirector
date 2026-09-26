@@ -1,0 +1,64 @@
+# Docker Compose variant that stores /app/data in a named volume instead of a
+# host folder.
+#
+# ── Read this first ────────────────────────────────────────────────────────
+# A named volume is a DIFFERENT storage location from ./data. If you switch an
+# existing install to this file without moving your data across, the container
+# will start against an empty volume, generate a new admin password, and look
+# exactly like an upgrade deleted everything. It did not - the data is still in
+# ./data.
+#
+# On an existing install, either keep using the default docker-compose.yml, or
+# migrate properly:
+#
+#   docker compose down
+#   docker volume create redirector_data
+#   docker run --rm \
+#     -v "$(pwd)/data:/from" -v redirector_data:/to alpine \
+#     sh -c "cp -a /from/. /to/"
+#   docker compose -f docker-compose.volumes.yml up -d
+#   # verify, then only once you are happy:
+#   rm -rf ./data
+#
+# Using this file on a FRESH install is fine and needs none of the above.
+
+services:
+  app:
+    build: .
+    image: rajlabs/redirector:latest
+    container_name: redirector
+    ports:
+      - "80:80"
+    volumes:
+      - redirector_data:/app/data
+    environment:
+      - REDIRECTOR_DATA_DIR=/app/data
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:80/health', timeout=3)\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:8.0.1-alpine
+    container_name: redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  redirector_data:
+    driver: local
+  redis_data:
+    driver: local

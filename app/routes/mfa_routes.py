@@ -96,8 +96,7 @@ def mfa_setup():
                         'backup_codes': backup_codes,
                         'passkeys': mfa.get('passkeys', [])
                     }
-                    with open(config.CONFIG_FILE, 'w') as f:
-                        json.dump(cfg, f, indent=2)
+                    config.save()
                     config.reload()
                     session.pop('mfa_temp_secret', None)
                     flash('MFA enabled! Save your backup codes.', 'success')
@@ -113,8 +112,7 @@ def mfa_setup():
                 return redirect(url_for('mfa.mfa_setup'))
         elif action == 'disable':
             cfg['mfa'] = {'enabled': False, 'secret': None, 'backup_codes': [], 'passkeys': mfa.get('passkeys', [])}
-            with open(config.CONFIG_FILE, 'w') as f:
-                json.dump(cfg, f, indent=2)
+            config.save()
             config.reload()
             flash('MFA disabled.', 'success')
             return redirect(url_for('mfa.mfa_setup'))
@@ -155,8 +153,7 @@ def mfa_verify():
             backup_codes.remove(token)
             cfg = config.get_configuration()
             cfg['mfa']['backup_codes'] = backup_codes
-            with open(config.CONFIG_FILE, 'w') as f:
-                json.dump(cfg, f, indent=2)
+            config.save()
             config.reload()
             session.pop('mfa_pending', None)
             session['admin_logged_in'] = True
@@ -211,8 +208,7 @@ def mfa_passkey_register():
         if 'mfa' not in cfg:
             cfg['mfa'] = {'enabled': False, 'secret': None, 'backup_codes': [], 'passkeys': []}
         cfg['mfa']['passkeys'] = passkeys
-        with open(config.CONFIG_FILE, 'w') as f:
-            json.dump(cfg, f, indent=2)
+        config.save()
         config.reload()
         logger.info(f"Passkey registered: {name} ({credential_id[:10]}...)")
         return jsonify({'success': True})
@@ -231,8 +227,7 @@ def mfa_passkey_delete():
         passkeys = mfa.get('passkeys', [])
         new_list = [pk for pk in passkeys if pk.get('credentialId') != cid]
         cfg['mfa']['passkeys'] = new_list
-        with open(config.CONFIG_FILE, 'w') as f:
-            json.dump(cfg, f, indent=2)
+        config.save()
         config.reload()
         return jsonify({'success': True})
     except Exception as e:
@@ -248,8 +243,7 @@ def mfa_regenerate_backup_codes():
         if 'mfa' not in cfg:
             cfg['mfa'] = {'enabled': False, 'secret': None, 'backup_codes': [], 'passkeys': []}
         cfg['mfa']['backup_codes'] = codes
-        with open(config.CONFIG_FILE, 'w') as f:
-            json.dump(cfg, f, indent=2)
+        config.save()
         config.reload()
         return jsonify({'success': True, 'codes': codes})
     except Exception as e:
