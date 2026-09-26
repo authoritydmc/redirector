@@ -292,10 +292,22 @@ def admin_backup_restore():
 
     # Name, presence and size checks answer with fixed literals - no exception
     # text, no archive content, ever reaches the response from this handler.
+    # Local archives are read into memory here so the restore pipeline below
+    # only ever receives bytes: no request-derived path string reaches a file
+    # open downstream, whichever way the request arrived.
     if target:
-        source, _safe = _local_archive(target)
-        if not source:
+        archive_path, _safe = _local_archive(target)
+        if not archive_path:
             return _refuse('Choose a valid local backup or upload a .zip file.')
+        try:
+            with open(archive_path, "rb") as handle:
+                blob = handle.read(MAX_UPLOAD_BYTES + 1)
+        except OSError as exc:
+            logger.warning("Backup unreadable %s: %s", archive_path, exc)
+            return _refuse('Could not read the backup file.', code=500)
+        if len(blob) > MAX_UPLOAD_BYTES:
+            return _refuse('Archive exceeds the 512 MiB limit.')
+        source = io.BytesIO(blob)
     else:
         blob = upload.read(MAX_UPLOAD_BYTES + 1)
         if len(blob) > MAX_UPLOAD_BYTES:
