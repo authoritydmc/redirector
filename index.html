@@ -3,10 +3,68 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Redirector - Self-Hosted Internal URL Shortener & Team Hub</title>
-  <meta name="description" content="Lightning-fast, self-hostable internal URL shortener for teams. Features dynamic parameterized shortcuts, Redis caching, upstream resolution, QR generation, MFA, and SSO protection.">
-  <link rel="icon" href="app/static/favicon.ico">
-  
+  <title>Redirector — Self-Hosted URL Shortener & Team Shortlinks (Open Source)</title>
+  <meta name="description" content="Redirector is a free, open-source, self-hosted URL shortener for teams. Create memorable go-links like r/docs, dynamic shortcuts like r/jira/{ticket}, with Redis caching, SSO protection, MFA, QR codes and one-command Docker deploy.">
+  <meta name="keywords" content="url shortener, self-hosted url shortener, open source url shortener, go links, go-links, team shortlinks, internal links, bitly alternative, selfhosted go links, docker url shortener, enterprise url shortener, r links, shortlink manager">
+  <meta name="author" content="rajlabs.in">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://authoritydmc.github.io/redirector/">
+  <meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0c0f1d" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="app/static/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="app/static/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="app/static/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="app/static/assets/logo.png">
+
+  <!-- Open Graph (link previews: Slack, Discord, LinkedIn, iMessage) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Redirector">
+  <meta property="og:title" content="Redirector — Own Your Team's Shortlinks">
+  <meta property="og:description" content="Free & open-source self-hosted URL shortener. Go-links like r/docs, dynamic shortcuts, Redis speed, SSO + MFA security, Docker in 60 seconds.">
+  <meta property="og:url" content="https://authoritydmc.github.io/redirector/">
+  <meta property="og:image" content="https://authoritydmc.github.io/redirector/app/static/assets/dashboard.png">
+  <meta property="og:image:alt" content="Redirector dashboard with link analytics and shortcut management">
+
+  <!-- Twitter / X cards -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Redirector — Self-Hosted URL Shortener for Teams">
+  <meta name="twitter:description" content="Open-source go-links for your company. r/docs, r/jira/{ticket}, Redis-fast, SSO-protected, Docker-ready.">
+  <meta name="twitter:image" content="https://authoritydmc.github.io/redirector/app/static/assets/dashboard.png">
+
+  <!-- Structured data for rich search results -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Redirector",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": ["Linux", "Windows", "macOS", "Docker"],
+    "description": "Free, open-source, self-hosted URL shortener and team shortlink manager with dynamic shortcuts, Redis caching, upstream resolution, SSO protection, MFA and QR generation.",
+    "url": "https://authoritydmc.github.io/redirector/",
+    "downloadUrl": "https://github.com/authoritydmc/redirector",
+    "license": "https://github.com/authoritydmc/redirector/blob/main/LICENSE",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "rajlabs.in", "url": "https://rajlabs.in" }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Is Redirector free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Redirector is open-source under MIT/Apache-2.0. Self-host it with Docker at zero license cost." } },
+      { "@type": "Question", "name": "Where is my data stored?", "acceptedAnswer": { "@type": "Answer", "text": "Everything lives in one data directory on your own server — database, config and backups. Nothing leaves your network." } },
+      { "@type": "Question", "name": "Do I need Redis or Postgres?", "acceptedAnswer": { "@type": "Answer", "text": "No. It runs out of the box with SQLite and in-memory caching. Add Redis for sub-2ms hot-path resolution and Postgres for large teams when you grow." } },
+      { "@type": "Question", "name": "Does it support SSO and MFA?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. SSO login URLs are detected and never cached, and admin actions are protected by TOTP authenticator apps, backup codes and WebAuthn passkeys." } },
+      { "@type": "Question", "name": "Can we migrate from go/links or Bitly?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Upstream checking resolves existing intranet and public shorteners with graceful fallback, and JSON import/export moves your links with integrity signatures." } }
+    ]
+  }
+  </script>
+
+  <!-- Performance: early connections to CDNs -->
+  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -29,11 +87,11 @@
       }
     };
   </script>
-  
+
   <!-- FontAwesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  
-  <!-- Custom Aesthetics -->
+
+  <!-- Custom aesthetics: hover cards, reveal-on-scroll, accordions -->
   <style>
     @keyframes pulse-slow {
       0%, 100% { transform: scale(1); opacity: 0.15; }
@@ -56,30 +114,95 @@
       background: linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(147, 51, 234, 0.4));
       padding: 1px;
     }
+    /* Hover-lift cards */
+    .hover-card {
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .hover-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 40px -16px rgba(37, 99, 235, 0.35);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+    .hover-card:hover .card-icon {
+      transform: scale(1.12) rotate(-6deg);
+    }
+    .card-icon {
+      transition: transform 0.25s ease;
+    }
+    /* Screenshot frame hover */
+    .shot-frame {
+      transition: transform 0.35s ease, box-shadow 0.35s ease;
+    }
+    .shot-frame:hover {
+      transform: translateY(-4px) scale(1.005);
+      box-shadow: 0 30px 60px -20px rgba(37, 99, 235, 0.45);
+    }
+    /* Scroll reveal */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+    /* FAQ accordion */
+    details.faq {
+      transition: border-color 0.2s ease, background-color 0.2s ease;
+    }
+    details.faq[open] {
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+    details.faq summary {
+      list-style: none;
+      cursor: pointer;
+    }
+    details.faq summary::-webkit-details-marker {
+      display: none;
+    }
+    details.faq summary .faq-chevron {
+      transition: transform 0.25s ease;
+    }
+    details.faq[open] summary .faq-chevron {
+      transform: rotate(180deg);
+    }
+    /* Nav shadow on scroll */
+    #site-header.scrolled {
+      box-shadow: 0 8px 30px -12px rgba(15, 23, 42, 0.25);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .animate-pulse-slow, .reveal, .hover-card, .shot-frame, .card-icon {
+        animation: none !important;
+        transition: none !important;
+      }
+      .reveal { opacity: 1; transform: none; }
+      html { scroll-behavior: auto; }
+    }
   </style>
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#0c0f1d] dark:text-slate-100 font-sans transition-colors duration-200 antialiased selection:bg-blue-500 selection:text-white">
 
   <!-- Ambient Background Glows -->
-  <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+  <div class="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
     <div class="absolute -top-40 -right-40 w-[600px] h-[600px] bg-blue-500/10 dark:bg-blue-600/15 rounded-full blur-[140px] animate-pulse-slow"></div>
     <div class="absolute top-1/2 -left-40 w-[500px] h-[500px] bg-purple-500/10 dark:bg-purple-600/15 rounded-full blur-[120px] animate-pulse-slow" style="animation-delay: 4s;"></div>
   </div>
 
   <!-- Navigation Bar -->
-  <header class="sticky top-0 z-50 glassmorphism border-b border-slate-200/80 dark:border-slate-800/80 transition-colors">
+  <header id="site-header" class="sticky top-0 z-50 glassmorphism border-b border-slate-200/80 dark:border-slate-800/80 transition-shadow">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <a href="#" class="flex items-center gap-3 group">
-          <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-0.5 shadow-md shadow-blue-500/20 group-hover:scale-105 transition transform">
+        <a href="#" class="flex items-center gap-3 group" aria-label="Redirector home">
+          <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-0.5 shadow-md shadow-blue-500/20 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-blue-500/30 transition transform">
             <div class="w-full h-full bg-white dark:bg-slate-900 rounded-[14px] flex items-center justify-center overflow-hidden p-1.5">
-              <img src="app/static/assets/logo.png" alt="Redirector Logo" class="w-full h-full object-contain">
+              <img src="app/static/assets/logo.png" alt="Redirector Logo" class="w-full h-full object-contain" width="44" height="44">
             </div>
           </div>
           <div>
             <div class="flex items-center gap-2">
               <span class="text-xl font-black tracking-tight text-slate-900 dark:text-white">Redirector</span>
-              <span class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-700/60">v3.1.1</span>
+              <span class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-700/60">v3.2.0</span>
             </div>
             <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Self-Hosted Team Shortlinks</p>
           </div>
@@ -87,22 +210,23 @@
       </div>
 
       <!-- Desktop Nav -->
-      <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600 dark:text-slate-300">
+      <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600 dark:text-slate-300" aria-label="Primary">
         <a href="#features" class="hover:text-blue-600 dark:hover:text-blue-400 transition">Features</a>
+        <a href="#compare" class="hover:text-blue-600 dark:hover:text-blue-400 transition">Why Us</a>
         <a href="#demo" class="hover:text-blue-600 dark:hover:text-blue-400 transition">Interface</a>
         <a href="#use-cases" class="hover:text-blue-600 dark:hover:text-blue-400 transition">Use Cases</a>
-        <a href="#architecture" class="hover:text-blue-600 dark:hover:text-blue-400 transition">Architecture</a>
+        <a href="#faq" class="hover:text-blue-600 dark:hover:text-blue-400 transition">FAQ</a>
         <a href="#quick-start" class="hover:text-blue-600 dark:hover:text-blue-400 transition">Quick Start</a>
       </nav>
 
       <!-- Action items -->
       <div class="flex items-center gap-3">
         <!-- Dark Mode Toggle Button -->
-        <button id="theme-toggle" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-amber-300 flex items-center justify-center transition" aria-label="Toggle theme">
+        <button id="theme-toggle" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 hover:scale-105 active:scale-95 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-amber-300 flex items-center justify-center transition" aria-label="Toggle theme">
           <i id="theme-icon" class="fa-solid fa-moon"></i>
         </button>
 
-        <a href="https://github.com/authoritydmc/redirector" target="_blank" class="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-sm font-bold shadow-sm transition">
+        <a href="https://github.com/authoritydmc/redirector" target="_blank" rel="noopener" class="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 hover:-translate-y-0.5 hover:shadow-lg dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-sm font-bold shadow-sm transition">
           <i class="fa-brands fa-github text-base"></i>
           <span>Star on GitHub</span>
         </a>
@@ -110,12 +234,16 @@
     </div>
   </header>
 
+  <main>
   <!-- Hero Section -->
   <section class="relative z-10 pt-16 pb-20 md:pt-24 md:pb-28 overflow-hidden">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200/80 dark:border-blue-700/60 text-blue-700 dark:text-blue-300 text-xs font-semibold mb-8 animate-fade-in shadow-sm">
-        <span class="flex h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-ping"></span>
-        <span>Version 3.1.1 Released • Enterprise-Ready URL Shortener</span>
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200/80 dark:border-blue-700/60 text-blue-700 dark:text-blue-300 text-xs font-semibold mb-8 shadow-sm hover:shadow-md hover:scale-[1.02] transition">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-600 dark:bg-blue-400"></span>
+        </span>
+        <span>Version 3.2.0 Released • Enterprise-Ready URL Shortener</span>
       </div>
 
       <h1 class="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight text-slate-900 dark:text-white max-w-4xl mx-auto leading-[1.12]">
@@ -124,29 +252,38 @@
       </h1>
 
       <p class="mt-6 text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto font-normal leading-relaxed">
-        A high-performance, self-hosted shortcut & redirect engine for modern companies and power users. Turn complex URLs into intuitive shortcuts like <code class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-blue-600 dark:text-blue-300 font-mono text-sm">r/docs</code>, <code class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-blue-600 dark:text-blue-300 font-mono text-sm">r/jira/{ticket}</code>, or <code class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-blue-600 dark:text-blue-300 font-mono text-sm">r/my-prs/[user]</code>.
+        A high-performance, self-hosted shortcut &amp; redirect engine for modern companies and power users. Turn complex URLs into intuitive shortcuts like <code class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-blue-600 dark:text-blue-300 font-mono text-sm">r/docs</code>, <code class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-blue-600 dark:text-blue-300 font-mono text-sm">r/jira/{ticket}</code>, or <code class="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-blue-600 dark:text-blue-300 font-mono text-sm">r/my-prs/[user]</code>. Your links, your server, zero SaaS fees.
       </p>
+
+      <!-- Trust row -->
+      <div class="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+        <span class="inline-flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-emerald-500"></i> 100% Open Source (MIT)</span>
+        <span class="inline-flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-emerald-500"></i> No account, no tracking</span>
+        <span class="inline-flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-emerald-500"></i> Docker in 60 seconds</span>
+        <span class="inline-flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-emerald-500"></i> Your data never leaves your network</span>
+      </div>
 
       <!-- CTA Buttons -->
       <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-        <a href="#quick-start" class="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-base font-bold shadow-lg shadow-blue-500/25 transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
-          <i class="fa-solid fa-bolt"></i>
+        <a href="#quick-start" class="group w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-base font-bold shadow-lg shadow-blue-500/25 transition transform hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/30 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-bolt group-hover:scale-125 transition-transform"></i>
           <span>Deploy in 60 Seconds</span>
+          <i class="fa-solid fa-arrow-right text-sm opacity-70 group-hover:translate-x-1 transition-transform"></i>
         </a>
-        <a href="#demo" class="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-800 dark:text-slate-100 text-base font-bold border border-slate-200 dark:border-slate-700 shadow-sm transition flex items-center justify-center gap-2">
-          <i class="fa-regular fa-circle-play"></i>
-          <span>Explore Screenshots</span>
+        <a href="https://github.com/authoritydmc/redirector" target="_blank" rel="noopener" class="group w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 hover:-translate-y-0.5 text-slate-800 dark:text-slate-100 text-base font-bold border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
+          <i class="fa-brands fa-github group-hover:scale-125 transition-transform"></i>
+          <span>Star &amp; Self-Host Free</span>
         </a>
       </div>
 
       <!-- Quick terminal badge -->
       <div class="mt-8 max-w-xl mx-auto">
-        <div class="glassmorphism rounded-2xl p-2.5 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 text-left">
+        <div class="glassmorphism rounded-2xl p-2.5 border border-slate-200/80 dark:border-slate-800 hover:border-blue-400/60 dark:hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10 flex items-center justify-between gap-3 text-left transition">
           <div class="flex items-center gap-2 text-xs text-slate-500 font-mono truncate pl-2">
             <span class="text-blue-500 font-bold">$</span>
             <span class="truncate">docker run -d -p 80:80 -v ./data:/app/data rajlabs/redirector</span>
           </div>
-          <button onclick="copyCmd('docker run -d -p 80:80 -v ./data:/app/data rajlabs/redirector', this)" class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition flex-shrink-0 flex items-center gap-1.5">
+          <button onclick="copyCmd('docker run -d -p 80:80 -v ./data:/app/data rajlabs/redirector', this)" class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs font-semibold transition flex-shrink-0 flex items-center gap-1.5" aria-label="Copy docker command">
             <i class="fa-regular fa-copy"></i>
             <span>Copy</span>
           </button>
@@ -154,10 +291,10 @@
       </div>
 
       <!-- Hero Screenshot Frame -->
-      <div class="mt-16 max-w-5xl mx-auto gradient-border shadow-2xl">
+      <div class="mt-16 max-w-5xl mx-auto gradient-border shadow-2xl shot-frame">
         <div class="bg-slate-900 rounded-[23px] overflow-hidden p-2 sm:p-3">
           <div class="flex items-center gap-2 px-3 py-2 bg-slate-800/80 rounded-t-xl border-b border-slate-700/50">
-            <div class="flex gap-1.5">
+            <div class="flex gap-1.5" aria-hidden="true">
               <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
               <div class="w-3 h-3 rounded-full bg-amber-500/80"></div>
               <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
@@ -166,141 +303,225 @@
               http://r/dashboard
             </div>
           </div>
-          <img src="app/static/assets/dashboard.png" alt="Redirector Dashboard Preview" class="w-full h-auto rounded-b-xl border border-slate-800">
+          <img src="app/static/assets/dashboard.png" alt="Redirector dashboard preview — shortcut analytics, search and quick creation" class="w-full h-auto rounded-b-xl border border-slate-800" loading="eager" fetchpriority="high" width="1280" height="720">
         </div>
       </div>
     </div>
   </section>
 
   <!-- Metrics / Proof Bar -->
-  <section class="border-y border-slate-200 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/50 py-12 relative z-10">
+  <section class="border-y border-slate-200 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/50 py-12 relative z-10" aria-label="Key metrics">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-        <div>
-          <div class="text-3xl sm:text-4xl font-black text-blue-600 dark:text-blue-400">100%</div>
-          <p class="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mt-1">Self-Hosted & Private</p>
+        <div class="reveal group rounded-2xl p-4 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition">
+          <div class="text-3xl sm:text-4xl font-black text-blue-600 dark:text-blue-400"><span class="counter" data-count="100">0</span>%</div>
+          <p class="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mt-1">Self-Hosted &amp; Private</p>
         </div>
-        <div>
-          <div class="text-3xl sm:text-4xl font-black text-indigo-600 dark:text-indigo-400">&lt; 2 ms</div>
+        <div class="reveal group rounded-2xl p-4 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition">
+          <div class="text-3xl sm:text-4xl font-black text-indigo-600 dark:text-indigo-400">&lt; <span class="counter" data-count="2">0</span> ms</div>
           <p class="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mt-1">Redis In-Memory Resolution</p>
         </div>
-        <div>
-          <div class="text-3xl sm:text-4xl font-black text-purple-600 dark:text-purple-400">3 Types</div>
-          <p class="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mt-1">Static, Dynamic & User Vars</p>
+        <div class="reveal group rounded-2xl p-4 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition">
+          <div class="text-3xl sm:text-4xl font-black text-purple-600 dark:text-purple-400"><span class="counter" data-count="3">0</span> Types</div>
+          <p class="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mt-1">Static, Dynamic &amp; User Vars</p>
         </div>
-        <div>
-          <div class="text-3xl sm:text-4xl font-black text-emerald-600 dark:text-emerald-400">Production</div>
-          <p class="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mt-1">Gunicorn + Gevent Async</p>
+        <div class="reveal group rounded-2xl p-4 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition">
+          <div class="text-3xl sm:text-4xl font-black text-emerald-600 dark:text-emerald-400">$<span class="counter" data-count="0">0</span></div>
+          <p class="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mt-1">License Cost, Forever</p>
         </div>
       </div>
     </div>
   </section>
 
   <!-- Key Features Grid -->
-  <section id="features" class="py-24 relative z-10">
+  <section id="features" class="py-24 relative z-10 scroll-mt-20">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center max-w-3xl mx-auto mb-16">
+      <div class="text-center max-w-3xl mx-auto mb-16 reveal">
         <h2 class="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-2">Engineered For Teams</h2>
-        <h3 class="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white">Everything You Need In An Enterprise Redirector</h3>
-        <p class="mt-3 text-slate-600 dark:text-slate-400 text-base">Packed with thoughtful features for corporate networks, DevOps teams, and developers.</p>
+        <p class="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white">Everything You Need In An Enterprise Redirector</p>
+        <p class="mt-3 text-slate-600 dark:text-slate-400 text-base">Packed with thoughtful features for corporate networks, DevOps teams, and developers — without the per-seat SaaS bill.</p>
       </div>
 
-      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <!-- Feature 1 -->
-        <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-7 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition">
-          <div class="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl mb-5">
+        <div class="hover-card reveal bg-white dark:bg-slate-800/90 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+          <div class="card-icon w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl mb-5">
             <i class="fa-solid fa-code-branch"></i>
           </div>
-          <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Dynamic & User Shortcuts</h4>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Dynamic &amp; User Shortcuts</h3>
           <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            Support for URL placeholders like <code class="text-xs bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded font-mono">r/jira/{ticket}</code> and personalized client-side variables like <code class="text-xs bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded font-mono">r/github/[user]</code> saved securely in localStorage.
+            Placeholders like <code class="text-xs bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded font-mono">r/jira/{ticket}</code> and personal variables like <code class="text-xs bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded font-mono">r/github/[user]</code> stored in localStorage.
           </p>
         </div>
 
         <!-- Feature 2 -->
-        <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-7 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition">
-          <div class="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl mb-5">
+        <div class="hover-card reveal bg-white dark:bg-slate-800/90 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+          <div class="card-icon w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl mb-5">
             <i class="fa-solid fa-bolt-lightning"></i>
           </div>
-          <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Redis & In-Memory Caching</h4>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Redis-Speed Caching</h3>
           <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            Ultra-fast in-memory resolution with automatic cache invalidation on edits. Resolves hot shortcuts in under 2 milliseconds without hitting the database disk.
+            In-memory resolution with automatic invalidation on edits. Hot shortcuts resolve in under 2&nbsp;ms without touching the database disk.
           </p>
         </div>
 
         <!-- Feature 3 -->
-        <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-7 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition">
-          <div class="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl mb-5">
+        <div class="hover-card reveal bg-white dark:bg-slate-800/90 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+          <div class="card-icon w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl mb-5">
             <i class="fa-solid fa-arrow-up-right-dots"></i>
           </div>
-          <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Upstream Checking & Fallback</h4>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Upstream Checking &amp; Fallback</h3>
           <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            Check external shorteners (Bitly, Go links, internal tools) in real time via Server-Sent Events (SSE). Automatically caches found upstream links.
+            Check external shorteners (Bitly, go-links, internal tools) in real time over SSE. Found upstream links are cached automatically.
           </p>
         </div>
 
         <!-- Feature 4 -->
-        <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-7 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition">
-          <div class="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl mb-5">
+        <div class="hover-card reveal bg-white dark:bg-slate-800/90 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+          <div class="card-icon w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl mb-5">
             <i class="fa-solid fa-shield-halved"></i>
           </div>
-          <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-2">SSO Protection & Security</h4>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">SSO Protection &amp; Security</h3>
           <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            Automatically detects Okta, Google Accounts, and Microsoft SSO auth URLs to prevent stale token caching. Includes safe target validation against open redirects.
+            Detects Okta, Google and Microsoft SSO auth URLs to prevent stale token caching, with safe-target validation against open redirects.
           </p>
         </div>
 
         <!-- Feature 5 -->
-        <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-7 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition">
-          <div class="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl mb-5">
+        <div class="hover-card reveal bg-white dark:bg-slate-800/90 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+          <div class="card-icon w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl mb-5">
             <i class="fa-solid fa-key"></i>
           </div>
-          <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Two-Factor Auth & Passkeys</h4>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Two-Factor Auth &amp; Passkeys</h3>
           <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            Protect administrative operations with Time-based One-Time Passwords (TOTP authenticator apps), backup codes, and WebAuthn hardware biometric passkeys.
+            Guard admin operations with TOTP authenticator apps, backup codes and WebAuthn hardware biometric passkeys.
           </p>
         </div>
 
         <!-- Feature 6 -->
-        <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-7 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition">
-          <div class="w-12 h-12 rounded-xl bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xl mb-5">
+        <div class="hover-card reveal bg-white dark:bg-slate-800/90 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+          <div class="card-icon w-12 h-12 rounded-xl bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xl mb-5">
             <i class="fa-solid fa-qrcode"></i>
           </div>
-          <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Instant QR Code Generation</h4>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Instant QR Codes</h3>
           <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            Built-in high resolution QR code generator for every link via <code class="text-xs bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded font-mono">r/qr/{pattern}</code>. Perfect for presentations, printed posters, and badges.
+            High-resolution QR for every link via <code class="text-xs bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded font-mono">r/qr/{pattern}</code> — perfect for slides, posters and badges.
+          </p>
+        </div>
+
+        <!-- Feature 7 -->
+        <div class="hover-card reveal bg-white dark:bg-slate-800/90 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+          <div class="card-icon w-12 h-12 rounded-xl bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400 flex items-center justify-center text-xl mb-5">
+            <i class="fa-solid fa-box-archive"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Backup &amp; Restore</h3>
+          <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            One-click zipped snapshots of database, config and state. Stage a restore safely — it applies on next start, never mid-traffic.
+          </p>
+        </div>
+
+        <!-- Feature 8 -->
+        <div class="hover-card reveal bg-white dark:bg-slate-800/90 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+          <div class="card-icon w-12 h-12 rounded-xl bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xl mb-5">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Metrics That Matter</h3>
+          <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Team KPI dashboard, live resource graphs, cache hit-rates and Prometheus endpoints — prove adoption to leadership.
           </p>
         </div>
       </div>
     </div>
   </section>
 
+  <!-- Comparison: sales appeal -->
+  <section id="compare" class="py-20 bg-slate-100/70 dark:bg-slate-900/50 border-y border-slate-200 dark:border-slate-800 relative z-10 scroll-mt-20">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-2xl mx-auto mb-12 reveal">
+        <h2 class="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-2">Why Self-Host</h2>
+        <p class="text-3xl font-black text-slate-900 dark:text-white">SaaS Shorteners Charge Rent. Redirector Is Yours.</p>
+        <p class="mt-2 text-slate-600 dark:text-slate-400 text-sm">No per-seat pricing. No link-expiry paywalls. No third party seeing every internal URL your team clicks.</p>
+      </div>
+
+      <div class="reveal overflow-x-auto rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl bg-white dark:bg-slate-800">
+        <table class="w-full text-sm min-w-[560px]">
+          <thead>
+            <tr class="border-b border-slate-200 dark:border-slate-700 text-left">
+              <th class="p-5 font-semibold text-slate-500 dark:text-slate-400" scope="col">Capability</th>
+              <th class="p-5 text-center bg-blue-600/[0.07] dark:bg-blue-500/10" scope="col"><span class="font-black text-blue-700 dark:text-blue-300">Redirector</span><br><span class="text-xs font-medium text-slate-500">Free &amp; self-hosted</span></th>
+              <th class="p-5 text-center font-semibold text-slate-500 dark:text-slate-400" scope="col">SaaS shorteners<br><span class="text-xs font-medium">per-seat / month</span></th>
+              <th class="p-5 text-center font-semibold text-slate-500 dark:text-slate-400" scope="col">Corp go/links<br><span class="text-xs font-medium">build it yourself</span></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60">
+            <tr class="hover:bg-blue-50/60 dark:hover:bg-blue-900/10 transition">
+              <td class="p-5 font-medium">Your data stays on your network</td>
+              <td class="p-5 text-center text-emerald-500 text-lg"><i class="fa-solid fa-circle-check"></i><span class="sr-only">Yes</span></td>
+              <td class="p-5 text-center text-rose-400 text-lg"><i class="fa-solid fa-circle-xmark"></i><span class="sr-only">No</span></td>
+              <td class="p-5 text-center text-emerald-500 text-lg"><i class="fa-solid fa-circle-check"></i><span class="sr-only">Yes</span></td>
+            </tr>
+            <tr class="hover:bg-blue-50/60 dark:hover:bg-blue-900/10 transition">
+              <td class="p-5 font-medium">Dynamic shortcuts (<code class="text-xs font-mono">r/jira/{ticket}</code>)</td>
+              <td class="p-5 text-center text-emerald-500 text-lg"><i class="fa-solid fa-circle-check"></i><span class="sr-only">Yes</span></td>
+              <td class="p-5 text-center text-rose-400 text-lg"><i class="fa-solid fa-circle-xmark"></i><span class="sr-only">No</span></td>
+              <td class="p-5 text-center text-amber-500 text-lg"><i class="fa-solid fa-circle-minus"></i><span class="sr-only">Partial</span></td>
+            </tr>
+            <tr class="hover:bg-blue-50/60 dark:hover:bg-blue-900/10 transition">
+              <td class="p-5 font-medium">SSO-aware caching + MFA admin</td>
+              <td class="p-5 text-center text-emerald-500 text-lg"><i class="fa-solid fa-circle-check"></i><span class="sr-only">Yes</span></td>
+              <td class="p-5 text-center text-amber-500 text-lg"><i class="fa-solid fa-circle-minus"></i><span class="sr-only">Partial</span></td>
+              <td class="p-5 text-center text-rose-400 text-lg"><i class="fa-solid fa-circle-xmark"></i><span class="sr-only">No</span></td>
+            </tr>
+            <tr class="hover:bg-blue-50/60 dark:hover:bg-blue-900/10 transition">
+              <td class="p-5 font-medium">Upstream fallback (Bitly, legacy go/)</td>
+              <td class="p-5 text-center text-emerald-500 text-lg"><i class="fa-solid fa-circle-check"></i><span class="sr-only">Yes</span></td>
+              <td class="p-5 text-center text-rose-400 text-lg"><i class="fa-solid fa-circle-xmark"></i><span class="sr-only">No</span></td>
+              <td class="p-5 text-center text-rose-400 text-lg"><i class="fa-solid fa-circle-xmark"></i><span class="sr-only">No</span></td>
+            </tr>
+            <tr class="hover:bg-blue-50/60 dark:hover:bg-blue-900/10 transition">
+              <td class="p-5 font-medium">Deploy in one command, backup in one click</td>
+              <td class="p-5 text-center text-emerald-500 text-lg"><i class="fa-solid fa-circle-check"></i><span class="sr-only">Yes</span></td>
+              <td class="p-5 text-center text-emerald-500 text-lg"><i class="fa-solid fa-circle-check"></i><span class="sr-only">Yes</span></td>
+              <td class="p-5 text-center text-rose-400 text-lg"><i class="fa-solid fa-circle-xmark"></i><span class="sr-only">No</span></td>
+            </tr>
+            <tr class="hover:bg-blue-50/60 dark:hover:bg-blue-900/10 transition">
+              <td class="p-5 font-medium">Total cost for a 500-person company</td>
+              <td class="p-5 text-center font-black text-emerald-600 dark:text-emerald-400">$0</td>
+              <td class="p-5 text-center font-semibold text-slate-500">$1,000s / yr</td>
+              <td class="p-5 text-center font-semibold text-slate-500">eng-weeks</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
   <!-- Interactive Screenshots Showcase -->
-  <section id="demo" class="py-20 bg-slate-100/70 dark:bg-slate-900/50 border-y border-slate-200 dark:border-slate-800 relative z-10">
+  <section id="demo" class="py-20 relative z-10 scroll-mt-20">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center max-w-2xl mx-auto mb-12">
+      <div class="text-center max-w-2xl mx-auto mb-12 reveal">
         <h2 class="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-2">Visual Tour</h2>
-        <h3 class="text-3xl font-black text-slate-900 dark:text-white">Clean & Accessible Interface</h3>
+        <p class="text-3xl font-black text-slate-900 dark:text-white">Clean &amp; Accessible Interface</p>
         <p class="mt-2 text-slate-600 dark:text-slate-400 text-sm">Every page is crafted with responsive Tailwind CSS and full dark mode support.</p>
       </div>
 
       <!-- Screenshot Tabs Carousel -->
-      <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-xl">
+      <div class="reveal bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-xl hover:shadow-2xl transition-shadow">
         <!-- Tab Buttons -->
-        <div class="flex items-center gap-2 overflow-x-auto pb-4 mb-6 border-b border-slate-200 dark:border-slate-700" id="gallery-tabs">
-          <button onclick="switchTab(0)" class="tab-btn active px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white whitespace-nowrap transition" data-idx="0">Dashboard</button>
-          <button onclick="switchTab(1)" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-600 transition" data-idx="1">Redirect Screen</button>
-          <button onclick="switchTab(2)" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-600 transition" data-idx="2">Edit Shortcut</button>
-          <button onclick="switchTab(3)" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-600 transition" data-idx="3">Interactive Tutorial</button>
-          <button onclick="switchTab(4)" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-600 transition" data-idx="4">Upstream Logs</button>
-          <button onclick="switchTab(5)" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-600 transition" data-idx="5">System Info</button>
+        <div class="flex items-center gap-2 overflow-x-auto pb-4 mb-6 border-b border-slate-200 dark:border-slate-700" id="gallery-tabs" role="tablist" aria-label="Screenshot gallery">
+          <button onclick="switchTab(0)" role="tab" aria-selected="true" class="tab-btn active px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white whitespace-nowrap transition hover:shadow-md" data-idx="0">Dashboard</button>
+          <button onclick="switchTab(1)" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300 hover:-translate-y-0.5 transition" data-idx="1">Redirect Screen</button>
+          <button onclick="switchTab(2)" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300 hover:-translate-y-0.5 transition" data-idx="2">Edit Shortcut</button>
+          <button onclick="switchTab(3)" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300 hover:-translate-y-0.5 transition" data-idx="3">Interactive Tutorial</button>
+          <button onclick="switchTab(4)" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300 hover:-translate-y-0.5 transition" data-idx="4">Upstream Logs</button>
+          <button onclick="switchTab(5)" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300 hover:-translate-y-0.5 transition" data-idx="5">System Info</button>
         </div>
 
         <!-- Display Area -->
-        <div class="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 shadow-inner">
-          <img id="gallery-img" src="app/static/assets/dashboard.png" alt="Dashboard" class="w-full h-auto object-contain max-h-[580px] mx-auto transition-opacity duration-300">
+        <div class="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 shadow-inner group">
+          <img id="gallery-img" src="app/static/assets/dashboard.png" alt="Redirector dashboard screenshot" class="w-full h-auto object-contain max-h-[580px] mx-auto transition-all duration-300 group-hover:scale-[1.01]" loading="lazy" width="1280" height="720">
         </div>
-        <p id="gallery-desc" class="mt-4 text-center text-sm font-medium text-slate-600 dark:text-slate-300">
+        <p id="gallery-desc" class="mt-4 text-center text-sm font-medium text-slate-600 dark:text-slate-300" role="status">
           Central dashboard with link analytics, real-time search, tag filters, and quick creation.
         </p>
       </div>
@@ -308,70 +529,70 @@
   </section>
 
   <!-- Use Cases -->
-  <section id="use-cases" class="py-24 relative z-10">
+  <section id="use-cases" class="py-24 relative z-10 scroll-mt-20">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center max-w-3xl mx-auto mb-16">
+      <div class="text-center max-w-3xl mx-auto mb-16 reveal">
         <h2 class="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-2">Adaptable Deployments</h2>
-        <h3 class="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white">Built For Every Workflow</h3>
+        <p class="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white">Built For Every Workflow</p>
       </div>
 
       <div class="grid md:grid-cols-2 gap-8">
-        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+        <div class="hover-card reveal bg-white dark:bg-slate-800/90 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
           <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg">
+            <div class="card-icon w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg">
               <i class="fa-solid fa-building"></i>
             </div>
-            <h4 class="text-xl font-bold text-slate-900 dark:text-white">Internal Company-Wide DNS</h4>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">Internal Company-Wide DNS</h3>
           </div>
           <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
             Configure an internal DNS record mapping <span class="font-mono font-bold text-blue-600 dark:text-blue-400">r</span> or <span class="font-mono font-bold text-blue-600 dark:text-blue-400">go</span> to your Redirector instance. Every employee can access <span class="font-mono">r/zoom</span>, <span class="font-mono">r/standup</span>, or <span class="font-mono">r/handbook</span> right from their browser bar without extensions.
           </p>
-          <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3 text-xs font-mono text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
+          <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3 text-xs font-mono text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-blue-400/50 transition">
             r.corp.local &nbsp;IN &nbsp;A &nbsp;10.0.1.50
           </div>
         </div>
 
-        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+        <div class="hover-card reveal bg-white dark:bg-slate-800/90 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
           <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center text-lg">
+            <div class="card-icon w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center text-lg">
               <i class="fa-solid fa-code"></i>
             </div>
-            <h4 class="text-xl font-bold text-slate-900 dark:text-white">Engineering & Issue Trackers</h4>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">Engineering &amp; Issue Trackers</h3>
           </div>
           <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
             Create parameterized shortcuts for Jira, Linear, and GitHub. Typing <span class="font-mono font-bold text-indigo-600 dark:text-indigo-400">r/jira/PROJ-102</span> or <span class="font-mono font-bold text-indigo-600 dark:text-indigo-400">r/gh/redirector</span> automatically expands into deep ticket and repository URLs.
           </p>
-          <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3 text-xs font-mono text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
-            r/jira/{ticket} -> https://company.atlassian.net/browse/{ticket}
+          <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3 text-xs font-mono text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-purple-400/50 transition">
+            r/jira/{ticket} -&gt; https://company.atlassian.net/browse/{ticket}
           </div>
         </div>
 
-        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+        <div class="hover-card reveal bg-white dark:bg-slate-800/90 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
           <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg">
+            <div class="card-icon w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg">
               <i class="fa-solid fa-user-gear"></i>
             </div>
-            <h4 class="text-xl font-bold text-slate-900 dark:text-white">Local Workstations & Power Users</h4>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">Local Workstations &amp; Power Users</h3>
           </div>
           <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
             Run locally in a minimal Docker container. We provide one-liner scripts for macOS, Windows PowerShell, and Linux that automatically register <span class="font-mono">127.0.0.1 r</span> in your hosts file.
           </p>
-          <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3 text-xs font-mono text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
+          <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3 text-xs font-mono text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-amber-400/50 transition">
             powershell -ExecutionPolicy Bypass -File .\add-r-host-windows.ps1
           </div>
         </div>
 
-        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+        <div class="hover-card reveal bg-white dark:bg-slate-800/90 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
           <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg">
+            <div class="card-icon w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg">
               <i class="fa-solid fa-server"></i>
             </div>
-            <h4 class="text-xl font-bold text-slate-900 dark:text-white">Reverse Proxy Coexistence</h4>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">Reverse Proxy Coexistence</h3>
           </div>
           <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
             Deploy cleanly behind Traefik, Caddy, or Nginx with standard HTTPS termination. Integrates with existing corporate redirectors so you can safely migrate without broken bookmarks.
           </p>
-          <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3 text-xs font-mono text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
+          <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3 text-xs font-mono text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-emerald-400/50 transition">
             proxy_pass http://127.0.0.1:8080;
           </div>
         </div>
@@ -379,29 +600,84 @@
     </div>
   </section>
 
+  <!-- FAQ (SEO + sales objections) -->
+  <section id="faq" class="py-20 bg-slate-100/70 dark:bg-slate-900/50 border-y border-slate-200 dark:border-slate-800 relative z-10 scroll-mt-20">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12 reveal">
+        <h2 class="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-2">Questions, Answered</h2>
+        <p class="text-3xl font-black text-slate-900 dark:text-white">Frequently Asked Questions</p>
+      </div>
+      <div class="space-y-4">
+        <details class="faq reveal group bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 px-6 py-4 shadow-sm hover:shadow-md">
+          <summary class="flex items-center justify-between gap-4 font-bold text-slate-900 dark:text-white">
+            <span>Is Redirector really free?</span>
+            <i class="faq-chevron fa-solid fa-chevron-down text-blue-500 text-sm"></i>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">Yes — open-source under MIT/Apache-2.0. Run it on a $5 VPS or your existing intranet server. No seats, no tiers, no link limits.</p>
+        </details>
+        <details class="faq reveal group bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 px-6 py-4 shadow-sm hover:shadow-md">
+          <summary class="flex items-center justify-between gap-4 font-bold text-slate-900 dark:text-white">
+            <span>Where does my data live?</span>
+            <i class="faq-chevron fa-solid fa-chevron-down text-blue-500 text-sm"></i>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">In one <code class="font-mono text-xs">data/</code> directory on your server — database, config, install state and backups. Atomic writes plus a backup copy mean an unclean shutdown can't corrupt it. Nothing phones home.</p>
+        </details>
+        <details class="faq reveal group bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 px-6 py-4 shadow-sm hover:shadow-md">
+          <summary class="flex items-center justify-between gap-4 font-bold text-slate-900 dark:text-white">
+            <span>Do I need Redis or Postgres to start?</span>
+            <i class="faq-chevron fa-solid fa-chevron-down text-blue-500 text-sm"></i>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">No. SQLite plus built-in caching works out of the box. Add Redis for sub-2&nbsp;ms hot-path resolution and Postgres for large-team concurrency when you grow — the same compose file supports both.</p>
+        </details>
+        <details class="faq reveal group bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 px-6 py-4 shadow-sm hover:shadow-md">
+          <summary class="flex items-center justify-between gap-4 font-bold text-slate-900 dark:text-white">
+            <span>How does SSO and MFA work?</span>
+            <i class="faq-chevron fa-solid fa-chevron-down text-blue-500 text-sm"></i>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">SSO login URLs (Okta, Google, Microsoft) are detected and never cached as shortcuts. Admin actions are guarded by TOTP authenticator apps, hashed backup codes and WebAuthn passkeys.</p>
+        </details>
+        <details class="faq reveal group bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 px-6 py-4 shadow-sm hover:shadow-md">
+          <summary class="flex items-center justify-between gap-4 font-bold text-slate-900 dark:text-white">
+            <span>Can we migrate from go/links or Bitly?</span>
+            <i class="faq-chevron fa-solid fa-chevron-down text-blue-500 text-sm"></i>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">Yes. Upstream checking resolves your existing intranet and public shorteners with real-time logs and caching, and signed JSON import/export moves your link library with integrity verification.</p>
+        </details>
+        <details class="faq reveal group bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 px-6 py-4 shadow-sm hover:shadow-md">
+          <summary class="flex items-center justify-between gap-4 font-bold text-slate-900 dark:text-white">
+            <span>What happens if the server restarts mid-upgrade?</span>
+            <i class="faq-chevron fa-solid fa-chevron-down text-blue-500 text-sm"></i>
+          </summary>
+          <p class="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">Entrypoint guards refuse to run an older image against newer data, auto-snapshot before migrations, and apply staged restores before booting — upgrades are boring on purpose.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
   <!-- Quick Start & Deployment Guide -->
-  <section id="quick-start" class="py-24 bg-slate-900 text-white relative z-10 overflow-hidden">
+  <section id="quick-start" class="py-24 bg-slate-900 text-white relative z-10 overflow-hidden scroll-mt-20">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center max-w-3xl mx-auto mb-16">
+      <div class="text-center max-w-3xl mx-auto mb-16 reveal">
         <h2 class="text-xs font-bold uppercase tracking-widest text-blue-400 mb-2">Get Started</h2>
-        <h3 class="text-3xl sm:text-4xl font-black">Choose Your Deployment Method</h3>
+        <p class="text-3xl sm:text-4xl font-black">Choose Your Deployment Method</p>
+        <p class="mt-3 text-slate-400 text-sm">From zero to <span class="font-mono text-blue-300">r/anything</span> in about a minute.</p>
       </div>
 
       <div class="grid md:grid-cols-2 gap-8">
         <!-- Docker Compose -->
-        <div class="bg-slate-800/90 rounded-3xl p-8 border border-slate-700 shadow-xl flex flex-col justify-between">
+        <div class="reveal bg-slate-800/90 rounded-3xl p-8 border border-slate-700 shadow-xl flex flex-col justify-between hover:border-blue-500/60 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1 transition">
           <div>
             <div class="flex items-center justify-between mb-4">
               <span class="text-xs font-bold px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">Recommended</span>
               <i class="fa-brands fa-docker text-2xl text-blue-400"></i>
             </div>
-            <h4 class="text-xl font-bold mb-2">Docker Compose with Redis</h4>
+            <h3 class="text-xl font-bold mb-2">Docker Compose with Redis</h3>
             <p class="text-xs text-slate-300 mb-6">Runs production Gunicorn workers with Gevent and isolated Redis caching.</p>
-            
+
             <div class="relative group">
               <pre class="bg-slate-950 rounded-2xl p-4 text-xs font-mono text-slate-200 overflow-x-auto border border-slate-800"><code id="code-compose">curl -O https://raw.githubusercontent.com/authoritydmc/redirector/main/docker-compose.yml
 docker compose up -d</code></pre>
-              <button onclick="copyCmd('code-compose', this)" class="absolute top-3 right-3 bg-slate-800 hover:bg-slate-700 text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 transition">
+              <button onclick="copyCmd('code-compose', this)" class="absolute top-3 right-3 bg-slate-800 hover:bg-blue-600 active:scale-95 text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 transition" aria-label="Copy compose commands">
                 <i class="fa-regular fa-copy"></i>
               </button>
             </div>
@@ -410,21 +686,21 @@ docker compose up -d</code></pre>
         </div>
 
         <!-- Python Native -->
-        <div class="bg-slate-800/90 rounded-3xl p-8 border border-slate-700 shadow-xl flex flex-col justify-between">
+        <div class="reveal bg-slate-800/90 rounded-3xl p-8 border border-slate-700 shadow-xl flex flex-col justify-between hover:border-purple-500/60 hover:shadow-2xl hover:shadow-purple-500/10 hover:-translate-y-1 transition">
           <div>
             <div class="flex items-center justify-between mb-4">
               <span class="text-xs font-bold px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">Standalone</span>
               <i class="fa-brands fa-python text-2xl text-purple-400"></i>
             </div>
-            <h4 class="text-xl font-bold mb-2">Python 3.11 - 3.13 Local</h4>
+            <h3 class="text-xl font-bold mb-2">Python 3.11 - 3.13 Local</h3>
             <p class="text-xs text-slate-300 mb-6">Lightweight execution for local laptops, servers, or testing environments.</p>
-            
+
             <div class="relative group">
               <pre class="bg-slate-950 rounded-2xl p-4 text-xs font-mono text-slate-200 overflow-x-auto border border-slate-800"><code id="code-python">git clone https://github.com/authoritydmc/redirector.git
 cd redirector
 pip install -r requirements.txt
 python app.py</code></pre>
-              <button onclick="copyCmd('code-python', this)" class="absolute top-3 right-3 bg-slate-800 hover:bg-slate-700 text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 transition">
+              <button onclick="copyCmd('code-python', this)" class="absolute top-3 right-3 bg-slate-800 hover:bg-purple-600 active:scale-95 text-white text-xs px-2.5 py-1 rounded-lg border border-slate-700 transition" aria-label="Copy python commands">
                 <i class="fa-regular fa-copy"></i>
               </button>
             </div>
@@ -435,28 +711,76 @@ python app.py</code></pre>
     </div>
   </section>
 
+  <!-- Final CTA band -->
+  <section class="relative z-10 overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 text-white">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center reveal">
+      <h2 class="text-3xl sm:text-4xl font-black tracking-tight">Stop Paying Rent on Your Own Links.</h2>
+      <p class="mt-3 text-blue-100 max-w-2xl mx-auto">One command to deploy. One directory to back up. Every shortcut your team will ever need — on infrastructure you control.</p>
+      <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="#quick-start" class="group w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-white text-blue-700 text-base font-bold shadow-xl transition transform hover:-translate-y-0.5 hover:shadow-2xl inline-flex items-center justify-center gap-2">
+          <i class="fa-solid fa-rocket group-hover:translate-x-1 group-hover:-translate-y-0.5 transition-transform"></i>
+          <span>Deploy Redirector Now</span>
+        </a>
+        <a href="https://github.com/authoritydmc/redirector" target="_blank" rel="noopener" class="group w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-base font-bold border border-white/30 backdrop-blur transition inline-flex items-center justify-center gap-2">
+          <i class="fa-brands fa-github group-hover:scale-125 transition-transform"></i>
+          <span>Star on GitHub</span>
+        </a>
+      </div>
+    </div>
+  </section>
+  </main>
+
   <!-- Footer -->
   <footer class="border-t border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#0c0f1d] py-12 relative z-10 transition-colors">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-      <div class="flex items-center gap-3">
-        <img src="app/static/assets/logo.png" alt="Logo" class="w-8 h-8 rounded-lg shadow-sm">
-        <span class="text-sm font-bold text-slate-800 dark:text-white">Redirector</span>
-        <span class="text-xs text-slate-500">Open-source under MIT & Apache-2.0</span>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+        <div>
+          <div class="flex items-center gap-3 mb-3">
+            <img src="app/static/assets/logo.png" alt="Redirector logo" class="w-8 h-8 rounded-lg shadow-sm" width="32" height="32">
+            <span class="text-sm font-bold text-slate-800 dark:text-white">Redirector</span>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Free, open-source, self-hosted shortlinks for teams. MIT &amp; Apache-2.0 licensed.</p>
+        </div>
+        <nav aria-label="Product">
+          <p class="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3">Product</p>
+          <ul class="space-y-2 text-sm">
+            <li><a href="#features" class="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition">Features</a></li>
+            <li><a href="#compare" class="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition">Why self-host</a></li>
+            <li><a href="#demo" class="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition">Screenshots</a></li>
+            <li><a href="#quick-start" class="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition">Quick start</a></li>
+          </ul>
+        </nav>
+        <nav aria-label="Resources">
+          <p class="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3">Resources</p>
+          <ul class="space-y-2 text-sm">
+            <li><a href="https://github.com/authoritydmc/redirector/blob/main/README.md" target="_blank" rel="noopener" class="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition">Documentation</a></li>
+            <li><a href="https://github.com/authoritydmc/redirector/blob/main/CHANGELOG.md" target="_blank" rel="noopener" class="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition">Changelog</a></li>
+            <li><a href="https://github.com/authoritydmc/redirector/issues" target="_blank" rel="noopener" class="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition">Issues &amp; support</a></li>
+            <li><a href="#faq" class="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition">FAQ</a></li>
+          </ul>
+        </nav>
+        <div>
+          <p class="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3">Deploy</p>
+          <a href="https://github.com/authoritydmc/redirector" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-700 hover:-translate-y-0.5 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 text-sm font-bold shadow-sm transition">
+            <i class="fa-brands fa-github"></i>
+            <span>Star on GitHub</span>
+          </a>
+          <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">Made with <i class="fa-solid fa-heart text-red-500 mx-1"></i> by <a href="https://rajlabs.in" target="_blank" rel="noopener" class="text-blue-600 dark:text-blue-400 font-semibold hover:underline">rajlabs.in</a></p>
+        </div>
       </div>
-
-      <div class="text-xs text-slate-500 dark:text-slate-400 text-center">
-        Made with <i class="fa-solid fa-heart text-red-500 mx-1"></i> by <a href="https://rajlabs.in" target="_blank" class="text-blue-600 dark:text-blue-400 font-semibold hover:underline">rajlabs.in</a>
-      </div>
-
-      <div class="flex items-center gap-4 text-slate-500 dark:text-slate-400 text-sm">
-        <a href="https://github.com/authoritydmc/redirector" target="_blank" class="hover:text-slate-900 dark:hover:text-white transition"><i class="fa-brands fa-github text-lg"></i></a>
-        <a href="https://github.com/authoritydmc/redirector/issues" target="_blank" class="hover:text-slate-900 dark:hover:text-white transition">Issues</a>
-        <a href="https://github.com/authoritydmc/redirector/blob/main/CHANGELOG.md" target="_blank" class="hover:text-slate-900 dark:hover:text-white transition">Changelog</a>
+      <div class="pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+        <span>© 2026 Redirector contributors. Open-source under MIT &amp; Apache-2.0.</span>
+        <span class="font-mono">v3.2.0</span>
       </div>
     </div>
   </footer>
 
-  <!-- Scripts: Theme & Gallery Logic -->
+  <!-- Back to top -->
+  <button id="to-top" class="fixed bottom-6 right-6 z-50 w-11 h-11 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/30 items-center justify-center transition transform hover:-translate-y-1 active:scale-95 hidden" aria-label="Back to top">
+    <i class="fa-solid fa-arrow-up"></i>
+  </button>
+
+  <!-- Scripts: Theme, Gallery, Counters, Reveal, Nav, Copy -->
   <script>
     // Theme Management
     const themeBtn = document.getElementById('theme-toggle');
@@ -485,12 +809,12 @@ python app.py</code></pre>
 
     // Screenshot Carousel
     const slides = [
-      { img: 'app/static/assets/dashboard.png', desc: 'Central dashboard with link analytics, real-time search, tag filters, and quick creation.' },
-      { img: 'app/static/assets/redirect-page.png', desc: 'Modern countdown redirect screen with favicon detection, source latency badges, and stay/skip controls.' },
-      { img: 'app/static/assets/edit-shortcut.html.png', fallback: 'app/static/assets/edit-shortcut.png', desc: 'Edit shortcut interface with live upstream collision checks, tags, visibility, and expiration dates.' },
-      { img: 'app/static/assets/tutorial.png', desc: 'Step-by-step interactive tutorial showcasing static, dynamic, and user-dynamic links.' },
-      { img: 'app/static/assets/upstream-logs.png', desc: 'Real-time SSE audit trail of external upstream queries and cache performance.' },
-      { img: 'app/static/assets/version.png', desc: 'System info dashboard with SemVer comparisons, container health probes, and reachable LAN IPs.' }
+      { img: 'app/static/assets/dashboard.png', alt: 'Redirector dashboard with analytics and search', desc: 'Central dashboard with link analytics, real-time search, tag filters, and quick creation.' },
+      { img: 'app/static/assets/redirect-page.png', alt: 'Countdown redirect screen', desc: 'Modern countdown redirect screen with favicon detection, source latency badges, and stay/skip controls.' },
+      { img: 'app/static/assets/edit-shortcut.png', alt: 'Edit shortcut interface', desc: 'Edit shortcut interface with live upstream collision checks, tags, visibility, and expiration dates.' },
+      { img: 'app/static/assets/tutorial.png', alt: 'Interactive tutorial for shortcut types', desc: 'Step-by-step interactive tutorial showcasing static, dynamic, and user-dynamic links.' },
+      { img: 'app/static/assets/upstream-logs.png', alt: 'Real-time upstream query logs', desc: 'Real-time SSE audit trail of external upstream queries and cache performance.' },
+      { img: 'app/static/assets/version.png', alt: 'System info and version dashboard', desc: 'System info dashboard with SemVer comparisons, container health probes, and reachable LAN IPs.' }
     ];
 
     const galleryImg = document.getElementById('gallery-img');
@@ -499,16 +823,18 @@ python app.py</code></pre>
 
     function switchTab(idx) {
       tabBtns.forEach((btn, i) => {
+        btn.setAttribute('aria-selected', i === idx ? 'true' : 'false');
         if (i === idx) {
-          btn.className = 'tab-btn active px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white whitespace-nowrap transition';
+          btn.className = 'tab-btn active px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white whitespace-nowrap transition hover:shadow-md';
         } else {
-          btn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-600 transition';
+          btn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 whitespace-nowrap hover:bg-blue-100 dark:hover:bg-slate-600 hover:text-blue-700 dark:hover:text-blue-300 hover:-translate-y-0.5 transition';
         }
       });
       const s = slides[idx];
       galleryImg.style.opacity = '0';
       setTimeout(() => {
-        galleryImg.src = s.fallback || s.img;
+        galleryImg.src = s.img;
+        galleryImg.alt = s.alt;
         galleryDesc.textContent = s.desc;
         galleryImg.style.opacity = '1';
       }, 150);
@@ -525,6 +851,54 @@ python app.py</code></pre>
         setTimeout(() => { btn.innerHTML = orig; }, 1500);
       });
     }
+
+    // Animated counters (metrics bar)
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const counters = document.querySelectorAll('.counter');
+    function animateCounter(el) {
+      const target = parseInt(el.dataset.count, 10);
+      if (reduceMotion || isNaN(target)) { el.textContent = el.dataset.count; return; }
+      const dur = 1200, t0 = performance.now();
+      function tick(t) {
+        const p = Math.min((t - t0) / dur, 1);
+        el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    // Reveal on scroll + counter trigger
+    const revealObs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('visible');
+        e.target.querySelectorAll('.counter').forEach((c) => {
+          if (!c.dataset.done) { c.dataset.done = '1'; animateCounter(c); }
+        });
+        if (e.target.classList.contains('counter') && !e.target.dataset.done) {
+          e.target.dataset.done = '1';
+          animateCounter(e.target);
+        }
+        revealObs.unobserve(e.target);
+      });
+    }, { threshold: 0.15 });
+    document.querySelectorAll('.reveal, .counter').forEach((el) => revealObs.observe(el));
+
+    // Header shadow + back-to-top visibility
+    const header = document.getElementById('site-header');
+    const toTop = document.getElementById('to-top');
+    function onScroll() {
+      const y = window.scrollY;
+      header.classList.toggle('scrolled', y > 8);
+      const show = y > 600;
+      toTop.classList.toggle('hidden', !show);
+      toTop.classList.toggle('flex', show);
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    toTop.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+    });
   </script>
 </body>
 </html>

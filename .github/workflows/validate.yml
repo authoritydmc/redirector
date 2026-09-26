@@ -3,6 +3,9 @@
 
 name: Validate
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ "main","develop" ]
@@ -48,3 +51,10 @@ jobs:
         run: |
           chmod +x test_docker.sh
           ./test_docker.sh
+
+  landing-page:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Landing page version must match VERSION file
+        run: python3 scripts/sync-landing-version.py --check
