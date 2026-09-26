@@ -1,6 +1,12 @@
 import os
-import gevent.monkey
-gevent.monkey.patch_all()
+
+# Monkey-patch for gevent (production: gunicorn gevent workers).
+# Guard so tests and local dev can run without gevent installed.
+try:
+    import gevent.monkey
+    gevent.monkey.patch_all()
+except ImportError:
+    pass
 
 import logging
 import secrets
@@ -91,5 +97,6 @@ def create_app():
 
     return app
 
-# For testing: expose app instance for pytest discovery
+# Expose a default app instance for backwards compatibility (e.g. wsgi.py).
+# Tests should call create_app() directly for proper isolation.
 app = create_app()
