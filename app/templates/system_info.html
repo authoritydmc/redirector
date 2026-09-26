@@ -60,7 +60,7 @@
             <a href="{{ url }}" target="_blank" class="font-mono text-sm text-blue-600 dark:text-blue-400 hover:underline truncate flex-1">{{ url }}</a>
             <button onclick="copyToClipboard('{{ url }}')" class="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 flex items-center justify-center" title="Copy"><i class="fa-regular fa-copy text-xs"></i></button>
             <a href="{{ url }}" target="_blank" class="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center" title="Open"><i class="fa-solid fa-arrow-up-right-from-square text-xs"></i></a>
-            <a href="/qr/{{ url.split('/')[-1] if url.endswith('/') else url.split('/')[-1] }}" target="_blank" class="w-7 h-7 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 flex items-center justify-center hover:bg-gray-50" title="QR"><i class="fa-solid fa-qrcode text-xs"></i></a>
+            <a href="/qr/{{ url[:-1].split('/')[-1] if url.endswith('/') else url.split('/')[-1] }}" target="_blank" class="w-7 h-7 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 flex items-center justify-center hover:bg-gray-50" title="QR"><i class="fa-solid fa-qrcode text-xs"></i></a>
           </div>
           {% endfor %}
           {% if not urls %}<p class="text-sm text-gray-500 dark:text-white/40 text-center py-4">No URLs detected.</p>{% endif %}

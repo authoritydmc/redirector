@@ -655,6 +655,9 @@ def import_redirects_from_json(json_data):
         dict: A dictionary with 'success' (bool), 'message' (str), and 'imported_count' (int, optional).
     """
     try:
+        if isinstance(json_data, dict) and 'data' in json_data and isinstance(json_data['data'], list):
+            json_data = json_data['data']
+            
         if not isinstance(json_data, list):
             logger.error("Import failed: JSON data is not a list.")
             return {'success': False, 'message': 'Invalid JSON data format: expected a list of redirects.'}

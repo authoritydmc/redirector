@@ -41,9 +41,13 @@ def dashboard_delete(subpath):
             logger.debug(f"Displaying delete confirmation for '{subpath}'.")
             return render_template('delete_confirm.html', subpath=subpath, error=None)
     else:
-        logger.info(f"Shortcut '{subpath}' deleted (password not required).")
-        utils.deleteShortCut(subpath)
-        return redirect(url_for('main.dashboard'))
+        if request.method == 'POST':
+            logger.info(f"Shortcut '{subpath}' deleted (password not required).")
+            utils.deleteShortCut(subpath)
+            return redirect(url_for('main.dashboard'))
+        else:
+            logger.debug(f"Displaying delete confirmation for '{subpath}'.")
+            return render_template('delete_confirm.html', subpath=subpath, error=None)
 
 
 @bp.route('/edit/<path:subpath>', methods=['GET', 'POST'])

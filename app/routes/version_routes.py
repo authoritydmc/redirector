@@ -124,9 +124,9 @@ def system_info_page():
                     # Only allow folder, append redirects.db
                     import os
                     folder = v
-                    if folder.endswith('redirects.db'):
+                    if folder.endswith('redirect.db'):
                         folder = os.path.dirname(folder)
-                    db_path = os.path.join(folder, 'redirects.db')
+                    db_path = os.path.join(folder, 'redirect.db')
                     config_data[k] = db_path
                 else:
                     config_data[k] = v

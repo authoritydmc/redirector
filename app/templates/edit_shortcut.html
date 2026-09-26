@@ -50,6 +50,11 @@
   </div>
 </div>
 <script>
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, function(m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    });
+  }
   function extractBracketParams(val){
     const re = /\[([^\]]+)\]/g;
     const seen = new Set();
@@ -80,9 +85,10 @@
     });
     list.innerHTML = params.map(name=>{
       const val = existing[name] || '';
+      const escName = escapeHtml(name);
       return `<div class="mb-2 flex items-center gap-2">`+
-        `<span class="font-mono text-sm">[${name}]</span>`+
-        `<input type="text" name="param_desc_${name}" class="border rounded px-2 py-1 flex-1 dark:bg-gray-900 dark:text-gray-100" placeholder="Description for ${name}" value="${val.replace(/"/g,'&quot;')}" required />`+
+        `<span class="font-mono text-sm">[${escName}]</span>`+
+        `<input type="text" name="param_desc_${escName}" class="border rounded px-2 py-1 flex-1 dark:bg-gray-900 dark:text-gray-100" placeholder="Description for ${escName}" value="${val.replace(/"/g,'&quot;')}" required />`+
         `</div>`;
     }).join('');
   }

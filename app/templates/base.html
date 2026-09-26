@@ -257,7 +257,8 @@
       const isLast = idx === segments.length - 1;
       const label = friendly[seg] || decodeURIComponent(seg);
       const display = friendly[seg] ? label : label.charAt(0).toUpperCase() + label.slice(1);
-      crumbs.push({href: href, label: display, isLast: isLast});
+      const escapeHTML = (str) => str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+      crumbs.push({href: href, label: escapeHTML(display), isLast: isLast});
     });
     const MAX_VISIBLE = 4;
     let visibleCrumbs = crumbs;

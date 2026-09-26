@@ -128,7 +128,7 @@
             <input id="sqlite-folder" class="flex-1 px-3 py-2 rounded-xl border bg-white dark:bg-[#0f1221] text-sm" placeholder="data or /absolute/path">
             <button type="button" id="choose-folder-btn" class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-white/10 border"><i class="fa-solid fa-folder-open"></i></button>
           </div>
-          <p class="text-xs text-gray-500 mt-1">Will use <span class="font-mono">redirects.db</span> inside folder.</p>
+          <p class="text-xs text-gray-500 mt-1">Will use <span class="font-mono">redirect.db</span> inside folder.</p>
         </div>
         <div id="pg-config" class="hidden">
           <label class="block text-sm font-bold">PostgreSQL URI</label>
@@ -162,14 +162,14 @@ document.getElementById('db-config-btn')?.addEventListener('click', ()=>{
   const cur=document.getElementById('db-hidden').value;
   if(cur.includes('postgresql')){ document.getElementById('db-type').value='postgresql'; document.getElementById('pg-uri').value=cur; }
   else if(cur.includes('mysql')){ document.getElementById('db-type').value='mysql'; document.getElementById('mysql-uri').value=cur; }
-  else { document.getElementById('db-type').value='sqlite'; document.getElementById('sqlite-folder').value=cur.replace('sqlite:///', '').replace('/redirects.db','').replace('redirects.db','') || 'data'; }
+  else { document.getElementById('db-type').value='sqlite'; document.getElementById('sqlite-folder').value=cur.replace('sqlite:///', '').replace('/redirect.db','').replace('redirect.db','') || 'data'; }
   updateDbType(); dbModal.classList.remove('hidden');
 });
 document.getElementById('db-cancel')?.addEventListener('click', ()=> dbModal.classList.add('hidden'));
 document.getElementById('db-save')?.addEventListener('click', ()=>{
   const t=document.getElementById('db-type').value;
   let v='';
-  if(t==='sqlite'){ let f=document.getElementById('sqlite-folder').value.trim()||'data'; if(f.endsWith('redirects.db')) f=f.replace(/redirects\.db$/,''); v='sqlite:///' + f.replace(/\/$/,'') + '/redirects.db'; }
+  if(t==='sqlite'){ let f=document.getElementById('sqlite-folder').value.trim()||'data'; if(f.endsWith('redirect.db')) f=f.replace(/redirect\.db$/,''); v='sqlite:///' + f.replace(/\/$/,'') + '/redirect.db'; }
   else if(t==='postgresql'){ v=document.getElementById('pg-uri').value.trim(); if(!v.startsWith('postgresql://')){ alert('Invalid PostgreSQL URI'); return; } }
   else { v=document.getElementById('mysql-uri').value.trim(); if(!v.startsWith('mysql://')){ alert('Invalid MySQL URI'); return; } }
   document.getElementById('db-hidden').value=v;

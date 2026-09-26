@@ -95,6 +95,18 @@ function addUpstreamRow() {
     <td class="py-2 px-2 sm:px-3">
       <input type="number" name="fail_status_code_${idx}" class="w-full rounded px-2 py-1 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border">
     </td>
+    <td class="py-2 px-2 sm:px-3 text-center">
+      <label class="inline-flex items-center gap-1 text-xs">
+        <input type="checkbox" name="skip_sso_cache_${idx}" checked class="rounded">
+        <span class="hidden sm:inline">Skip SSO</span>
+      </label>
+      <div class="flex justify-center mt-1">
+        <label class="inline-flex items-center gap-1 text-xs">
+          <input type="checkbox" name="verify_ssl_${idx}" class="rounded">
+          <span class="hidden sm:inline">SSL</span>
+        </label>
+      </div>
+    </td>
     <td class="py-2 px-2 sm:px-3">
       <div class="flex flex-col sm:flex-row gap-2"></div>
     </td>

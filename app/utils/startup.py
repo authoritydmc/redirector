@@ -16,7 +16,10 @@ ascii_art = r'''
 '''
 os_name = platform.system().lower()
 def app_startup_banner(app=None):
-    print("\n" + ascii_art) # Log the banner
+    try:
+        print("\n" + ascii_art) # Log the banner
+    except UnicodeEncodeError:
+        print("\n" + ascii_art.encode('ascii', errors='replace').decode('ascii'))
     print("+" + "=" * 80)
     print("Welcome to the URL Shortener & Redirector app! 🚀\n")
     print("This app is designed to help you shorten and redirect URLs easily. 🌐\n")

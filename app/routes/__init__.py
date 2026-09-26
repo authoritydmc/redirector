@@ -30,26 +30,6 @@ def register_blueprints(app):
     @app.context_processor
     def inject_now():
         from app.CONSTANTS import get_semver
-        # Try to get version string (count from last tag)
-        try:
-            import subprocess
-            # Always fetch tags first (works in Docker and local if .git is present)
-            try:
-                subprocess.check_output(['git', 'fetch', '--tags'], stderr=subprocess.DEVNULL)
-            except Exception as fetch_exc:
-                logger.debug(f"Could not fetch tags: {fetch_exc}")
-            desc = subprocess.check_output(['git', 'describe', '--tags', '--long', '--match', 'v*'], encoding='utf-8').strip()
-            # Example: v2.1.0-5-gabcdef
-            import re
-            m = re.match(r'v?(\d+\.\d+\.\d+)-(\d+)-g([0-9a-f]+)', desc)
-            if m:
-                base, commits, githash = m.groups()
-                version = f"{base}+{commits}.g{githash}"
-            else:
-                version = desc
-        except Exception as e:
-            version = 'unknown'
-            logger.debug(f"Could not determine version from git: {e}")
 
         version = get_semver()
         redis_connected = bool(config.redis_enabled)
