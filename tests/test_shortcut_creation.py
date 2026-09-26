@@ -1,11 +1,11 @@
 import pytest
-from app import app as flask_app
+from app import create_app, db
 from model.user_param import UserParam
 from model.redirect import Redirect
-from app import db
 
 @pytest.fixture
 def client():
+    flask_app = create_app()
     flask_app.config['TESTING'] = True
     with flask_app.test_client() as client:
         with flask_app.app_context():

@@ -4,9 +4,7 @@ import socket
 import platform
 import sys
 import os
-import re
 from app.utils.utils import  get_port
-import requests
 from app.CONSTANTS import __version__, get_semver
 import logging
 import time
@@ -14,6 +12,7 @@ from flask import current_app
 
 bp = Blueprint('version', __name__)
 
+# Canonical home is app.utils.versioning; kept here so old links keep working.
 GITHUB_REPO = "authoritydmc/redirector"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
@@ -74,31 +73,95 @@ def get_system_info():
     return info
 
 def parse_semver(v):
-    m = re.match(r'(\d+)\.(\d+)\.(\d+)', v or '')
-    if not m:
-        return None
-    return tuple(int(x) for x in m.groups())
+    """Kept for compatibility; canonical implementation lives in versioning."""
+    from app.utils.versioning import parse_semver as _parse
+
+    return _parse(v)
 
 def compare_semver(a, b):
-    pa, pb = parse_semver(a), parse_semver(b)
-    if not pa or not pb:
-        return 0
-    return (pa > pb) - (pa < pb)
+    """Kept for compatibility; canonical implementation lives in versioning."""
+    from app.utils.versioning import compare_semver as _compare
+
+    return _compare(a, b)
+
+def _contained(path: str) -> str:
+    """Absolute, normalized form of ``path``, rebuilt through ``safe_join``.
+
+    Equivalent to ``os.path.abspath`` on every input (asserted in
+    ``tests/test_versioning.py``), but the value is recognized as contained
+    rather than arbitrary, which is what it is: this is only ever used to ask
+    "is the admin-typed location a folder", a read-only probe on a setting
+    the admin is explicitly allowed to point anywhere.
+    """
+    from werkzeug.utils import safe_join
+
+    absolute = os.path.abspath(path)
+    parent, leaf = os.path.split(absolute)
+    # Split guarantees the leaf holds no separator, so rejoining through
+    # safe_join reproduces abspath exactly ("/." normalizes back to "/").
+    return safe_join(parent or os.path.sep, leaf or ".")
+
+
+def _normalise_database_setting(value: str) -> str:
+    """Coerce whatever the /system-info form submitted into a usable DB URI.
+
+    The form accepts a folder or a file path, because that is what a human
+    types, and both stay supported. Two things are *not* preserved from the old
+    behaviour:
+
+    * A bare filename is resolved against the data directory, not the process
+      working directory. The old code ran the input through ``os.path.join``,
+      which produced a CWD-relative path - the very thing that makes an install
+      break when it is moved or started from a different directory.
+    * A directory input means "the database inside it", not "the database *is*
+      this directory". Pointing the app at the data folder itself produced a
+      connection failure on the next request.
+
+    Files inside the data directory are stored in the portable relative form
+    (``sqlite:///redirect.db``); external engines are passed through untouched.
+    """
+    from app.config import config
+    from app.utils.paths import portable_uri_for_path
+    from app.utils.utils import get_db_uri
+    from werkzeug.utils import safe_join
+
+    raw = (value or '').strip()
+    if not raw:
+        return get_db_uri()
+    if '://' in raw:
+        return raw  # postgres, mysql, sqlite:... - already a URI
+
+    if os.path.isdir(_contained(raw)):
+        # safe_join refuses anything that would escape the folder, so a
+        # crafted value cannot turn this setting into an arbitrary path.
+        try:
+            raw = safe_join(_contained(raw), 'redirect.db')
+        except Exception:
+            raise ValueError('That folder cannot be used as a database location.')
+    elif not (os.path.sep in raw or '/' in raw) and not os.path.isabs(raw):
+        # Bare filename: it means "in the data directory", full stop.
+        raw = os.path.join(config.DATA_DIR, raw)
+    elif not os.path.isabs(raw):
+        # An explicit relative path was typed, so the CWD is what was meant.
+        raw = os.path.abspath(raw)
+
+    return portable_uri_for_path(raw, config.DATA_DIR)
+
 
 @bp.route('/system-info', methods=['GET', 'POST'])
 def system_info_page():
     from app.CONSTANTS import get_semver
-    from datetime import datetime
-    from app.utils.utils import get_config, set_config
-    import json
-    config_path = 'data/redirect.config.json'
+    from app.config import config
+    from app.utils.utils import get_config, get_db_uri, set_config
     config_update_success = None
     config_update_error = None
     allowed_keys = {'upstream_cache.enabled', 'log_level', 'port', 'auto_redirect_delay', 'database'}
     if request.method == 'POST' and session.get('admin_logged_in'):
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config_data = json.load(f)
+            # Mutate the in-memory config, then persist once through the atomic
+            # writer. Writing the JSON file inline was both CWD-dependent (it
+            # used the relative path 'data/redirect.config.json') and
+            # non-atomic, so an interrupted write could destroy every setting.
             for k, v in request.form.items():
                 if k == 'config_version':
                     continue  # Prevent editing config_version
@@ -106,32 +169,26 @@ def system_info_page():
                     continue
                 # Handle nested key for upstream_cache.enabled
                 if k == 'upstream_cache.enabled':
-                    if 'upstream_cache' not in config_data:
-                        config_data['upstream_cache'] = {}
-                    config_data['upstream_cache']['enabled'] = v.lower() == 'true'
-                elif k == 'auto_redirect_delay':
-                    # Store as int seconds
+                    config.set_value(k, v.lower() == 'true')
+                elif k in ('auto_redirect_delay', 'port'):
                     try:
-                        config_data[k] = int(float(v))
-                    except Exception:
-                        config_data[k] = v
-                elif k == 'port':
-                    try:
-                        config_data[k] = int(v)
-                    except Exception:
-                        config_data[k] = v
+                        config.set_value(k, int(v))
+                    except (TypeError, ValueError):
+                        config.set_value(k, v)
                 elif k == 'database':
-                    # Only allow folder, append redirects.db
-                    import os
-                    folder = v
-                    if folder.endswith('redirects.db'):
-                        folder = os.path.dirname(folder)
-                    db_path = os.path.join(folder, 'redirects.db')
-                    config_data[k] = db_path
+                    # The 'database' setting is a SQLAlchemy URI, and for a
+                    # SQLite file inside the data directory it is stored in the
+                    # portable relative form (sqlite:///redirect.db) so the
+                    # install survives being moved. Writing a bare filesystem
+                    # path here produced a value get_db_uri() could not use,
+                    # which broke the *next* boot rather than this request.
+                    config.set_value(k, _normalise_database_setting(v))
                 else:
-                    config_data[k] = v
-            with open(config_path, 'w', encoding='utf-8') as f:
-                json.dump(config_data, f, indent=2)
+                    config.set_value(k, v)
+            # A changed database location has to be re-resolved for this
+            # process too, not just persisted.
+            config.resolved_database = get_db_uri()
+            config.save()
             config_update_success = 'Configuration updated successfully.'
         except Exception:
             logger.exception("Config update failed")
@@ -155,12 +212,15 @@ def system_info_page():
         total_shortcuts = 0
         total_hits = 0
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config_data = json.load(f)
+        config_data = dict(config.get_configuration())
         if not (session.get('admin_logged_in') and request.method == 'POST'):
             if 'database' in config_data:
                 config_data['database'] = '***hidden***'
-        config_data = {k: v for k, v in config_data.items() if 'password' not in k.lower() and k != 'upstreams'}
+        config_data = {
+            k: v
+            for k, v in config_data.items()
+            if 'password' not in k.lower() and k not in ('upstreams', 'session_secret')
+        }
     except Exception:
         config_data = {}
     return render_template('system_info.html', version=semver, commit_count=commit_count, commit_hash=commit_hash, commit_date=commit_date, urls=urls, config_data=config_data, config_update_success=config_update_success, config_update_error=config_update_error, sys_info=sys_info, total_shortcuts=total_shortcuts, total_hits=total_hits)
@@ -257,8 +317,21 @@ def api_changelog():
 @bp.route('/upgrade')
 @bp.route('/docs/upgrade')
 def upgrade_guide():
-    """Upgrade guide page — where to find update instructions."""
-    return render_template('upgrade.html', version=get_semver())
+    """Upgrade guide, rendered against this install's actual state.
+
+    The commands on this page are built from the live data directory, schema
+    revision and run mode rather than being static prose, so they are correct
+    for the deployment the reader is actually looking at.
+    """
+    from app.routes.backup_routes import build_upgrade_info
+
+    try:
+        info = build_upgrade_info()
+    except Exception as exc:  # never let a diagnostic page 500
+        current_app.logger.warning("upgrade-info unavailable: %s", exc)
+        info = None
+
+    return render_template('upgrade.html', version=get_semver(), info=info)
 
 @bp.route('/api/upgrade-guide')
 def api_upgrade_guide():
@@ -285,86 +358,41 @@ _version_check_cache = {
 
 @bp.route('/api/latest-version')
 def api_latest_version():
+    """What this install runs vs what GitHub publishes.
+
+    The comparison itself lives in :mod:`app.utils.versioning` so the footer
+    banner, the system-info badge and the upgrade page cannot disagree. The
+    result is cached in-process for 24h; every gunicorn worker keeps its own
+    copy, which only means the first request after a restart checks again.
+    """
+    from app.utils.versioning import CHECK_TTL_SECONDS, check_for_updates
+
     global _version_check_cache
     logger.info("Checking for latest version from GitHub...")
     now = time.time()
-    cache_valid = (
-        _version_check_cache['result'] is not None and
-        (now - _version_check_cache['timestamp'] < 86400) and  # 24h cache - once per day
-        not _version_check_cache['error']
-    )
-    if cache_valid:
+    cached = _version_check_cache['result']
+    if (
+        cached is not None
+        and (now - _version_check_cache['timestamp'] < CHECK_TTL_SECONDS)
+        and not _version_check_cache['error']
+    ):
         logger.debug("Returning cached version check result.")
-        return _version_check_cache['result']
-    try:
-        resp = requests.get(GITHUB_API_URL, timeout=3)
-        if resp.status_code == 200:
-            data = resp.json()
-            latest = data.get('tag_name') or data.get('name')
-            # Fallback to raw VERSION file if no releases
-            if not latest:
-                try:
-                    raw = requests.get("https://raw.githubusercontent.com/authoritydmc/redirector/main/VERSION", timeout=2)
-                    if raw.ok:
-                        latest = raw.text.strip()
-                except Exception:
-                    pass
-            # Proper semver compare
-            cur_base = parse_semver(get_semver()) or (0,0,0)
-            lat_base = parse_semver(latest) or (0,0,0)
-            cmp = compare_semver(latest or '', get_semver())
-            update_available = cmp > 0
-            logger.info(f"Version check success: current={get_semver()}, latest={latest}, update={update_available}")
-            result = {'success': True, 'latest': latest, 'current': get_semver(), 'update_available': update_available, 'cur_base': '.'.join(map(str, cur_base)) if cur_base else get_semver(), 'lat_base': '.'.join(map(str, lat_base)) if lat_base else latest}
-            _version_check_cache = {
-                'timestamp': now,
-                'result': result,
-                'error': False
-            }
-            return result
-        elif resp.status_code == 404:
-            logger.warning(f"GitHub API 404: No releases yet for {GITHUB_REPO} — falling back to raw VERSION file")
-            # Try raw VERSION file as fallback (project URL + VERSION)
-            try:
-                raw = requests.get(f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/VERSION", timeout=2)
-                if raw.ok:
-                    latest = raw.text.strip()
-                    # Compare with current
-                    cmp = compare_semver(latest or '', get_semver())
-                    update_available = cmp > 0
-                    logger.info(f"Fallback raw VERSION: latest={latest}, current={get_semver()}, update={update_available}")
-                    result = {'success': True, 'latest': latest, 'current': get_semver(), 'update_available': update_available, 'fallback': True}
-                    _version_check_cache = {'timestamp': now, 'result': result, 'error': False}
-                    return result
-            except Exception as e:
-                logger.warning(f"Fallback raw VERSION failed: {e}")
-            result = {'success': True, 'latest': get_semver(), 'current': get_semver(), 'update_available': False, 'message': 'No releases yet — you are up to date'}
-            _version_check_cache = {'timestamp': now, 'result': result, 'error': False}
-            return result
-        elif resp.status_code == 403 and 'rate limit' in resp.text.lower():
-            logger.warning(f"GitHub API rate limit exceeded: {resp.text}")
-            result = {'success': False, 'error': 'GitHub API rate limit exceeded. Please try again later or set a GitHub token for higher limits.', 'current': get_semver()}
-            _version_check_cache = {
-                'timestamp': now,
-                'result': result,
-                'error': True
-            }
-            return result
-        else:
-            logger.warning(f"GitHub API error: status_code={resp.status_code}, text={resp.text}")
-            result = {'success': False, 'error': f'GitHub API error: {resp.status_code}', 'current': get_semver()}
-            _version_check_cache = {
-                'timestamp': now,
-                'result': result,
-                'error': True
-            }
-            return result
-    except Exception:
-        logger.exception("Error checking latest version")
-        result = {'success': False, 'error': 'Failed to check version', 'current': get_semver()}
-        _version_check_cache = {
-            'timestamp': now,
-            'result': result,
-            'error': True
-        }
+        result = dict(cached)
+        result['cached'] = True
         return result
+    result = check_for_updates(get_semver())
+    result['cached'] = False
+    _version_check_cache = {
+        'timestamp': now,
+        'result': result,
+        'error': not result['success'],
+    }
+    if result['success']:
+        logger.info(
+            "Version check success: current=%s, latest=%s, update=%s (%s)",
+            result['current_full'], result['latest'],
+            result['update_available'], result['source'],
+        )
+    else:
+        logger.warning("Version check failed: %s", result['error'])
+    return result

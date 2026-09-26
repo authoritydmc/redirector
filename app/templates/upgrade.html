@@ -1,68 +1,236 @@
 {% extends "base.html" %}
 {% block title %}Upgrade Guide — Redirector{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto">
+<div class="max-w-5xl mx-auto space-y-5">
+
   <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden">
     <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-6 text-white">
       <h1 class="text-2xl font-black flex items-center gap-3"><i class="fa-solid fa-circle-arrow-up"></i> Upgrade Guide</h1>
-      <p class="text-sm text-white/80 mt-1">Keep your <span class="font-mono bg-white/20 px-1 rounded">r/</span> links secure and fast — update in 2 minutes.</p>
-      <p class="text-xs font-mono mt-2">Current: {{ version }} • <a href="/api/upgrade-guide" target="_blank" class="underline">API</a> • <a href="https://github.com/authoritydmc/redirector/blob/main/docs/UPGRADE.md" target="_blank" class="underline">GitHub docs</a></p>
+      <p class="text-sm text-white/80 mt-1">The commands below match <em>this</em> install, not a generic example.</p>
+      <p class="text-xs font-mono mt-2">
+        Running {{ version }}
+        {%- if info and info.latest %} • latest {{ info.latest }}{% endif %}
+        • <a href="/api/upgrade-guide" target="_blank" class="underline">raw markdown</a>
+        • <a href="https://github.com/authoritydmc/redirector/blob/main/docs/UPGRADE.md" target="_blank" class="underline">GitHub</a>
+      </p>
     </div>
-    <div class="p-6">
-      <div id="upgrade-content" class="prose dark:prose-invert max-w-none prose-sm">
-        <div class="flex items-center gap-2 text-gray-500"><i class="fa-solid fa-spinner fa-spin"></i> Loading guide…</div>
+
+    {% if info %}
+    <div class="px-6 py-4 border-b border-gray-200 dark:border-white/10 grid sm:grid-cols-3 gap-4 text-sm">
+      <div>
+        <p class="text-xs uppercase tracking-wider font-bold text-gray-500 dark:text-white/50">Data directory</p>
+        <p class="font-mono text-xs mt-0.5 break-all text-gray-900 dark:text-white">{{ info.data.dir }}</p>
       </div>
-      <div class="mt-6 flex gap-3">
-        <a href="/system-info" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm">← System Info</a>
-        <a href="/changelog" class="px-4 py-2 rounded-xl bg-white dark:bg-white/10 border hover:bg-gray-50 dark:hover:bg-white/20 font-bold text-sm">View Changelog</a>
-        <a href="https://github.com/authoritydmc/redirector/releases" target="_blank" class="px-4 py-2 rounded-xl bg-gray-100 dark:bg-white/10 border hover:bg-gray-200 dark:hover:bg-white/20 font-bold text-sm">Releases</a>
+      <div>
+        <p class="text-xs uppercase tracking-wider font-bold text-gray-500 dark:text-white/50">Schema</p>
+        <p class="font-mono text-xs mt-0.5 text-gray-900 dark:text-white">
+          {{ info.schema.current or '—' }} &rarr; {{ info.schema.head or '—' }}
+          <span class="px-1.5 py-0.5 rounded font-sans font-bold
+                {% if info.schema.drift == 'up-to-date' %}bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200
+                {% elif info.schema.drift == 'pending' %}bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200
+                {% elif info.schema.drift == 'ahead' %}bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200
+                {% else %}bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white/70{% endif %}">{{ info.schema.drift }}</span>
+        </p>
+      </div>
+      <div>
+        <p class="text-xs uppercase tracking-wider font-bold text-gray-500 dark:text-white/50">Backups on disk</p>
+        <p class="text-xs mt-0.5 text-gray-900 dark:text-white">
+          {{ info.backups | length }} archive(s){% if info.install.last_backup %} &middot; last {{ info.install.last_backup }}{% endif %}
+        </p>
       </div>
     </div>
+    {% endif %}
   </div>
 
-  <div class="mt-6 grid sm:grid-cols-3 gap-4">
-    <a href="/health" class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border hover:shadow flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-green-500/10 text-green-600 flex items-center justify-center"><i class="fa-solid fa-heart-pulse"></i></div>
-      <div><p class="font-bold text-sm">Health</p><p class="text-xs text-gray-500">/health</p></div>
-    </a>
-    <a href="/changelog" class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border hover:shadow flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center"><i class="fa-solid fa-file-lines"></i></div>
-      <div><p class="font-bold text-sm">Changelog</p><p class="text-xs text-gray-500">What's new</p></div>
-    </a>
-    <a href="https://github.com/authoritydmc/redirector" target="_blank" class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border hover:shadow flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-gray-900 dark:bg-white/10 text-white flex items-center justify-center"><i class="fa-brands fa-github"></i></div>
-      <div><p class="font-bold text-sm">GitHub</p><p class="text-xs text-gray-500">Report issue</p></div>
-    </a>
+  {% if info and info.schema.drift == 'ahead' %}
+    <div class="rounded-2xl border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 p-4 text-sm">
+      <p class="font-bold text-red-800 dark:text-red-200 flex items-center gap-2">
+        <i class="fa-solid fa-triangle-exclamation"></i> Your data is newer than this build
+      </p>
+      <p class="text-red-700 dark:text-red-300 mt-1">
+        The schema is <span class="font-mono">{{ info.schema.current }}</span> but this image only knows up to
+        <span class="font-mono">{{ info.schema.head }}</span>. Redirector refuses to start rather than downgrade it.
+        Pull the newer image, or restore a backup taken with an older version.
+      </p>
+    </div>
+  {% endif %}
+
+  <!-- 1. Back up -->
+  <div class="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1c1f2e] p-5 space-y-3">
+    <h2 class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+      <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">1</span>
+      Back up first
+    </h2>
+    <p class="text-sm text-gray-600 dark:text-white/70">
+      One <code>.zip</code> with the database, the configuration and the install state. Safe to take
+      while the app is serving traffic. Then copy the archive off the host.
+    </p>
+    <div class="flex flex-wrap gap-2 items-center">
+      {% if session.admin_logged_in %}
+        <a href="/admin/backup" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center gap-2">
+          <i class="fa-solid fa-shield-halved"></i> Open Backup &amp; Restore
+        </a>
+      {% else %}
+        <a href="/admin-login" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center gap-2">
+          <i class="fa-solid fa-right-to-bracket"></i> Log in to back up
+        </a>
+      {% endif %}
+      <button type="button" data-copy="backup-cmd" class="px-3 py-2 rounded-xl border border-gray-300 dark:border-white/20 text-sm font-bold hover:bg-gray-50 dark:hover:bg-white/10">
+        <i class="fa-solid fa-copy"></i> Copy CLI command
+      </button>
+    </div>
+    <pre id="backup-cmd" class="hidden bg-gray-900 dark:bg-[#0f1221] text-white rounded-xl p-3 text-xs overflow-auto border">
+{% if info and info.data.in_docker %}docker compose exec app python -m app.utils.backup create --label "before upgrade"
+{% else %}python -m app.utils.backup create --label "before upgrade"{% endif %}</pre>
   </div>
+
+  <!-- 2. Upgrade -->
+  <div class="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1c1f2e] p-5 space-y-4">
+    <h2 class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+      <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">2</span>
+      Upgrade
+    </h2>
+
+    {% if info and info.data.in_docker %}
+      <div class="text-sm font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+        <i class="fa-solid fa-docker"></i> Detected: Docker
+      </div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <p class="text-xs font-bold text-gray-500 dark:text-white/50 uppercase tracking-wider mb-1.5">Linux / macOS</p>
+          <pre class="bg-gray-900 dark:bg-[#0f1221] text-white rounded-xl p-3 text-xs overflow-auto border">docker compose pull
+docker compose up -d
+docker compose logs -f --tail=50 app</pre>
+          <button type="button" data-copy="docker-sh" class="mt-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+            <i class="fa-solid fa-copy"></i> Copy
+          </button>
+        </div>
+        <div>
+          <p class="text-xs font-bold text-gray-500 dark:text-white/50 uppercase tracking-wider mb-1.5">Windows (PowerShell)</p>
+          <pre id="docker-sh" class="bg-gray-900 dark:bg-[#0f1221] text-white rounded-xl p-3 text-xs overflow-auto border">docker compose pull
+docker compose up -d
+docker compose logs -f --tail=50 app</pre>
+          <button type="button" data-copy="docker-ps" class="mt-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+            <i class="fa-solid fa-copy"></i> Copy
+          </button>
+          <pre id="docker-ps" class="hidden bg-gray-900 dark:bg-[#0f1221] text-white rounded-xl p-3 text-xs overflow-auto border">docker compose pull
+docker compose up -d
+docker compose logs -f --tail=50 app</pre>
+        </div>
+      </div>
+    {% else %}
+      <div class="text-sm font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+        <i class="fa-solid fa-server"></i> Detected: bare-metal Python
+      </div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <p class="text-xs font-bold text-gray-500 dark:text-white/50 uppercase tracking-wider mb-1.5">Linux / macOS</p>
+          <pre id="bare-sh" class="bg-gray-900 dark:bg-[#0f1221] text-white rounded-xl p-3 text-xs overflow-auto border">sudo systemctl stop redirector
+git fetch --tags && git checkout {{ info.latest if info and info.latest else 'v' ~ version }}
+.venv/bin/pip install -r requirements.txt
+.venv/bin/flask db upgrade
+sudo systemctl start redirector</pre>
+          <button type="button" data-copy="bare-sh" class="mt-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+            <i class="fa-solid fa-copy"></i> Copy
+          </button>
+        </div>
+        <div>
+          <p class="text-xs font-bold text-gray-500 dark:text-white/50 uppercase tracking-wider mb-1.5">Windows (PowerShell)</p>
+          <pre id="bare-ps" class="bg-gray-900 dark:bg-[#0f1221] text-white rounded-xl p-3 text-xs overflow-auto border">Stop-Service Redirector
+git fetch --tags; git checkout {{ info.latest if info and info.latest else 'v' ~ version }}
+.\.venv\Scripts\pip.exe install -r requirements.txt
+.\.venv\Scripts\flask.exe db upgrade
+Start-Service Redirector</pre>
+          <button type="button" data-copy="bare-ps" class="mt-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+            <i class="fa-solid fa-copy"></i> Copy
+          </button>
+        </div>
+      </div>
+    {% endif %}
+
+    <p class="text-sm text-gray-600 dark:text-white/70 border-t border-gray-200 dark:border-white/10 pt-3">
+      Migrations run automatically on start, and a snapshot is taken first if any are pending.
+      The container refuses to start rather than downgrade data written by a newer version.
+    </p>
+  </div>
+
+  <!-- 3. Verify -->
+  <div class="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1c1f2e] p-5 space-y-3">
+    <h2 class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+      <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">3</span>
+      Verify
+    </h2>
+    <pre class="bg-gray-900 dark:bg-[#0f1221] text-white rounded-xl p-3 text-xs overflow-auto border">curl http://localhost/health
+curl http://localhost/api/health/state</pre>
+    <div class="flex flex-wrap gap-2">
+      <button type="button" data-copy="verify-sh" class="px-3 py-2 rounded-xl border border-gray-300 dark:border-white/20 text-sm font-bold hover:bg-gray-50 dark:hover:bg-white/10">
+        <i class="fa-solid fa-copy"></i> Copy (sh)
+      </button>
+      <button type="button" data-copy="verify-ps" class="px-3 py-2 rounded-xl border border-gray-300 dark:border-white/20 text-sm font-bold hover:bg-gray-50 dark:hover:bg-white/10">
+        <i class="fa-solid fa-copy"></i> Copy (PowerShell)
+      </button>
+    </div>
+    <pre id="verify-sh" class="hidden bg-gray-900 dark:bg-[#0f1221] text-white rounded-xl p-3 text-xs overflow-auto border">curl http://localhost/health
+curl http://localhost/api/health/state</pre>
+    <pre id="verify-ps" class="hidden bg-gray-900 dark:bg-[#0f1221] text-white rounded-xl p-3 text-xs overflow-auto border">curl.exe http://localhost/health
+curl.exe http://localhost/api/health/state</pre>
+  </div>
+
+  <!-- 4. Roll back -->
+  <div class="rounded-2xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-[#1c1f2e] p-5 space-y-3">
+    <h2 class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+      <span class="w-6 h-6 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center">4</span>
+      If it broke, roll back
+    </h2>
+    <p class="text-sm text-gray-700 dark:text-white/80">
+      Restore an archive. <strong>Do not run <code>flask db downgrade</code></strong> — it inverts a
+      migration and can drop columns that hold your shortcuts.
+    </p>
+    <pre class="bg-gray-900 dark:bg-[#0f1221] text-white rounded-xl p-3 text-xs overflow-auto border">{% if info and info.data.in_docker %}docker compose down
+docker compose run --rm --no-deps app \
+  python -m app.utils.backup restore /app/data/backups/&lt;name&gt;.zip
+docker compose up -d{% else %}# stop the service, then:
+python -m app.utils.backup restore data/backups/&lt;name&gt;.zip{% endif %}</pre>
+    <p class="text-xs text-gray-500 dark:text-white/50">
+      A safety snapshot of the current state is taken first, so the restore is itself reversible.
+    </p>
+  </div>
+
+  <div class="flex flex-wrap gap-3">
+    <a href="/system-info" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm">← System Info</a>
+    <a href="/changelog" class="px-4 py-2 rounded-xl bg-white dark:bg-white/10 border hover:bg-gray-50 dark:hover:bg-white/20 font-bold text-sm">View Changelog</a>
+    <a href="https://github.com/authoritydmc/redirector/releases" target="_blank" class="px-4 py-2 rounded-xl bg-gray-100 dark:bg-white/10 border hover:bg-gray-200 dark:hover:bg-white/20 font-bold text-sm">Releases</a>
+    <a href="/admin/backup/docs/DATA-PERSISTENCE.md" target="_blank" class="px-4 py-2 rounded-xl bg-gray-100 dark:bg-white/10 border hover:bg-gray-200 dark:hover:bg-white/20 font-bold text-sm">Data &amp; Persistence</a>
+  </div>
+
 </div>
 {% endblock %}
+
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
-async function loadGuide(){
-  const el=document.getElementById('upgrade-content');
-  try{
-    const r=await fetch('/api/upgrade-guide');
-    const d=await r.json();
-    const md=d.guide||'';
-    if(!md) throw new Error('No guide');
-    // Use marked if available, fallback to pre
-    if(window.marked){
-      el.innerHTML = marked.parse(md);
-      // Style the generated markdown
-      el.querySelectorAll('h1').forEach(h=>h.className='text-xl font-black mt-6 mb-2');
-      el.querySelectorAll('h2').forEach(h=>h.className='text-lg font-bold mt-5 mb-2 flex items-center gap-2');
-      el.querySelectorAll('h3').forEach(h=>h.className='font-bold mt-4 mb-1');
-      el.querySelectorAll('pre').forEach(p=>{p.className='bg-gray-900 dark:bg-[#0f1221] text-white rounded-xl p-3 text-xs overflow-auto border';});
-      el.querySelectorAll('code').forEach(c=>{ if(!c.parentElement.matches('pre')) c.className='font-mono bg-gray-100 dark:bg-white/10 px-1 rounded text-xs'; });
-      el.querySelectorAll('a').forEach(a=>{a.className='text-blue-600 hover:underline'; a.target='_blank';});
-    } else {
-      el.innerHTML='<pre class="bg-gray-50 dark:bg-[#0f1221] p-4 rounded-xl text-xs overflow-auto border whitespace-pre-wrap">'+md.replace(/</g,'&lt;')+'</pre>';
+// Copy buttons: read the pre/textarea, toggle its visibility, copy. No CDN
+// dependency - an air-gapped install previously fell back to a raw text dump.
+document.querySelectorAll('[data-copy]').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const target = document.getElementById(btn.dataset.copy);
+    if (!target) return;
+    if (target.classList.contains('hidden')) target.classList.remove('hidden');
+    const text = target.textContent.trim();
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      // Clipboard API needs a secure context; fall back to a selection.
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
     }
-  }catch(e){
-    el.innerHTML='<p class="text-red-600">Failed to load guide. See <a href="https://github.com/authoritydmc/redirector/blob/main/docs/UPGRADE.md" class="underline">GitHub</a>.</p><pre class="text-xs bg-gray-50 dark:bg-[#0f1221] p-3 rounded border mt-2">'+e.message+'</pre>';
-  }
-}
-loadGuide();
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+    setTimeout(() => { btn.innerHTML = original; }, 1500);
+  });
+});
 </script>
 {% endblock %}

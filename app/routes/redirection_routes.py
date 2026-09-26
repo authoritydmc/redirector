@@ -41,9 +41,13 @@ def dashboard_delete(subpath):
             logger.debug(f"Displaying delete confirmation for '{subpath}'.")
             return render_template('delete_confirm.html', subpath=subpath, error=None)
     else:
-        logger.info(f"Shortcut '{subpath}' deleted (password not required).")
-        utils.deleteShortCut(subpath)
-        return redirect(url_for('main.dashboard'))
+        if request.method == 'POST':
+            logger.info(f"Shortcut '{subpath}' deleted (password not required).")
+            utils.deleteShortCut(subpath)
+            return redirect(url_for('main.dashboard'))
+        else:
+            logger.debug(f"Displaying delete confirmation for '{subpath}'.")
+            return render_template('delete_confirm.html', subpath=subpath, error=None)
 
 
 @bp.route('/edit/<path:subpath>', methods=['GET', 'POST'])
@@ -88,6 +92,10 @@ def edit_redirect(subpath):
                     param.description = desc
                     param.updated_at = now_dt
             db.session.commit()
+        tags = request.form.get('tags', '').strip() or None
+        visibility = request.form.get('visibility', 'public').strip()
+        expires_at = request.form.get('expires_at', '').strip() or None
+        owner_email = request.form.get('owner_email', '').strip() or None
         try:
             utils.set_shortcut(
                 pattern=subpath,
@@ -96,7 +104,11 @@ def edit_redirect(subpath):
                 created_at=current_time if not shortcut else None,
                 updated_at=current_time,
                 created_ip=ip_address if not shortcut else None,
-                updated_ip=ip_address
+                updated_ip=ip_address,
+                tags=tags,
+                visibility=visibility,
+                expires_at=expires_at,
+                owner_email=owner_email
             )
             logger.info(
                 f"Shortcut '{subpath}' {'updated' if shortcut else 'created'}."
@@ -116,7 +128,16 @@ def edit_redirect(subpath):
             logger.debug(f"Displaying create shortcut page for new pattern: '{subpath}'.")
             return render_template('create_shortcut.html', pattern=subpath)
         logger.debug(f"Displaying edit shortcut page for existing pattern: '{subpath}'.")
-        return render_template('edit_shortcut.html', pattern=subpath, type=shortcut['type'], target=shortcut['target'])
+        return render_template(
+            'edit_shortcut.html',
+            pattern=subpath,
+            type=shortcut['type'],
+            target=shortcut['target'],
+            tags=shortcut.get('tags'),
+            visibility=shortcut.get('visibility', 'public'),
+            expires_at=shortcut.get('expires_at'),
+            owner_email=shortcut.get('owner_email')
+        )
 
 
 @bp.route('/<path:subpath>', methods=['GET'])
@@ -319,6 +340,10 @@ def edit_redirect_blank():
                     param.description = desc
                     param.updated_at = now_dt
             db.session.commit()
+        tags = request.form.get('tags', '').strip() or None
+        visibility = request.form.get('visibility', 'public').strip()
+        expires_at = request.form.get('expires_at', '').strip() or None
+        owner_email = request.form.get('owner_email', '').strip() or None
         if not pattern:
             logger.warning("Attempted to create shortcut with empty pattern.")
             return render_template('create_shortcut.html', pattern='', error='Shortcut pattern cannot be empty.')
@@ -329,7 +354,11 @@ def edit_redirect_blank():
                     type_=type_,
                     target=target,
                     updated_at=current_time,
-                    updated_ip=ip_address
+                    updated_ip=ip_address,
+                    tags=tags,
+                    visibility=visibility,
+                    expires_at=expires_at,
+                    owner_email=owner_email
                 )
                 logger.info(
                     f"Shortcut '{pattern}' updated successfully via edit route."
@@ -352,7 +381,11 @@ def edit_redirect_blank():
                 created_at=current_time,
                 updated_at=current_time,
                 created_ip=ip_address,
-                updated_ip=ip_address
+                updated_ip=ip_address,
+                tags=tags,
+                visibility=visibility,
+                expires_at=expires_at,
+                owner_email=owner_email
             )
             logger.info(
                 f"New shortcut '{pattern}' created successfully via blank edit route."

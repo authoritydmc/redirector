@@ -78,7 +78,7 @@ docker run -d --name redirector --restart unless-stopped -p 80:80 -v /absolute/p
 
 Replace `/absolute/path/to/your/data` with your desired directory.
 
-#### 🚀 **Recommended: With Named Volume (Best for Upgrades & Backups)**
+#### Optional: With a Named Volume
 
 ```sh
 # Create a persistent named volume (only once)
@@ -88,7 +88,18 @@ docker volume create redirector_data
 docker run -d --name redirector --restart unless-stopped -p 80:80 -v redirector_data:/app/data -e REDIS_HOST=redis -e REDIS_PORT=6379 --link redis:redis rajlabs/redirector
 ```
 
-> **Recommended:** Using a Docker named volume (`redirector_data`) keeps your data safe and makes upgrades and backups easy.
+> **Read this before switching an existing install.** A named volume is a
+> *different* location from `./data`. Pointing `/app/data` at an empty volume
+> makes the app start with a fresh database and a new admin password, which looks
+> exactly like an upgrade destroying your data — it hasn't, it's still in
+> `./data`. If you already have shortcuts, use the bind mount above, or follow
+> the copy-across procedure in
+> [`docs/DATA-PERSISTENCE.md`](docs/DATA-PERSISTENCE.md) first.
+>
+> `docker-compose.volumes.yml` is provided for people who want the named volume
+> on a **fresh** install. `docker-compose.yml` uses a bind mount, because that is
+> what every existing install already has and it is the only option where
+> `git pull && docker compose up -d` cannot change where your data lives.
 
 ---
 
@@ -149,7 +160,7 @@ All configuration is managed in the `data/redirect.config.json` file (auto-creat
 ```json
 {
   "port": 80, // Port the app listens on (default: 80)
-  "auto_redirect_delay": 300, // Delay (in seconds) before auto-redirect (0 = instant)
+  "auto_redirect_delay": 1, // Delay (in seconds) before auto-redirect (0 = instant, default: 1)
   "admin_password": "...", // Admin password (randomly generated on first run)
   "delete_requires_password": true, // Require password to delete shortcuts (recommended: true)
   "upstreams": [ // List of upstream redirectors to check for existing shortcuts
@@ -168,7 +179,7 @@ All configuration is managed in the `data/redirect.config.json` file (auto-creat
   "upstream_cache": {
     "enabled": true // Enable upstream shortcut caching (recommended)
   },
-  "database":"sqlite:///data/redirects.db"  //uri for database 
+  "database": "sqlite:///redirect.db"  // URI for database (default: SQLite file in the data directory)
 }
 ```
 
@@ -214,12 +225,22 @@ dialect+driver://username:password@host:port/database
 ### **🔹 SQLite (Local File-Based Database)**
 SQLite doesn’t require authentication:
 ```sh
-sqlite:///absolute/path/to/database.db
+sqlite:///redirect.db   # the default: a file named redirect.db in the data directory
 ```
-For relative paths:
+A **bare filename** is resolved against the data directory, not the process
+working directory, so it keeps working when the install moves between machines
+or platforms. To point somewhere else, give a full path:
 ```sh
-sqlite:///data/mydatabase.db  # Stored inside 'data' folder
+sqlite:////var/lib/redirector/redirect.db   # absolute, outside the data directory
 ```
+
+> **Why not a full absolute path?** SQLAlchemy resolves a relative SQLite path
+> against the *current working directory*. A config holding an absolute path from
+> another checkout, container or user account therefore starts up pointing at
+> nothing — and SQLite responds by creating a brand new, empty database, which
+> looks like total data loss. Storing the portable form and resolving it at
+> startup is what makes moving `data/` safe. See
+> [`docs/DATA-PERSISTENCE.md`](docs/DATA-PERSISTENCE.md) §5.
 
 ### **🔹 PostgreSQL (Production-Grade Database)**
 Use PostgreSQL with credentials:
@@ -295,8 +316,57 @@ If you prefer to edit your hosts file manually:
 
 ## Data Persistence
 
-- All data (config, DB) is in the `data/` directory.
-- For Docker, always use a bind mount or volume for `/app/data` to persist data.
+Everything that matters is in **one directory** — the data directory:
+
+```
+data/
+├── redirect.db               # shortcuts, upstreams, counters
+├── redirect.config.json      # settings, admin password, MFA seeds, session secret
+├── .redirector-state.json    # installed version + schema revision
+└── backups/                  # .zip snapshots from /admin/backup
+```
+
+- Inside Docker this directory is mounted at `/app/data`. **Keep that mount on
+  every start** — it is the only thing an upgrade cannot recreate.
+- Outside Docker, set `REDIRECTOR_DATA_DIR` to wherever you want it.
+- The database path stored in the config is relative (`sqlite:///redirect.db`)
+  so the directory can be copied to another machine or another OS. A stale
+  absolute path from a previous location is re-anchored automatically at startup
+  rather than silently creating a new empty database.
+- Upgrades are covered in [`docs/UPGRADE.md`](docs/UPGRADE.md) — per-platform
+  commands, verification and rollback. Storage and migration details are in
+  [`docs/DATA-PERSISTENCE.md`](docs/DATA-PERSISTENCE.md).
+
+### Backups
+
+`/admin/backup` (Admin → Backup & Restore) writes a single `.zip` containing the
+database, the configuration and the install state. It is safe to run while the
+app is serving traffic. The same thing from a terminal:
+
+```sh
+# Docker
+docker compose exec app python -m app.utils.backup create --label "before upgrade"
+docker compose exec app python -m app.utils.backup list
+
+# Bare metal
+python -m app.utils.backup create --label "before upgrade"
+python -m app.utils.backup list
+```
+
+Restores are staged and applied on the next start, because a running process
+cannot safely replace the database it is serving from. Archives from a newer
+schema are refused rather than guessed at.
+
+### Never do these
+
+```sh
+docker compose down -v      # -v deletes named volumes
+docker volume rm redirector_data
+rm -rf data/                # rm -rf data\ on Windows
+```
+
+Copy at least one archive off the host. An archive in the same directory as the
+data protects you from a bad upgrade, not from a lost disk.
 
 ---
 
@@ -370,7 +440,13 @@ This app supports checking for existing shortcuts in external upstreams (like Bi
 
 ## Admin Config & UI Improvements
 
-WIP
+Redirector includes an integrated administrative control suite accessible under `/admin/config` (or Admin Tools in the top navigation):
+
+- **Live Configuration**: Tune application port, auto-redirect countdown delay, logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`), and toggle delete confirmation password requirements.
+- **Dynamic Database Switching**: Switch between SQLite, PostgreSQL (`postgresql+psycopg2://...`), and MySQL (`mysql+pymysql://...`) dynamically with modal test and validation.
+- **Cache Management**: Inspect and invalidate Redis key-value records (`/admin/redis-cache`) and upstream cache entries (`/admin/upstream-cache/<name>`).
+- **Two-Factor Authentication (MFA)**: Setup TOTP authenticator app tokens and WebAuthn hardware passkeys under `/admin/mfa/setup`.
+- **Signed Import/Export**: Export JSON backups with SHA-256 integrity and HMAC authentication signatures (`/admin/import-export`).
 
 ---
 
@@ -380,51 +456,40 @@ For production, always use a production-grade WSGI server instead of Flask's bui
 
 ### Docker (Recommended)
 
-The official Docker image runs with Gunicorn (production WSGI server) by default. No extra steps needed.
+The official Docker image runs with Gunicorn and gevent asynchronous workers:
+
+```sh
+docker compose up -d
+```
 
 ### Manual (Python)
 
 - **Development mode:**
-  - Run with Flask's built-in server (for local testing only):
-    ```sh
-    python app.py --debug
-    ```
+  ```sh
+  python app.py --debug
+  ```
 - **Production mode:**
-  - Use Gunicorn (Linux/macOS):
+  - Gunicorn (Linux/macOS):
     ```sh
-    pip install gunicorn
-    gunicorn -w 4 -b 0.0.0.0:80 app:app
+    gunicorn -c gunicorn.conf.py wsgi:app
     ```
-  - Use Waitress (Windows):
+  - Waitress (Windows):
     ```sh
     pip install waitress
-    waitress-serve --port=80 app:app
+    waitress-serve --port=80 wsgi:app
     ```
-
-- The app prints an ASCII art banner and clearly shows whether it is running in DEV or PROD mode at startup.
-- By default, `python app.py` runs in debug mode (debug=True). Use `--prod` for production. Docker is run with Gunicorn and gevent (PRODUCTION READY WSGI Servers)
 
 ---
 
 ## Development & Testing
 
-To run all tests for this app, use the following command from the project root:
+To run unit and integration tests from the project root:
 
 ```sh
-python -m pytest tests --maxfail=2 --disable-warnings -v
+python -m pytest tests/ -v
 ```
 
-If you see an error like `No module named pytest`, install pytest first:
-
-```sh
-pip install pytest
-```
-
-> **Note:**
-> - Always run tests from the project root directory.
-> - If you get import/module errors with `pytest`, use `python -m pytest` instead. This ensures Python uses the correct module path, especially on Windows or in virtual environments.
-
-- To lint the code:
+To run lint checks:
 
 ```sh
 flake8 app/
@@ -432,47 +497,49 @@ flake8 app/
 
 ---
 
-## Running Tests
-
-To run all tests for this app, use the following command from the project root:
+## Project Structure
 
 ```
-python -m pytest tests --maxfail=2 --disable-warnings -v
+redirector/
+├── app/
+│   ├── __init__.py          # Flask factory, extensions & security headers
+│   ├── config.py            # App configuration manager & schema defaults
+│   ├── CONSTANTS.py         # Application constants & version helpers
+│   ├── routes/              # Modular blueprints
+│   │   ├── routes.py        # Dashboard, admin login, QR, export/import
+│   │   ├── redirection_routes.py # Core shortcut resolution & CRUD
+│   │   ├── upstream_routes.py    # Upstream checks, logs & cache management
+│   │   ├── mfa_routes.py         # TOTP & passkey MFA routes
+│   │   ├── version_routes.py     # System diagnostics & telemetry
+│   │   └── error_routes.py       # Custom 404 & 500 handlers
+│   ├── utils/               # Service helpers & startup banners
+│   ├── templates/           # Tailwind CSS Jinja2 templates
+│   └── static/              # Favicons, icons, and audio assets
+├── model/                   # SQLAlchemy database models
+├── migrations/              # Alembic database migrations
+├── tests/                   # Pytest test suite
+├── Dockerfile               # Production container image
+├── docker-compose.yml       # Production Compose with Redis & healthchecks
+└── requirements.txt         # Pinned Python dependencies
 ```
-
-If you see an error like `No module named pytest`, install pytest first:
-
-```
-pip install pytest
-```
-
-This will run all unit and integration tests, including those for the version endpoint and utility functions. Ensure you have all dependencies installed (see requirements.txt) and that you are in the project root directory.
 
 ---
 
-## Project Structure
+## API Endpoints Reference
 
-Your Flask app expects static files (images, CSS, JS, etc.) to be in the `app/static/` directory. For example:
-
-```
-project-root/
-├── app/
-│   ├── __init__.py
-│   ├── routes.py
-│   ├── utils.py
-│   ├── version.py
-│   ├── templates/
-│   │   ├── base.html
-│   │   ├── dashboard.html
-│   │   └── ...
-│   └── static/
-│       └── assets/
-│           ├── logo.png
-│           └── ...
-├── requirements.txt
-├── Dockerfile
-└── ...
-```
+| Endpoint | Method | Description | Auth Required |
+|---|---|---|---|
+| `/<subpath>` | `GET` | Resolves and redirects shortcut | Public |
+| `/health` | `GET` | Container liveness probe | Public |
+| `/ready` | `GET` | Database connectivity readiness probe | Public |
+| `/api/metrics` | `GET` | Prometheus telemetry metrics | Public |
+| `/api/latest-version` | `GET` | Returns latest release from GitHub | Public |
+| `/api/changelog` | `GET` | Returns parsed markdown changelog | Public |
+| `/qr/<pattern>` | `GET` | Generates PNG QR code for shortcut | Public |
+| `/api/qr/<pattern>` | `GET` | Returns Base64-encoded QR code JSON | Public |
+| `/api/r-status` | `GET` | Tests local `r` hostname resolution | Public |
+| `/dashboard-shortcuts` | `GET` | Returns paginated/filtered shortcuts JSON | Public |
+| `/api/delete-shortcut/<pattern>` | `POST` | Deletes shortcut directly via API | Admin |
 
 - Reference static assets in templates using:
   ```html

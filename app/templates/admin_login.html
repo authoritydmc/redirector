@@ -40,49 +40,27 @@
     <script>
       document.getElementById('passkey-login-btn').addEventListener('click', async () => {
         if (!window.PublicKeyCredential) { alert('Passkeys not supported in this browser'); return; }
-        const ids = {{ passkey_ids|tojson|safe if passkey_ids else '[]' }};
         try {
-          // Simple demo: prompt for credentialId - in production WebAuthn would use challenge
-          // For now, we request user to select a stored passkey via browser
-          // Since we store credentialId as string, we can trigger get() with allowCredentials
           const challenge = new Uint8Array(32);
           window.crypto.getRandomValues(challenge);
-          const allowCredentials = ids.map(id => ({
-            id: Uint8Array.from(atob(id.replace(/-/g,'+').replace(/_/g,'/')), c=>c.charCodeAt(0)),
-            type: 'public-key'
-          }));
-          // If no allowCredentials, trigger generic get
           const opts = {
             publicKey: {
               challenge: challenge,
               timeout: 60000,
-              userVerification: "preferred",
-              ...(allowCredentials.length ? {allowCredentials} : {})
+              userVerification: "preferred"
             }
           };
           const cred = await navigator.credentials.get(opts);
-          if (cred) {
-            // For demo, send base64 credential id
+          if (cred && cred.rawId) {
             const credIdB64 = btoa(String.fromCharCode(...new Uint8Array(cred.rawId))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-            // Try to match stored id; if not found, send raw
             document.getElementById('passkey_credential').value = credIdB64;
-            // Also allow any stored id for fallback demo: if credId not in list, try raw first stored
-            if (!ids.includes(credIdB64) && ids.length>0) {
-              // For demo purposes, accept first passkey if browser returned something
-              document.getElementById('passkey_credential').value = ids[0];
-            }
             document.getElementById('admin-login-form').submit();
           } else {
-            alert('No credential found');
+            alert('No passkey credential returned by authenticator.');
           }
         } catch (e) {
-          console.error(e);
-          // Fallback simple prompt for demo (allows testing without real WebAuthn setup)
-          const manual = prompt('Enter passkey ID (demo fallback) or press Cancel:', ids[0]||'');
-          if (manual) {
-            document.getElementById('passkey_credential').value = manual;
-            document.getElementById('admin-login-form').submit();
-          }
+          console.error('Passkey verification error:', e);
+          alert('Passkey authentication failed or was cancelled.');
         }
       });
     </script>

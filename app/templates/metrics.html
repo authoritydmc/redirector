@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block title %}Metrics — KPIs for your team{% endblock %}
+{% block content %}
+
+<div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+  <div>
+    <h1 class="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+      <i class="fa-solid fa-chart-line text-blue-500"></i> Team KPIs
+    </h1>
+    <p class="text-sm text-gray-500 dark:text-white/50 mt-1">
+      {% if kpi %}Snapshot taken {{ kpi.generated_at }}{% else %}Metrics unavailable{% endif %}
+      · <a href="/metrics/live" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">Open realtime view →</a>
+    </p>
+  </div>
+  <a href="/metrics" class="sm:ml-auto bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 dark:hover:bg-white/20 text-gray-900 dark:text-white flex items-center gap-2 w-fit">
+    <i class="fa-solid fa-rotate"></i> Refresh
+  </a>
+</div>
+
+{% if not kpi %}
+<div class="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl p-5 text-red-700 dark:text-red-300 font-semibold">
+  <i class="fa-solid fa-triangle-exclamation"></i> Could not collect metrics. Check the application logs and try again.
+</div>
+{% else %}
+{% set o = kpi.overview %}
+
+<!-- Overview -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60 flex items-center gap-1.5"><i class="fa-solid fa-link text-blue-500"></i> Total shortcuts</p>
+    <p class="text-3xl font-black text-gray-900 dark:text-white mt-1">{{ o.total_shortcuts }}</p>
+    <p class="text-xs text-gray-400 dark:text-white/40 mt-1">+{{ o.created_30d }} in last 30 days</p>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60 flex items-center gap-1.5"><i class="fa-solid fa-arrow-pointer text-green-500"></i> Total hits</p>
+    <p class="text-3xl font-black text-gray-900 dark:text-white mt-1">{{ o.total_hits }}</p>
+    <p class="text-xs text-gray-400 dark:text-white/40 mt-1">avg {{ o.avg_hits }} per shortcut</p>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60 flex items-center gap-1.5"><i class="fa-solid fa-fire text-orange-500"></i> Most popular</p>
+    <p class="text-lg font-black truncate text-gray-900 dark:text-white mt-1">{% if o.most_popular %}<span class="font-mono">r/{{ o.most_popular.pattern }}</span>{% else %}—{% endif %}</p>
+    <p class="text-xs text-gray-400 dark:text-white/40 mt-1">{% if o.most_popular %}{{ o.most_popular.hits }} hits{% else %}No data yet{% endif %}</p>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60 flex items-center gap-1.5"><i class="fa-solid fa-moon text-purple-500"></i> Never used</p>
+    <p class="text-3xl font-black text-gray-900 dark:text-white mt-1">{{ o.zero_hit_count }}</p>
+    <p class="text-xs text-gray-400 dark:text-white/40 mt-1">{{ o.zero_hit_pct }}% of all shortcuts</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">Created · 7 days</p>
+    <p class="text-2xl font-black text-gray-900 dark:text-white">{{ o.created_7d }}</p>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">Created · 30 days</p>
+    <p class="text-2xl font-black text-gray-900 dark:text-white">{{ o.created_30d }}</p>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">Expired links</p>
+    <p class="text-2xl font-black text-gray-900 dark:text-white">{{ kpi.tables.expired_count }}</p>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl p-4 border border-gray-200 dark:border-white/10 shadow-sm">
+    <p class="text-xs text-gray-500 dark:text-white/60">Expiring in 7 days</p>
+    <p class="text-2xl font-black text-gray-900 dark:text-white">{{ kpi.tables.expiring_7d }}</p>
+  </div>
+</div>
+
+<!-- Creation chart -->
+<div class="bg-white dark:bg-[#1c1f2e] rounded-2xl shadow border border-gray-200 dark:border-white/10 p-5 mb-6">
+  <h2 class="font-black text-gray-900 dark:text-white flex items-center gap-2 mb-1"><i class="fa-solid fa-chart-column text-blue-500"></i> Shortcuts created · last 30 days</h2>
+  <p class="text-xs text-gray-400 dark:text-white/40 mb-4">Hit counts are lifetime totals, not daily events — the app records cumulative hits per shortcut, so a per-day hits chart would be misleading.</p>
+  {% set peak = kpi.created_series | map(attribute='created') | max %}
+  <div class="flex items-end gap-[3px] h-32" role="img" aria-label="Shortcuts created per day">
+    {% for d in kpi.created_series %}
+    <div class="flex-1 flex flex-col justify-end h-full" title="{{ d.day }}: {{ d.created }} created">
+      <div class="rounded-t bg-blue-500/80 dark:bg-blue-500/70 hover:bg-blue-500 min-h-[3px]" style="height: {{ (100 * d.created / peak) if peak else 0 }}%"></div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="flex justify-between text-[11px] text-gray-400 dark:text-white/40 mt-1">
+    <span>{{ kpi.created_series[0].day }}</span><span>{{ kpi.created_series[-1].day }}</span>
+  </div>
+</div>
+
+<div class="grid lg:grid-cols-2 gap-6 mb-6">
+  <!-- Mix -->
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl shadow border border-gray-200 dark:border-white/10 overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-200 dark:border-white/10"><h2 class="font-black text-gray-900 dark:text-white"><i class="fa-solid fa-layer-group text-purple-500"></i> Content mix</h2></div>
+    <div class="p-5 space-y-5">
+      <div>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-white/40 mb-2">By type</h3>
+        {% for row in kpi.breakdowns.by_type %}
+        <div class="flex items-center gap-2 text-sm py-1">
+          <span class="font-mono font-bold text-gray-900 dark:text-white w-28 truncate">{{ row.type }}</span>
+          <div class="flex-1 h-2 rounded bg-gray-100 dark:bg-white/10 overflow-hidden"><div class="h-full bg-purple-500" style="width: {{ (100 * row.shortcuts / o.total_shortcuts) if o.total_shortcuts else 0 }}%"></div></div>
+          <span class="text-gray-500 dark:text-white/60 w-24 text-right">{{ row.shortcuts }} · {{ row.hits }} hits</span>
+        </div>
+        {% else %}<p class="text-sm text-gray-400">No shortcuts yet.</p>{% endfor %}
+      </div>
+      <div>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-white/40 mb-2">By visibility</h3>
+        {% for row in kpi.breakdowns.by_visibility %}
+        <div class="flex items-center gap-2 text-sm py-1">
+          <span class="font-semibold text-gray-900 dark:text-white w-28">{{ row.visibility }}</span>
+          <div class="flex-1 h-2 rounded bg-gray-100 dark:bg-white/10 overflow-hidden"><div class="h-full bg-emerald-500" style="width: {{ (100 * row.shortcuts / o.total_shortcuts) if o.total_shortcuts else 0 }}%"></div></div>
+          <span class="text-gray-500 dark:text-white/60 w-16 text-right">{{ row.shortcuts }}</span>
+        </div>
+        {% else %}<p class="text-sm text-gray-400">No shortcuts yet.</p>{% endfor %}
+      </div>
+      <div>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-white/40 mb-2">Hit distribution</h3>
+        {% for row in kpi.breakdowns.hit_buckets %}
+        <div class="flex items-center gap-2 text-sm py-1">
+          <span class="font-mono text-gray-900 dark:text-white w-28">{{ row.bucket }} hits</span>
+          <div class="flex-1 h-2 rounded bg-gray-100 dark:bg-white/10 overflow-hidden"><div class="h-full bg-amber-500" style="width: {{ (100 * row.shortcuts / o.total_shortcuts) if o.total_shortcuts else 0 }}%"></div></div>
+          <span class="text-gray-500 dark:text-white/60 w-16 text-right">{{ row.shortcuts }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% if kpi.breakdowns.top_tags %}
+      <div>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-white/40 mb-2">Top tags</h3>
+        <div class="flex flex-wrap gap-2">
+          {% for t in kpi.breakdowns.top_tags %}
+          <span class="text-xs px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 font-semibold">{{ t.tag }} · {{ t.shortcuts }}</span>
+          {% endfor %}
+        </div>
+      </div>
+<!-- Cache -->
+{% set c = kpi.cache %}
+<div class="bg-white dark:bg-[#1c1f2e] rounded-2xl shadow border border-gray-200 dark:border-white/10 overflow-hidden mb-6">
+  <div class="px-5 py-4 border-b border-gray-200 dark:border-white/10"><h2 class="font-black text-gray-900 dark:text-white"><i class="fa-solid fa-bolt text-amber-500"></i> Cache performance</h2></div>
+  <div class="p-5 grid sm:grid-cols-2 gap-6">
+    <div>
+      <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-white/40 mb-2">Redis shared cache</h3>
+      {% if c.redis.connected %}
+      <p class="text-3xl font-black text-gray-900 dark:text-white">{{ c.redis.hit_rate }}<span class="text-base font-bold text-gray-400">% hit rate</span></p>
+      <div class="flex h-3 rounded-full overflow-hidden bg-gray-100 dark:bg-white/10 mt-2">
+        <div class="bg-emerald-500" style="width: {{ c.redis.hit_rate }}%"></div>
+        <div class="bg-red-400" style="width: {{ 100 - c.redis.hit_rate }}%"></div>
+      </div>
+      <p class="text-sm text-gray-500 dark:text-white/60 mt-2"><span class="font-bold text-emerald-600 dark:text-emerald-400">{{ c.redis.hits }} hits</span> · <span class="font-bold text-red-500">{{ c.redis.misses }} misses</span></p>
+      {% else %}
+      <p class="text-3xl font-black text-gray-300 dark:text-white/20">—</p>
+      <p class="text-sm text-gray-400 dark:text-white/40 mt-1">Redis is disabled or unreachable, so no shared-cache stats exist. Upstream results still cache in SQLite below.</p>
+      {% endif %}
+    </div>
+    <div>
+      <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-white/40 mb-2">Upstream check cache</h3>
+      <p class="text-3xl font-black text-gray-900 dark:text-white">{{ c.upstream.hit_rate }}<span class="text-base font-bold text-gray-400">% hit rate</span></p>
+      <div class="flex h-3 rounded-full overflow-hidden bg-gray-100 dark:bg-white/10 mt-2">
+        <div class="bg-emerald-500" style="width: {{ c.upstream.hit_rate }}%"></div>
+        <div class="bg-red-400" style="width: {{ 100 - c.upstream.hit_rate }}%"></div>
+      </div>
+      <p class="text-sm text-gray-500 dark:text-white/60 mt-2"><span class="font-bold text-emerald-600 dark:text-emerald-400">{{ c.upstream.hits }} served from cache</span> · <span class="font-bold text-red-500">{{ c.upstream.misses }} fresh checks</span></p>
+    </div>
+  </div>
+</div>
+{% endif %}
+    </div>
+  </div>
+
+  <!-- System -->
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl shadow border border-gray-200 dark:border-white/10 overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-200 dark:border-white/10"><h2 class="font-black text-gray-900 dark:text-white"><i class="fa-solid fa-server text-green-500"></i> Instance health</h2></div>
+    <dl class="p-5 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+      {% set s = kpi.system %}
+      <div><dt class="text-xs text-gray-500 dark:text-white/40">Version</dt><dd class="font-mono font-bold text-gray-900 dark:text-white">{{ s.version }}</dd></div>
+      <div><dt class="text-xs text-gray-500 dark:text-white/40">Schema</dt><dd class="font-mono font-bold text-gray-900 dark:text-white">{{ s.schema_current or '—' }} <span class="text-xs font-normal">({{ s.schema_drift }})</span></dd></div>
+      <div><dt class="text-xs text-gray-500 dark:text-white/40">Uptime</dt><dd class="font-bold text-gray-900 dark:text-white">{% if s.uptime_seconds is not none %}{{ (s.uptime_seconds // 3600) }}h {{ ((s.uptime_seconds % 3600) // 60) }}m{% else %}—{% endif %}</dd></div>
+      <div><dt class="text-xs text-gray-500 dark:text-white/40">Memory (RSS)</dt><dd class="font-bold text-gray-900 dark:text-white">{{ s.memory_mb ~ ' MB' if s.memory_mb is not none else '—' }}</dd></div>
+      <div><dt class="text-xs text-gray-500 dark:text-white/40">CPU</dt><dd class="font-bold text-gray-900 dark:text-white">{{ s.cpu_percent ~ '%' if s.cpu_percent is not none else '—' }}</dd></div>
+      <div><dt class="text-xs text-gray-500 dark:text-white/40">Disk free</dt><dd class="font-bold text-gray-900 dark:text-white">{{ s.disk_free_mb ~ ' MB' if s.disk_free_mb is not none else '—' }}</dd></div>
+      <div><dt class="text-xs text-gray-500 dark:text-white/40">Database size</dt><dd class="font-bold text-gray-900 dark:text-white">{{ s.db_size_kb ~ ' KB' if s.db_size_kb is not none else '—' }}</dd></div>
+      <div><dt class="text-xs text-gray-500 dark:text-white/40">Redis</dt><dd class="font-bold text-gray-900 dark:text-white">{{ 'enabled' if s.redis_enabled else 'disabled' }}</dd></div>
+      <div><dt class="text-xs text-gray-500 dark:text-white/40">Running in</dt><dd class="font-bold text-gray-900 dark:text-white">{{ 'Docker' if s.in_docker else 'host process' }}</dd></div>
+      <div><dt class="text-xs text-gray-500 dark:text-white/40">User params</dt><dd class="font-bold text-gray-900 dark:text-white">{{ kpi.content.user_params }}</dd></div>
+    </dl>
+    <div class="px-5 pb-5 flex flex-wrap gap-2 text-xs">
+      <a href="/system-info" class="px-3 py-1.5 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 font-semibold text-gray-700 dark:text-white">System info</a>
+      <a href="/health" class="px-3 py-1.5 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 font-semibold text-gray-700 dark:text-white">Health probe</a>
+      <a href="/admin/backup" class="px-3 py-1.5 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 font-semibold text-gray-700 dark:text-white">Backup &amp; restore</a>
+    </div>
+  </div>
+</div>
+
+<!-- Top + recent -->
+<div class="grid lg:grid-cols-2 gap-6 mb-6">
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl shadow border border-gray-200 dark:border-white/10 overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-200 dark:border-white/10"><h2 class="font-black text-gray-900 dark:text-white"><i class="fa-solid fa-trophy text-amber-500"></i> Top 10 by hits</h2></div>
+    <div class="overflow-x-auto"><table class="w-full text-sm">
+      <thead class="bg-gray-50 dark:bg-white/5 text-xs text-gray-500 dark:text-white/40"><tr><th class="text-left px-5 py-2">#</th><th class="text-left px-2 py-2">Shortcut</th><th class="text-right px-5 py-2">Hits</th></tr></thead>
+      <tbody>
+        {% for r in kpi.tables.top %}
+        <tr class="border-t border-gray-100 dark:border-white/5">
+          <td class="px-5 py-2 text-gray-400">{{ loop.index }}</td>
+          <td class="px-2 py-2 font-mono font-bold text-gray-900 dark:text-white truncate max-w-[220px]"><a class="hover:underline" href="/{{ r.pattern }}">r/{{ r.pattern }}</a></td>
+          <td class="px-5 py-2 text-right font-bold text-gray-900 dark:text-white">{{ r.hits }}</td>
+        </tr>
+        {% else %}<tr><td colspan="3" class="px-5 py-4 text-gray-400">No shortcuts yet.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+  <div class="bg-white dark:bg-[#1c1f2e] rounded-2xl shadow border border-gray-200 dark:border-white/10 overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-200 dark:border-white/10"><h2 class="font-black text-gray-900 dark:text-white"><i class="fa-solid fa-clock-rotate-left text-blue-500"></i> Recently updated</h2></div>
+    <div class="overflow-x-auto"><table class="w-full text-sm">
+      <thead class="bg-gray-50 dark:bg-white/5 text-xs text-gray-500 dark:text-white/40"><tr><th class="text-left px-5 py-2">Shortcut</th><th class="text-right px-2 py-2">Hits</th><th class="text-right px-5 py-2">Updated</th></tr></thead>
+      <tbody>
+        {% for r in kpi.tables.recent %}
+        <tr class="border-t border-gray-100 dark:border-white/5">
+          <td class="px-5 py-2 font-mono font-bold text-gray-900 dark:text-white truncate max-w-[200px]"><a class="hover:underline" href="/{{ r.pattern }}">r/{{ r.pattern }}</a></td>
+          <td class="px-2 py-2 text-right text-gray-700 dark:text-white/70">{{ r.hits }}</td>
+          <td class="px-5 py-2 text-right text-xs text-gray-500 dark:text-white/50">{{ r.updated_at }}</td>
+        </tr>
+        {% else %}<tr><td colspan="3" class="px-5 py-4 text-gray-400">No shortcuts yet.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- Upstream -->
+{% set u = kpi.upstream %}
+<div class="bg-white dark:bg-[#1c1f2e] rounded-2xl shadow border border-gray-200 dark:border-white/10 overflow-hidden mb-6">
+  <div class="px-5 py-4 border-b border-gray-200 dark:border-white/10 flex items-center gap-2">
+    <h2 class="font-black text-gray-900 dark:text-white"><i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> Upstream health</h2>
+    <span class="ml-auto text-xs text-gray-500 dark:text-white/50">{{ u.cached_entries }} cached · {{ u.total_checks }} checks across {{ u.logged_checks }} upstreams</span>
+  </div>
+  <div class="p-5 grid lg:grid-cols-2 gap-6">
+    <div>
+      <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-white/40 mb-2">Check results</h3>
+      {% for row in u.results %}
+      <div class="flex items-center gap-2 text-sm py-1">
+        <span class="font-semibold text-gray-900 dark:text-white w-32 truncate">{{ row.result }}</span>
+        <div class="flex-1 h-2 rounded bg-gray-100 dark:bg-white/10 overflow-hidden"><div class="h-full bg-blue-500" style="width: {{ (100 * row.checks / u.total_checks) if u.total_checks else 0 }}%"></div></div>
+        <span class="text-gray-500 dark:text-white/60 w-16 text-right">{{ row.checks }}</span>
+      </div>
+      {% else %}<p class="text-sm text-gray-400">No upstream checks recorded yet.</p>{% endfor %}
+      <p class="text-xs text-gray-400 dark:text-white/40 mt-3">{{ u.cached_checks }} of {{ u.logged_checks }} checks served from cache.</p>
+    </div>
+    <div>
+      <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-white/40 mb-2">Latest checks</h3>
+      {% for c in u.recent %}
+      <div class="flex items-center gap-2 text-sm py-1 border-b border-gray-50 dark:border-white/5">
+        <span class="font-mono font-bold text-gray-900 dark:text-white truncate max-w-[160px]">{{ c.pattern }}</span>
+        <span class="text-xs text-gray-500 dark:text-white/50 truncate">{{ c.upstream }}</span>
+        <span class="ml-auto text-xs px-2 py-0.5 rounded-full font-bold {% if c.result == 'ok' %}bg-emerald-500/10 text-emerald-600 dark:text-emerald-400{% else %}bg-amber-500/10 text-amber-600 dark:text-amber-400{% endif %}">{{ c.result }}</span>
+      </div>
+      {% else %}<p class="text-sm text-gray-400">No upstream checks recorded yet.</p>{% endfor %}
+      <a href="/admin/upstream-logs" class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold mt-2 inline-block">Full upstream logs →</a>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
