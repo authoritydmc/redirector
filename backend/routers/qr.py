@@ -7,9 +7,11 @@ import base64
 import io
 import re
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Query, Request, status
 from fastapi.responses import Response
 from pydantic import BaseModel
+
+from backend.core.errors import AppError
 
 router = APIRouter(tags=["qr"])
 
@@ -38,9 +40,11 @@ def _generate_qr_png_bytes(content: str) -> bytes:
         img.save(buf, format="PNG")
         return buf.getvalue()
     except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise AppError(
+            "QR generation failed",
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"QR generation failed: {exc}",
+            code="qr:generation-failed",
         ) from None
 
 

@@ -5,10 +5,11 @@ Docs: /docs (Swagger), /openapi.json
 """
 
 import logging
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 
 from backend.core.config import settings
 from backend.core.errors import register_error_handlers
@@ -22,6 +23,7 @@ from backend.routers import shortcuts as shortcuts_router
 from backend.routers import upstreams as upstreams_router
 
 logger = logging.getLogger("redirector")
+access_logger = logging.getLogger("redirector.access")
 
 
 def configure_logging() -> None:
@@ -59,6 +61,23 @@ def create_app() -> FastAPI:
         ],
     )
     register_error_handlers(app)
+
+    @app.middleware("http")
+    async def access_log(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        start = time.perf_counter()
+        response = await call_next(request)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        access_logger.info(
+            "%s %s -> %s %.1fms",
+            request.method,
+            request.url.path,
+            response.status_code,
+            elapsed_ms,
+        )
+        return response
+
     app.include_router(health.router)
     app.include_router(auth_router.router)
     app.include_router(config_router.router)

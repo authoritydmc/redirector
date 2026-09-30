@@ -12,12 +12,13 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.cache import MemoryCache
 from backend.core.db import get_session
+from backend.core.errors import AppError
 from backend.models.entities import Shortcut, as_utc
 from backend.modules.shortcuts.repository import (
     SQLAlchemyShortcutRepository,
@@ -70,15 +71,19 @@ async def create_shortcut(
 ) -> ShortcutRead:
     clean_pat = sanitize_pattern(body.pattern)
     if not clean_pat:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        raise AppError(
+            "Invalid shortcut pattern",
+            status=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid pattern: must be alphanumeric or contain - _ . /",
+            code="shortcuts:invalid-pattern",
         )
     existing, _ = await repo.lookup(clean_pat)
     if existing is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+        raise AppError(
+            "Shortcut already exists",
+            status=status.HTTP_409_CONFLICT,
             detail=f"Shortcut with pattern '{clean_pat}' already exists",
+            code="shortcuts:conflict",
         )
 
     exp = None
@@ -86,9 +91,11 @@ async def create_shortcut(
         try:
             exp = datetime.fromisoformat(body.expires_at.replace("Z", "+00:00"))
         except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            raise AppError(
+                "Invalid expiry timestamp",
+                status=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="expires_at must be an ISO 8601 timestamp string",
+                code="shortcuts:invalid-expires-at",
             ) from None
 
     sc = Shortcut(
@@ -104,9 +111,11 @@ async def create_shortcut(
         created = await repo.create(sc)
     except IntegrityError:
         # Lost the check-then-insert race with a concurrent create.
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+        raise AppError(
+            "Shortcut already exists",
+            status=status.HTTP_409_CONFLICT,
             detail=f"Shortcut with pattern '{clean_pat}' already exists",
+            code="shortcuts:conflict",
         ) from None
     return ShortcutRead.model_validate(created)
 
@@ -139,9 +148,11 @@ async def get_shortcut(
 ) -> ShortcutRead:
     sc, _ = await repo.lookup(pattern)
     if sc is None or not isinstance(sc, Shortcut):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+        raise AppError(
+            "Shortcut not found",
+            status=status.HTTP_404_NOT_FOUND,
             detail=f"Shortcut '{pattern}' not found",
+            code="shortcuts:not-found",
         )
     return ShortcutRead.model_validate(sc)
 
@@ -159,16 +170,20 @@ async def update_shortcut(
                 datetime.fromisoformat(data["expires_at"].replace("Z", "+00:00"))
             )
         except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            raise AppError(
+                "Invalid expiry timestamp",
+                status=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="expires_at must be an ISO 8601 timestamp string",
+                code="shortcuts:invalid-expires-at",
             ) from None
 
     updated = await repo.update(pattern, data)
     if updated is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+        raise AppError(
+            "Shortcut not found",
+            status=status.HTTP_404_NOT_FOUND,
             detail=f"Shortcut '{pattern}' not found",
+            code="shortcuts:not-found",
         )
     return ShortcutRead.model_validate(updated)
 
@@ -180,8 +195,10 @@ async def delete_shortcut(
 ) -> None:
     deleted = await repo.delete(pattern)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+        raise AppError(
+            "Shortcut not found",
+            status=status.HTTP_404_NOT_FOUND,
             detail=f"Shortcut '{pattern}' not found",
+            code="shortcuts:not-found",
         )
     return None

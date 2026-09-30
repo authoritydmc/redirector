@@ -45,7 +45,7 @@ export REDIRECTOR_AUTO_REDIRECT_DELAY=0   # instant 302s; default 1 = countdown 
 | `REDIRECTOR_DATA_DIR` | `./data` | Readiness probe file lives here |
 | `REDIRECTOR_DATABASE_URL` | `sqlite+aiosqlite:///./data/redirect.db` | `asyncpg` URL for Postgres |
 | `REDIRECTOR_REDIS_URL` | `redis://localhost:6379/0` | Reserved for EPIC-04 cache |
-| `REDIRECTOR_LOG_LEVEL` | `INFO` | stdlib logging, `%(asctime)s %(levelname)s [%(name)s]` |
+| `REDIRECTOR_LOG_LEVEL` | `INFO` | stdlib logging, `%(asctime)s %(levelname)s [%(name)s]`; per-request access lines on `redirector.access` |
 | `REDIRECTOR_AUTO_REDIRECT_DELAY` | `1` | Seconds before redirect; `0` = instant 302 |
 | `REDIRECTOR_ADMIN_PASSWORD` | `admin` | Change in production |
 | `REDIRECTOR_JWT_SECRET` | insecure dev default | Change in production |

@@ -25,6 +25,7 @@ class AppError(Exception):
         *,
         suggestions: list[Any] | None = None,
         missing_params: list[str] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         super().__init__(title)
         self.title = title
@@ -33,6 +34,7 @@ class AppError(Exception):
         self.code = code or f"error:{status}"
         self.suggestions = suggestions or []
         self.missing_params = missing_params or []
+        self.headers = headers
 
     def to_problem(self) -> dict[str, Any]:
         return {
@@ -51,6 +53,7 @@ async def _app_error_handler(_request: Request, exc: AppError) -> JSONResponse:
         status_code=exc.status,
         content=exc.to_problem(),
         media_type="application/problem+json",
+        headers=exc.headers,
     )
 
 

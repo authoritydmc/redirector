@@ -161,3 +161,13 @@ def test_create_rejects_malformed_expires_at(client):
         "pattern": "badexp", "target": "https://example.com", "expires_at": "not-a-date",
     })
     assert res.status_code == 422
+
+
+def test_not_found_uses_problem_envelope(client):
+    res = client.get("/api/v1/shortcuts/nope")
+    assert res.status_code == 404
+    assert res.headers["content-type"] == "application/problem+json"
+    body = res.json()
+    assert body["code"] == "shortcuts:not-found"
+    assert body["status"] == 404
+    assert body["title"] == "Shortcut not found"

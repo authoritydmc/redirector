@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
 
 from backend.core.config import settings
+from backend.core.errors import AppError
 from backend.core.security import create_access_token, get_current_admin, verify_password
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -32,9 +33,11 @@ class CurrentUserResponse(BaseModel):
 async def login(request: LoginRequest) -> TokenResponse:
     """Authenticate admin password and return JWT access token."""
     if not verify_password(request.password, settings.admin_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+        raise AppError(
+            "Invalid credentials",
+            status=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect password",
+            code="auth:bad-credentials",
         )
 
     token = create_access_token(data={"sub": "admin", "role": "admin"})

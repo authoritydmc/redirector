@@ -2,6 +2,7 @@
 (e.g. main-branch CI, which only installs the Flask requirements)."""
 
 import json
+import logging
 import re
 
 import pytest
@@ -91,3 +92,14 @@ def test_openapi_refs_resolve(client):
     refs = set(re.findall(r"#/components/schemas/(\w+)", json.dumps(spec)))
     assert refs, "expected $ref schemas in spec"
     assert refs <= schemas, f"dangling refs: {refs - schemas}"
+
+
+def test_access_log_emits_method_path_status(client, caplog):
+    with caplog.at_level(logging.INFO, logger="redirector.access"):
+        assert client.get("/healthz").status_code == 200
+    assert any(
+        r.name == "redirector.access"
+        and "GET /healthz" in r.getMessage()
+        and "200" in r.getMessage()
+        for r in caplog.records
+    ), "expected one redirector.access record for the request"

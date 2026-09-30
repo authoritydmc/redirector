@@ -6,12 +6,13 @@ import json
 from collections.abc import AsyncIterator
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.db import get_session
+from backend.core.errors import AppError
 from backend.models.entities import Upstream
 from backend.modules.upstreams.repository import UpstreamRepository
 from backend.modules.upstreams.schemas import (
@@ -45,9 +46,11 @@ async def create_upstream(
 ) -> UpstreamRead:
     existing = await repo.get_by_name(body.name)
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+        raise AppError(
+            "Upstream already exists",
+            status=status.HTTP_409_CONFLICT,
             detail=f"Upstream with name '{body.name}' already exists",
+            code="upstreams:conflict",
         )
     up = Upstream(
         name=body.name.strip(),
@@ -61,9 +64,11 @@ async def create_upstream(
         return UpstreamRead.model_validate(await repo.create(up))
     except IntegrityError:
         # Lost the check-then-insert race with a concurrent create.
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+        raise AppError(
+            "Upstream already exists",
+            status=status.HTTP_409_CONFLICT,
             detail=f"Upstream with name '{body.name}' already exists",
+            code="upstreams:conflict",
         ) from None
 
 
@@ -105,9 +110,11 @@ async def resync_upstream_cache(
     """
     upstream = await repo.get_by_name(body.upstream)
     if upstream is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+        raise AppError(
+            "Upstream not found",
+            status=status.HTTP_404_NOT_FOUND,
             detail=f"Upstream '{body.upstream}' not found",
+            code="upstreams:not-found",
         )
     if body.pattern:
         patterns = [body.pattern.strip().strip("/")]
@@ -193,9 +200,11 @@ async def update_upstream(
 ) -> UpstreamRead:
     updated = await repo.update(upstream_id, body.model_dump(exclude_unset=True))
     if not updated:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+        raise AppError(
+            "Upstream not found",
+            status=status.HTTP_404_NOT_FOUND,
             detail=f"Upstream id {upstream_id} not found",
+            code="upstreams:not-found",
         )
     return UpstreamRead.model_validate(updated)
 
@@ -207,9 +216,11 @@ async def delete_upstream(
 ) -> None:
     deleted = await repo.delete(upstream_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+        raise AppError(
+            "Upstream not found",
+            status=status.HTTP_404_NOT_FOUND,
             detail=f"Upstream id {upstream_id} not found",
+            code="upstreams:not-found",
         )
     return None
 
