@@ -1,5 +1,8 @@
 fastapi>=0.115
-uvicorn[standard]>=0.30
+# uvloop (in uvicorn[standard]) ships no Windows wheels; Windows dev keeps
+# h11+httptools while Linux/Docker/CI get the full standard stack.
+uvicorn[standard]>=0.30; sys_platform != "win32"
+uvicorn>=0.30; sys_platform == "win32"
 pydantic>=2.8
 pydantic-settings>=2.5
 sqlmodel>=0.0.22

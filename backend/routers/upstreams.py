@@ -56,6 +56,35 @@ async def create_upstream(
     return UpstreamRead.model_validate(await repo.create(up))
 
 
+@router.get("/cache", response_model=list[UpstreamCacheEntry], summary="List cached upstream shortcuts")
+async def list_upstream_cache(
+    upstream: str | None = Query(None, description="Filter by upstream name"),
+    repo: UpstreamRepository = Depends(get_upstream_repo),
+) -> list[UpstreamCacheEntry]:
+    rows = await repo.list_cache(upstream_name=upstream)
+    return [
+        UpstreamCacheEntry(
+            pattern=r.pattern,
+            upstream_name=r.upstream_name,
+            resolved_url=r.resolved_url,
+            checked_at=r.checked_at.isoformat(),
+        )
+        for r in rows
+    ]
+
+
+@router.delete("/cache", summary="Purge upstream shortcut cache")
+async def purge_upstream_cache(
+    upstream: str | None = Query(None, description="Purge specific upstream only, or all if omitted"),
+    repo: UpstreamRepository = Depends(get_upstream_repo),
+) -> dict[str, Any]:
+    count = await repo.purge_cache(upstream_name=upstream)
+    return {"success": True, "purged": count}
+
+
+# NOTE: static sub-paths (/cache, /check/...) must stay ABOVE /{upstream_id}:
+# Starlette matches in registration order and "cache" fails the int converter
+# with 422 instead of falling through to the later route.
 @router.patch("/{upstream_id}", response_model=UpstreamRead, summary="Update an upstream")
 async def update_upstream(
     upstream_id: int,
@@ -83,32 +112,6 @@ async def delete_upstream(
             detail=f"Upstream id {upstream_id} not found",
         )
     return None
-
-
-@router.get("/cache", response_model=list[UpstreamCacheEntry], summary="List cached upstream shortcuts")
-async def list_upstream_cache(
-    upstream: str | None = Query(None, description="Filter by upstream name"),
-    repo: UpstreamRepository = Depends(get_upstream_repo),
-) -> list[UpstreamCacheEntry]:
-    rows = await repo.list_cache(upstream_name=upstream)
-    return [
-        UpstreamCacheEntry(
-            pattern=r.pattern,
-            upstream_name=r.upstream_name,
-            resolved_url=r.resolved_url,
-            checked_at=r.checked_at.isoformat(),
-        )
-        for r in rows
-    ]
-
-
-@router.delete("/cache", summary="Purge upstream shortcut cache")
-async def purge_upstream_cache(
-    upstream: str | None = Query(None, description="Purge specific upstream only, or all if omitted"),
-    repo: UpstreamRepository = Depends(get_upstream_repo),
-) -> dict[str, Any]:
-    count = await repo.purge_cache(upstream_name=upstream)
-    return {"success": True, "purged": count}
 
 
 @router.get("/check/stream/{pattern:path}", summary="Stream real-time upstream resolution check via SSE")

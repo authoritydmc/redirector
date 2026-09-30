@@ -1,6 +1,44 @@
 # Load Testing with Locust
 
-This project includes a comprehensive Locust load testing script at `load_testing/locustfile.py` to simulate real-world usage and stress test all major shortcut and upstream features.
+This project includes two Locust scripts:
+- `load_testing/locustfile.py` — legacy v2 Flask routes (`/edit/…`, `/check-upstreams-ui`, `/admin/…`).
+- `load_testing/locustfile_v3.py` — v3 FastAPI backend (`/api/v1/*` + `/{pattern}` hot path).
+
+## v3 script (`locustfile_v3.py`)
+
+Covers shortcuts CRUD + bulk-delete, the resolve hot path (static, dynamic,
+user-dynamic, unknown → 404), upstreams CRUD + cache purge + SSE check stream,
+metrics (`/kpi`, `/live`), QR (`/api/v1/qr`, `/qr/<pattern>`), and ops probes
+(`/healthz`, `/health`, `/readyz`). Auth-gated admin/config endpoints are
+excluded on purpose — load runs target public/read paths.
+
+Run against a local v3 server:
+
+```sh
+# terminal 1: scratch DB with v3 tables, then boot the v3 API
+python -c "from sqlmodel import SQLModel, create_engine; import backend.models.entities; SQLModel.metadata.create_all(create_engine('sqlite:///./data/load.db')); print('tables ok')"
+export REDIRECTOR_DATABASE_URL="sqlite+aiosqlite:///./data/load.db"
+export REDIRECTOR_AUTO_REDIRECT_DELAY=0
+uvicorn backend.main:app --port 8123
+
+# terminal 2: headless smoke (4 users, 60s)
+locust -f load_testing/locustfile_v3.py --host=http://127.0.0.1:8123 \
+  --headless -u 4 -r 4 -t 60s
+```
+
+Or open the web UI: `locust -f load_testing/locustfile_v3.py --host=http://127.0.0.1:8123`
+then http://localhost:8089.
+
+Notes:
+- Use a scratch database (task names are uuid-suffixed and accumulate rows).
+- The SSE stream task performs real outbound HTTP to the seeded upstream, so
+  stream throughput tracks upstream latency — keep its weight low.
+- `GET /{pattern}` returns the countdown page when the redirect delay is > 0;
+  that is one HTML response server-side (the wait happens client-side).
+- Resolve tasks never follow redirects, so external targets see zero load
+  traffic and their status codes can't pollute the results.
+
+## v2 script (`locustfile.py`)
 
 ## Features Covered
 - Static, dynamic, and user-dynamic shortcut creation and redirection

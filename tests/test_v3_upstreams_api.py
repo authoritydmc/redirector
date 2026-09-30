@@ -81,3 +81,13 @@ def test_update_and_delete_upstream(client):
 
     # Now verify 404
     assert client.delete(f"/api/v1/upstreams/{uid}").status_code == 404
+
+
+def test_cache_routes_not_shadowed_by_upstream_id(client):
+    # Regression: DELETE /cache must not be swallowed by /{upstream_id:int}
+    # (Starlette matches in order; "cache" fails the int converter with 422).
+    assert client.get("/api/v1/upstreams/cache").status_code == 200
+
+    purge = client.delete("/api/v1/upstreams/cache")
+    assert purge.status_code == 200
+    assert purge.json() == {"success": True, "purged": 0}
