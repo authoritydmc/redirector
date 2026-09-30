@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     log_level: str = "INFO"
     auto_redirect_delay: int = 1  # seconds before redirect; 0 = instant 302
+    admin_password: str = "admin"
+    jwt_secret: str = "redirector-insecure-dev-secret-change-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 60
 
 
 @lru_cache

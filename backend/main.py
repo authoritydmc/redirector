@@ -9,8 +9,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from backend.core.config import settings
+from backend.routers import auth as auth_router
+from backend.routers import config as config_router
 from backend.routers import health
+from backend.routers import metrics as metrics_router
 from backend.routers import shortcuts as shortcuts_router
 from backend.routers import upstreams as upstreams_router
 from backend.routers import resolve as resolve_router
@@ -29,8 +31,11 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(health.router)
+    app.include_router(auth_router.router)
+    app.include_router(config_router.router)
     app.include_router(shortcuts_router.router)
     app.include_router(upstreams_router.router)
+    app.include_router(metrics_router.router)
     # Catch-all /{pattern} lives in resolve_router: register LAST so
     # /healthz, /docs, /openapi.json and /api/* keep matching first.
     app.include_router(resolve_router.router)
