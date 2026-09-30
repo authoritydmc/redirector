@@ -21,8 +21,9 @@ import argparse
 import json
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 TARGET_TABLES = ("shortcuts", "upstreams", "upstream_cache",
                  "upstream_check_log", "user_params", "settings")
@@ -32,7 +33,7 @@ def parse_dt(raw: object) -> datetime | None:
     if raw is None:
         return None
     if isinstance(raw, (int, float)):
-        return datetime.fromtimestamp(raw, tz=timezone.utc)
+        return datetime.fromtimestamp(raw, tz=UTC)
     text = str(raw).strip()
     if not text:
         return None
@@ -40,7 +41,7 @@ def parse_dt(raw: object) -> datetime | None:
         parsed = datetime.fromisoformat(text)
     except ValueError:
         return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
 def split_tags(raw: object) -> list[str]:
@@ -70,14 +71,14 @@ class ImportStats:
         return "\n".join(lines)
 
 
-def read_table(conn: sqlite3.Connection, name: str) -> list[dict]:
+def read_table(conn: sqlite3.Connection, name: str) -> list[dict[str, Any]]:
     """Return rows as dicts; [] when the table doesn't exist (older v2 DBs)."""
     tables = {row[0] for row in conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table'")}
     if name not in tables:
         return []
     cols = [info[1] for info in conn.execute(f"PRAGMA table_info({name})")]
-    return [dict(zip(cols, row)) for row in conn.execute(f"SELECT * FROM {name}")]
+    return [dict(zip(cols, row, strict=False)) for row in conn.execute(f"SELECT * FROM {name}")]
 
 
 def _to_sync_url(url: str) -> str:
@@ -89,7 +90,6 @@ def run_import(data_dir: Path, database_url: str, *, dry_run: bool = False) -> I
     from sqlmodel import Session, SQLModel, select
 
     from backend.models.entities import (
-        Setting,
         Shortcut,
         ShortcutType,
         Upstream,
@@ -133,8 +133,8 @@ def run_import(data_dir: Path, database_url: str, *, dry_run: bool = False) -> I
                 type=stype,
                 target=row.get("target") or "",
                 access_count=row.get("access_count") or 0,
-                created_at=parse_dt(row.get("created_at")) or datetime.now(timezone.utc),
-                updated_at=parse_dt(row.get("updated_at")) or datetime.now(timezone.utc),
+                created_at=parse_dt(row.get("created_at")) or datetime.now(UTC),
+                updated_at=parse_dt(row.get("updated_at")) or datetime.now(UTC),
                 created_ip=row.get("created_ip"),
                 updated_ip=row.get("updated_ip"),
                 tags=split_tags(row.get("tags")),
@@ -194,7 +194,7 @@ def run_import(data_dir: Path, database_url: str, *, dry_run: bool = False) -> I
             session.add(UpstreamCache(
                 pattern=key[0], upstream_name=key[1],
                 resolved_url=row.get("resolved_url"),
-                checked_at=parse_dt(row.get("checked_at")) or datetime.now(timezone.utc),
+                checked_at=parse_dt(row.get("checked_at")) or datetime.now(UTC),
             ))
             seen_cache.add(key)
             stats.add("upstream_cache", inserted=1)
@@ -210,7 +210,7 @@ def run_import(data_dir: Path, database_url: str, *, dry_run: bool = False) -> I
                 check_url=row.get("check_url"),
                 result=row.get("result"),
                 detail=row.get("detail"),
-                tried_at=parse_dt(row.get("tried_at")) or datetime.now(timezone.utc),
+                tried_at=parse_dt(row.get("tried_at")) or datetime.now(UTC),
                 count=row.get("count") or 1,
                 cached=bool(row.get("cached")),
             ))
@@ -227,8 +227,8 @@ def run_import(data_dir: Path, database_url: str, *, dry_run: bool = False) -> I
                 param_name=key[1],
                 description=row.get("description"),
                 required=bool(row.get("required", False)),
-                created_at=parse_dt(row.get("created_at")) or datetime.now(timezone.utc),
-                updated_at=parse_dt(row.get("updated_at")) or datetime.now(timezone.utc),
+                created_at=parse_dt(row.get("created_at")) or datetime.now(UTC),
+                updated_at=parse_dt(row.get("updated_at")) or datetime.now(UTC),
             ))
             seen_params.add(key)
             stats.add("user_params", inserted=1)

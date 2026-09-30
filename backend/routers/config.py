@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,9 +21,9 @@ class ConfigUpdate(BaseModel):
     settings: dict[str, Any]
 
 
-@router.get("")
+@router.get("", response_model=dict[str, Any], summary="Get system configuration")
 async def get_config(
-    _admin: Annotated[dict, Depends(get_current_admin)],
+    _admin: Annotated[dict[str, Any], Depends(get_current_admin)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     """Return active system configuration and stored settings."""
@@ -39,10 +39,10 @@ async def get_config(
     }
 
 
-@router.patch("")
+@router.patch("", response_model=dict[str, Any], summary="Update system settings")
 async def update_config(
     payload: ConfigUpdate,
-    _admin: Annotated[dict, Depends(get_current_admin)],
+    _admin: Annotated[dict[str, Any], Depends(get_current_admin)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     """Update settings entries in the database."""

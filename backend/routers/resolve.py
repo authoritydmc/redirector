@@ -17,7 +17,7 @@ from __future__ import annotations
 import html
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.cache import MemoryCache
@@ -38,7 +38,7 @@ async def get_repo(session: AsyncSession = Depends(get_session)) -> SQLAlchemySh
     return SQLAlchemyShortcutRepository(session, _memory_cache)
 
 
-def _no_store(response: JSONResponse | HTMLResponse, target: str | None) -> None:
+def _no_store(response: Response, target: str | None) -> None:
     if target and is_sso_url(target):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
@@ -55,7 +55,7 @@ def _countdown_page(target: str, delay: int, source: str | None) -> str:
 
 @router.get("/api/v1/resolve", summary="Resolve a subpath (debug)")
 async def api_resolve(pattern: str, request: Request,
-                      repo: SQLAlchemyShortcutRepository = Depends(get_repo)):
+                      repo: SQLAlchemyShortcutRepository = Depends(get_repo)) -> JSONResponse:
     res = await resolve(
         pattern, repo, countdown_delay=settings.auto_redirect_delay,
         client_ip=request.client.host if request.client else None,
@@ -65,18 +65,18 @@ async def api_resolve(pattern: str, request: Request,
 
 @router.get("/{pattern:path}", summary="Resolve and redirect a shortcut")
 async def redirect_shortcut(pattern: str, request: Request,
-                            repo: SQLAlchemyShortcutRepository = Depends(get_repo)):
+                            repo: SQLAlchemyShortcutRepository = Depends(get_repo)) -> Response:
     res = await resolve(
         pattern, repo, countdown_delay=settings.auto_redirect_delay,
         client_ip=request.client.host if request.client else None,
     )
     if res.outcome == "redirect":
         assert res.target is not None
+        resp: Response
         if res.countdown_delay > 0:
             resp = HTMLResponse(_countdown_page(res.target, res.countdown_delay, res.source))
         else:
-            from fastapi.responses import Response as PlainResponse
-            resp = PlainResponse(status_code=302, headers={"Location": res.target})
+            resp = Response(status_code=302, headers={"Location": res.target})
         _no_store(resp, res.target)
         return resp
     status = {"need_params": 422, "not_found": 404, "gone": 410,

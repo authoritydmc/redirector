@@ -73,8 +73,14 @@ jobs:
       - name: Install v3 backend deps
         run: |
           python -m pip install --upgrade pip
-          pip install pytest backend/requirements.txt
+          pip install pytest -r backend/requirements.txt
+          pip install ruff mypy
+      - name: "Backend v3 lint + types (EPIC-01 gate: ruff + mypy strict)"
+        run: |
+          export PYTHONPATH=$(pwd)
+          ruff check backend/
+          mypy backend/
       - name: Backend v3 tests (isolated process)
         run: |
           export PYTHONPATH=$(pwd)
-          pytest tests/test_backend_smoke.py tests/test_v3_models.py -v
+          pytest tests/test_backend_smoke.py tests/test_v3_models.py tests/test_v3_shortcuts_api.py tests/test_v3_upstreams_api.py tests/test_v3_upstream_check.py tests/test_v3_resolve.py tests/test_v3_auth_api.py tests/test_v3_metrics_api.py tests/test_v3_qr_api.py tests/test_v3_errors.py tests/test_import_v2.py -v

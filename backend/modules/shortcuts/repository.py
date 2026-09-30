@@ -9,8 +9,8 @@ v2 rules preserved:
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from typing import Protocol
+from datetime import UTC, datetime
+from typing import Any, Protocol
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +21,6 @@ from backend.models.entities import (
     ShortcutType,
     UpstreamCache,
     UserParam,
-    as_utc,
 )
 
 SHORTCUT_CACHE_PREFIX = "shortcut:"
@@ -59,7 +58,7 @@ class SQLAlchemyShortcutRepository:
         self.cache = cache
 
     @staticmethod
-    def _snapshot(row: Shortcut) -> dict:
+    def _snapshot(row: Shortcut) -> dict[str, Any]:
         return {
             "id": row.id,
             "pattern": row.pattern,
@@ -73,7 +72,7 @@ class SQLAlchemyShortcutRepository:
         }
 
     @staticmethod
-    def _from_snapshot(data: dict) -> Shortcut:
+    def _from_snapshot(data: dict[str, Any]) -> Shortcut:
         return Shortcut(
             id=data.get("id"),
             pattern=data["pattern"],
@@ -137,7 +136,7 @@ class SQLAlchemyShortcutRepository:
             select(Shortcut).where(Shortcut.pattern == pattern))).scalar_one_or_none()
         if row is not None:
             row.access_count = (row.access_count or 0) + 1
-            row.updated_at = datetime.now(timezone.utc)
+            row.updated_at = datetime.now(UTC)
             await self.session.commit()
 
     async def list_dynamic(self) -> list[Shortcut]:
@@ -205,7 +204,7 @@ class SQLAlchemyShortcutRepository:
         await self.cache.delete(f"{SHORTCUT_CACHE_PREFIX}{shortcut.pattern.lower()}")
         return shortcut
 
-    async def update(self, pattern: str, data: dict) -> Shortcut | None:
+    async def update(self, pattern: str, data: dict[str, Any]) -> Shortcut | None:
         row = (await self.session.execute(
             select(Shortcut).where(Shortcut.pattern == pattern.lower())
         )).scalar_one_or_none()
@@ -214,7 +213,7 @@ class SQLAlchemyShortcutRepository:
         for k, v in data.items():
             if v is not None and hasattr(row, k):
                 setattr(row, k, v)
-        row.updated_at = datetime.now(timezone.utc)
+        row.updated_at = datetime.now(UTC)
         await self.session.commit()
         await self.session.refresh(row)
         # Invalidate cache

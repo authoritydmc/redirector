@@ -9,16 +9,17 @@ Clean v3 schema — breaking from v2 on purpose (not yet public):
 v2 data comes over via a best-effort `import-v2` script, not a migration.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import JSON, Column, Enum as SAEnum, UniqueConstraint
+from sqlalchemy import JSON, Column, UniqueConstraint
+from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, SQLModel
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def as_utc(value: datetime | None) -> datetime | None:
@@ -28,7 +29,7 @@ def as_utc(value: datetime | None) -> datetime | None:
     """
     if value is None:
         return None
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 JSONValue = dict[str, Any] | list[Any] | str | int | float | bool | None

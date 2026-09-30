@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,7 +37,7 @@ class UpstreamRepository:
         await self.session.refresh(upstream)
         return upstream
 
-    async def update(self, upstream_id: int, data: dict) -> Upstream | None:
+    async def update(self, upstream_id: int, data: dict[str, Any]) -> Upstream | None:
         row = await self.get_by_id(upstream_id)
         if row is None:
             return None
@@ -92,7 +94,7 @@ class UpstreamRepository:
             )
         )).scalar_one_or_none()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if existing:
             existing.check_url = check_url
             existing.result = result

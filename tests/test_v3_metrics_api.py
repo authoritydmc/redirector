@@ -37,15 +37,15 @@ def test_metrics_kpi_endpoint(client):
     client.post("/api/v1/shortcuts", json={
         "pattern": "wiki",
         "target": "https://wiki.example.com",
-        "type": "direct",
+        "type": "static",
         "visibility": "public",
         "tags": ["docs", "infra"]
     })
     client.post("/api/v1/shortcuts", json={
         "pattern": "gh",
         "target": "https://github.com",
-        "type": "direct",
-        "visibility": "internal",
+        "type": "static",
+        "visibility": "private",
         "tags": ["code"]
     })
 

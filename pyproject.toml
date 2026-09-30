@@ -2,3 +2,41 @@
 name = "redirector"
 readme = "README.md"
 license = "MIT AND (Apache-2.0 OR BSD-2-Clause)"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["."]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+  "E501",  # line length gated by flake8 max-line-length instead
+  "B008",  # FastAPI Depends()/Query() in defaults is the documented DI idiom
+  "UP042",  # (str, Enum) mixin is intentional: SQLAlchemy SAEnum compat
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+show_error_codes = true
+ignore_missing_imports = true
+explicit_package_bases = true
+mypy_path = "."
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
+
+# SQLAlchemy/SQLModel expression typing (==, .in_, .desc(), func.*) is a known
+# mypy blind spot: column expressions type as bool/int/datetime. Carve out only
+# those two codes in the repository modules; everything else stays strict.
+[[tool.mypy.overrides]]
+module = [
+  "backend.modules.shortcuts.repository",
+  "backend.modules.upstreams.repository",
+]
+disable_error_code = ["arg-type", "attr-defined"]

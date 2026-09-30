@@ -10,9 +10,9 @@ Supports:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.cache import MemoryCache
@@ -23,7 +23,8 @@ from backend.modules.shortcuts.repository import (
     sanitize_pattern,
 )
 from backend.modules.shortcuts.schemas import (
-    Problem,
+    BulkDeleteRequest,
+    BulkDeleteResponse,
     ShortcutCreate,
     ShortcutListResponse,
     ShortcutRead,
@@ -45,9 +46,9 @@ async def list_shortcuts(
     pageSize: int = Query(20, ge=1, le=100, description="Items per page"),
     q: str = Query("", description="Search term across pattern and target"),
     tag: str = Query("", description="Filter by tag"),
-    sort: str = Query("updated_at", regex="^(updated_at|created_at|popular)$"),
+    sort: str = Query("updated_at", pattern="^(updated_at|created_at|popular)$"),
     repo: SQLAlchemyShortcutRepository = Depends(get_repo),
-):
+) -> ShortcutListResponse:
     rows, total = await repo.list_paged(
         page=page, page_size=pageSize, query=q, tag=tag, sort_by=sort
     )
@@ -65,7 +66,7 @@ async def list_shortcuts(
 async def create_shortcut(
     body: ShortcutCreate,
     repo: SQLAlchemyShortcutRepository = Depends(get_repo),
-):
+) -> ShortcutRead:
     clean_pat = sanitize_pattern(body.pattern)
     if not clean_pat:
         raise HTTPException(
@@ -87,7 +88,7 @@ async def create_shortcut(
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="expires_at must be an ISO 8601 timestamp string",
-            )
+            ) from None
 
     sc = Shortcut(
         pattern=clean_pat,
@@ -102,11 +103,32 @@ async def create_shortcut(
     return ShortcutRead.model_validate(created)
 
 
+@router.post("/bulk-delete", response_model=BulkDeleteResponse, summary="Bulk delete shortcuts")
+async def bulk_delete_shortcuts(
+    body: BulkDeleteRequest,
+    repo: SQLAlchemyShortcutRepository = Depends(get_repo),
+) -> BulkDeleteResponse:
+    deleted: list[str] = []
+    not_found: list[str] = []
+    for pat in body.patterns:
+        clean = sanitize_pattern(pat)
+        if not clean:
+            not_found.append(pat)
+            continue
+        success = await repo.delete(clean)
+        if success:
+            deleted.append(clean)
+        else:
+            not_found.append(clean)
+
+    return BulkDeleteResponse(deleted=deleted, not_found=not_found, count=len(deleted))
+
+
 @router.get("/{pattern:path}", response_model=ShortcutRead, summary="Get shortcut details")
 async def get_shortcut(
     pattern: str,
     repo: SQLAlchemyShortcutRepository = Depends(get_repo),
-):
+) -> ShortcutRead:
     sc, _ = await repo.lookup(pattern)
     if sc is None or not isinstance(sc, Shortcut):
         raise HTTPException(
@@ -121,7 +143,7 @@ async def update_shortcut(
     pattern: str,
     body: ShortcutUpdate,
     repo: SQLAlchemyShortcutRepository = Depends(get_repo),
-):
+) -> ShortcutRead:
     data = body.model_dump(exclude_unset=True)
     if "expires_at" in data and data["expires_at"]:
         try:
@@ -132,7 +154,7 @@ async def update_shortcut(
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="expires_at must be an ISO 8601 timestamp string",
-            )
+            ) from None
 
     updated = await repo.update(pattern, data)
     if updated is None:
@@ -147,7 +169,7 @@ async def update_shortcut(
 async def delete_shortcut(
     pattern: str,
     repo: SQLAlchemyShortcutRepository = Depends(get_repo),
-):
+) -> None:
     deleted = await repo.delete(pattern)
     if not deleted:
         raise HTTPException(

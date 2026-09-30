@@ -98,7 +98,10 @@ async def resolve(
     is_admin: bool = False,
 ) -> Resolution:
     start = time.monotonic()
-    elapsed = lambda: round(time.monotonic() - start, 6)  # noqa: E731
+
+    def elapsed() -> float:
+        return round(time.monotonic() - start, 6)
+
     sanitized = normalize_subpath(subpath)
     if not sanitized:
         return Resolution(outcome="not_found", elapsed=elapsed())

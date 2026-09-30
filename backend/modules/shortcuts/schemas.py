@@ -44,6 +44,16 @@ class ShortcutListResponse(BaseModel):
     meta: dict[str, int | str]
 
 
+class BulkDeleteRequest(BaseModel):
+    patterns: list[str]
+
+
+class BulkDeleteResponse(BaseModel):
+    deleted: list[str]
+    not_found: list[str]
+    count: int
+
+
 class Resolution(BaseModel):
     """Outcome of resolving a subpath. `outcome` drives client behavior."""
 

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from datetime import UTC, datetime, timedelta
+from typing import Annotated, Any
 
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-import jwt
 
 from backend.core.config import settings
 
@@ -20,19 +20,19 @@ def verify_password(plain_password: str, expected_password: str) -> bool:
     return secrets.compare_digest(plain_password, expected_password)
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     """Generate encoded JWT access token."""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
+        expire = datetime.now(UTC) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
     return encoded_jwt
 
 
-def decode_access_token(token: str) -> dict:
+def decode_access_token(token: str) -> dict[str, Any]:
     """Decode and validate JWT access token."""
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
@@ -42,12 +42,12 @@ def decode_access_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
 
 async def get_current_admin(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
-) -> dict:
+) -> dict[str, Any]:
     """FastAPI dependency requiring valid admin JWT bearer token."""
     if not credentials or credentials.scheme.lower() != "bearer":
         raise HTTPException(

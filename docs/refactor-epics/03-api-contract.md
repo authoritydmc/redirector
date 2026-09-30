@@ -1,0 +1,44 @@
+# [EPIC-03] API contract: versioning, pagination, error envelope
+
+> **Labels:** `epic`, `backend`, `api-design` · **Parent:** EPIC-MASTER · **Estimate:** M (1–2 weeks, but blocks EPIC-01/02)
+
+## Problem
+Today's "API" is accidental: `GET /dashboard-shortcuts`, `POST /api/delete-shortcut/<pattern>`, `GET /api/metrics`, `GET /api/qr/<pattern>` — inconsistent verbs, no versioning, no pagination contract, HTML and JSON mixed in same blueprints (`routes/`, `redirection_routes.py`, `upstream_routes.py`, `mfa_routes.py`, `version_routes.py`, `metrics_routes.py`, `backup_routes.py`).
+
+## Proposal
+Contract-first under `/api/v1`, designed alongside EPIC-01, consumed by EPIC-02:
+
+| Area | Endpoints |
+|---|---|
+| Redirect (hot) | `GET /{pattern}` (HTML/302, **unversioned** — permanent), `GET /api/v1/resolve?pattern=` (JSON debug) |
+| Shortcuts | `GET/POST /api/v1/shortcuts`, `GET/PATCH/DELETE /api/v1/shortcuts/{pattern}`, `POST /api/v1/shortcuts:bulk-delete` |
+| Upstreams | `GET/POST /api/v1/upstreams`, `PATCH/DELETE /api/v1/upstreams/{id}`, `POST /api/v1/upstreams/check` (SSE stream), `GET/DELETE /api/v1/upstream-cache` |
+| Auth | `POST /api/v1/auth/login`, `/mfa/verify`, `/mfa/setup`, `POST /api/v1/auth/api-keys` |
+| Admin | `GET/PATCH /api/v1/admin/config`, `GET /api/v1/admin/redis`, `POST /api/v1/admin/backup`, import/export |
+| Ops | `GET /healthz`, `/readyz`, `GET /api/v1/metrics` (Prometheus text + JSON), `GET /api/v1/version`, `GET /api/v1/qr?pattern=` |
+
+Standards:
+- **Envelope:** success `{data, meta:{page,pageSize,total}}`; errors RFC 7807 `{type,title,status,detail,instance,code}`. No bare strings.
+- **Pagination:** `?page=&pageSize=&q=&sort=` everywhere list-like (cursor pagination for >10k rows — shortcuts table will grow).
+- **Validation:** Pydantic schemas are the contract; OpenAPI published at `/api/docs`; breaking change ⇒ `/api/v2`.
+- **Idempotency:** `Idempotency-Key` header on create/import; bulk ops return per-item results.
+
+## Acceptance criteria
+- [ ] `openapi.json` committed + diff-checked in CI (fail on unreviewed contract change).
+- [ ] Generated TS client (`frontend/src/lib/api.ts`) compiles; no hand-written endpoint strings in React.
+- [ ] Legacy endpoints shimmed with `Deprecation: true` header + sunset date, mapped in EPIC-08.
+- [ ] Contract tests (schemathesis / schemathesis-style snapshot) green.
+
+## Tasks
+- [ ] 1. Inventory every current route (method+path+auth+shape) into `docs/api-inventory.md`.
+- [ ] 2. Write OpenAPI-first YAML for `/api/v1` (review with frontend before coding).
+- [ ] 3. Define error codes catalog (`SHORTCUT_CONFLICT_UPSTREAM`, `MFA_REQUIRED`, …).
+- [ ] 4. Pagination + filtering spec (incl. `q` semantics: prefix vs substring).
+- [ ] 5. Auth scheme for API (Bearer JWT + API keys, scopes) — coordinate EPIC-05.
+- [ ] 6. Deprecation map: old path → new path + Sunset header.
+
+## `gh` snippet
+```bash
+gh issue create --title "[EPIC-03] API contract: versioning, pagination, error envelope" \
+  --label "epic,backend" --body-file docs/refactor-epics/03-api-contract.md
+```

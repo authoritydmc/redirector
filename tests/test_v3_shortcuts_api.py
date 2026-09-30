@@ -111,3 +111,35 @@ def test_delete_shortcut(client):
 
     # Verify 404
     assert client.get("/api/v1/shortcuts/deleteme").status_code == 404
+
+
+def test_bulk_delete_shortcuts(client):
+    client.post("/api/v1/shortcuts", json={"pattern": "bulk-1", "target": "https://1.com"})
+    client.post("/api/v1/shortcuts", json={"pattern": "bulk-2", "target": "https://2.com"})
+
+    res = client.post("/api/v1/shortcuts/bulk-delete", json={"patterns": ["bulk-1", "bulk-2", "nonexistent"]})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["count"] == 2
+    assert "bulk-1" in data["deleted"]
+    assert "bulk-2" in data["deleted"]
+    assert "nonexistent" in data["not_found"]
+
+
+def test_bulk_delete_empty_list_is_noop(client):
+    res = client.post("/api/v1/shortcuts/bulk-delete", json={"patterns": []})
+    assert res.status_code == 200
+    assert res.json() == {"deleted": [], "not_found": [], "count": 0}
+
+
+def test_bulk_delete_invalid_patterns_reported_not_found(client):
+    res = client.post("/api/v1/shortcuts/bulk-delete", json={"patterns": ["!!!", ""]})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["count"] == 0
+    assert len(data["not_found"]) == 2
+
+
+def test_bulk_delete_requires_patterns_field(client):
+    res = client.post("/api/v1/shortcuts/bulk-delete", json={})
+    assert res.status_code == 422

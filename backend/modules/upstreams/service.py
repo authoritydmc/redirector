@@ -32,13 +32,14 @@ class UpstreamCheckService:
 
         check_url = f"{base}/{pattern.strip().strip('/')}"
 
+        # httpx takes `verify` at the client level, not per request: use a
+        # dedicated insecure client for upstreams that opt out of TLS verify.
         try:
-            resp = await client.get(
-                check_url,
-                follow_redirects=True,
-                timeout=5.0,
-                verify=upstream.verify_ssl,
-            )
+            if upstream.verify_ssl:
+                resp = await client.get(check_url, follow_redirects=True, timeout=3.0)
+            else:
+                async with httpx.AsyncClient(verify=False, timeout=3.0) as insecure_client:
+                    resp = await insecure_client.get(check_url, follow_redirects=True)
             actual_url = str(resp.url)
             status_code = resp.status_code
 

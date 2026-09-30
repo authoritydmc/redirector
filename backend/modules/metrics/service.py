@@ -2,23 +2,31 @@
 
 from __future__ import annotations
 
-from collections import Counter
-from datetime import datetime, timedelta, timezone
 import os
 import platform
 import time
+from collections import Counter
+from datetime import datetime, timedelta
+from typing import Any
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import settings
-from backend.models.entities import Shortcut, Upstream, UpstreamCache, UpstreamCheckLog, as_utc, utcnow
+from backend.models.entities import (
+    Shortcut,
+    Upstream,
+    UpstreamCache,
+    as_utc,
+    utcnow,
+)
 
 
 class MetricsService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_kpi_metrics(self) -> dict:
+    async def get_kpi_metrics(self) -> dict[str, Any]:
         now = utcnow()
         rows_res = await self.session.execute(select(Shortcut))
         rows = list(rows_res.scalars().all())
@@ -30,16 +38,20 @@ class MetricsService:
 
         week_ago = now - timedelta(days=7)
         month_ago = now - timedelta(days=30)
-        created_7d = sum(1 for r in rows if r.created_at and as_utc(r.created_at) >= week_ago)
-        created_30d = sum(1 for r in rows if r.created_at and as_utc(r.created_at) >= month_ago)
+
+        def _created_at(r: Shortcut) -> datetime:
+            return as_utc(r.created_at) or now
+
+        created_7d = sum(1 for r in rows if _created_at(r) >= week_ago)
+        created_30d = sum(1 for r in rows if _created_at(r) >= month_ago)
 
         top = max(rows, key=lambda r: r.access_count or 0, default=None)
 
         # Breakdowns
-        by_type = Counter()
-        type_hits = Counter()
-        by_visibility = Counter()
-        tag_counter = Counter()
+        by_type: Counter[str] = Counter()
+        type_hits: Counter[str] = Counter()
+        by_visibility: Counter[str] = Counter()
+        tag_counter: Counter[str] = Counter()
         buckets = {"0": 0, "1-10": 0, "11-100": 0, "101+": 0}
 
         for r in rows:
@@ -66,8 +78,12 @@ class MetricsService:
                 buckets["101+"] += 1
 
         # Upstream metrics
-        upstreams_count = (await self.session.execute(select(func.count(Upstream.id)))).scalar() or 0
-        upstream_cache_count = (await self.session.execute(select(func.count(UpstreamCache.pattern)))).scalar() or 0
+        upstreams_count = (
+            await self.session.execute(select(func.count()).select_from(Upstream))
+        ).scalar() or 0
+        upstream_cache_count = (
+            await self.session.execute(select(func.count()).select_from(UpstreamCache))
+        ).scalar() or 0
 
         return {
             "overview": {
@@ -106,11 +122,15 @@ class MetricsService:
             },
         }
 
-    async def get_live_metrics(self) -> dict:
-        sc_count = (await self.session.execute(select(func.count(Shortcut.id)))).scalar() or 0
-        hits_sum = (await self.session.execute(select(func.sum(Shortcut.access_count)))).scalar() or 0
+    async def get_live_metrics(self) -> dict[str, Any]:
+        sc_count = (
+            await self.session.execute(select(func.count()).select_from(Shortcut))
+        ).scalar() or 0
+        hits_sum = (
+            await self.session.execute(select(func.sum(Shortcut.access_count)))
+        ).scalar() or 0
 
-        proc_info = {
+        proc_info: dict[str, Any] = {
             "version": settings.app_version,
             "python": platform.python_version(),
             "platform": platform.platform(),

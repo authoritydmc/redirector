@@ -1,5 +1,7 @@
 """Liveness + readiness. No auth, no DB required for /healthz."""
 
+import asyncio
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -17,6 +19,7 @@ class Readiness(BaseModel):
 
 
 @router.get("/healthz", response_model=Health, summary="Liveness probe")
+@router.get("/health", response_model=Health, summary="Liveness probe (alias)")
 async def healthz() -> Health:
     return Health()
 
@@ -25,15 +28,18 @@ async def healthz() -> Health:
 async def readyz() -> Readiness:
     from backend.core.config import settings  # local import: keeps router import cheap
 
-    writable = False
-    try:
-        settings.data_dir.mkdir(parents=True, exist_ok=True)
-        probe = settings.data_dir / ".readyz-probe"
-        probe.touch()
-        probe.unlink()
-        writable = True
-    except OSError:
-        writable = False
+    def _probe() -> bool:
+        try:
+            settings.data_dir.mkdir(parents=True, exist_ok=True)
+            probe = settings.data_dir / ".readyz-probe"
+            probe.touch()
+            probe.unlink()
+            return True
+        except OSError:
+            return False
+
+    # Filesystem I/O is sync — run off the event loop.
+    writable = await asyncio.to_thread(_probe)
     return Readiness(
         status="ready" if writable else "degraded",
         version=settings.app_version,

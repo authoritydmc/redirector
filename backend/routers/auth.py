@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -42,6 +42,6 @@ async def login(request: LoginRequest) -> TokenResponse:
 
 
 @router.get("/me", response_model=CurrentUserResponse)
-async def get_me(admin: Annotated[dict, Depends(get_current_admin)]) -> CurrentUserResponse:
+async def get_me(admin: Annotated[dict[str, Any], Depends(get_current_admin)]) -> CurrentUserResponse:
     """Return currently authenticated identity."""
     return CurrentUserResponse(role=admin["role"], sub=admin["sub"])
