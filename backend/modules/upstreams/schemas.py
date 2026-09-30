@@ -73,3 +73,20 @@ class CacheResyncResponse(BaseModel):
     updated: int
     cleared: int
     results: list[CacheResyncResult]
+
+
+class CheckLogEntry(BaseModel):
+    id: int | None = None
+    pattern: str
+    upstream_name: str
+    check_url: str | None = None
+    result: str | None = None
+    detail: str | None = None
+    tried_at: str
+    count: int = 1
+    cached: bool = False
+
+
+class CachePurgeResult(BaseModel):
+    success: bool
+    purged: int

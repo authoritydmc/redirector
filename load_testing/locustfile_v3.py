@@ -165,6 +165,30 @@ class V3ApiTasks(TaskSet):
         self.client.get(f"/qr/{pattern}", name="/qr/<pattern>")
 
     @task(1)
+    def cache_resync_and_entry_purge(self) -> None:
+        name = _uid("loadresync")
+        created = self.client.post(
+            "/api/v1/upstreams",
+            json={"name": name, "base_url": "https://example.com"},
+            name="/api/v1/upstreams [POST]",
+        )
+        if created.status_code != 201:
+            return
+        uid = created.json()["id"]
+        # Single outbound check per resync; entry purge exercises the row path.
+        self.client.post(
+            "/api/v1/upstreams/cache/resync",
+            json={"upstream": name, "pattern": "home"},
+            name="/api/v1/upstreams/cache/resync",
+        )
+        self.client.delete(
+            f"/api/v1/upstreams/cache/{name}/home",
+            name="/api/v1/upstreams/cache/<upstream>/<pattern> [DELETE]",
+        )
+        self.client.get("/api/v1/upstreams/check-logs", name="/api/v1/upstreams/check-logs")
+        self.client.delete(f"/api/v1/upstreams/{uid}", name="/api/v1/upstreams/<id> [DELETE]")
+
+    @task(1)
     def ops_probes(self) -> None:
         self.client.get("/healthz")
         self.client.get("/health")

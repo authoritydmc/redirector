@@ -37,21 +37,26 @@ Key decisions:
 - **Delete gevent/gunicorn**; serve with `uvicorn[standard]` (h11+httptools+uvloop). Dockerfile CMD change only.
 - Replace `requests` with `httpx.AsyncClient` (shared, pooled, timeout预算 3s default).
 
-## Acceptance criteria
-- [ ] `GET /{pattern}`, CRUD shortcuts, upstream CRUD, auth, metrics all served by FastAPI with OpenAPI coverage.
-- [ ] Zero `gevent` / `monkey` imports; `grep -r gevent backend/` empty.
-- [ ] Zero blocking `requests` in request handlers; `httpx` async only.
-- [ ] `pytest` suite runs without Redis/DB (fake cache + sqlite memory via DI override).
-- [ ] Ruff + mypy strict pass on `backend/`.
+## Acceptance criteria (status on `v3/epic-01-backend-foundation`)
+- [x] `GET /{pattern}`, CRUD shortcuts, upstream CRUD, auth, metrics all served by FastAPI with OpenAPI coverage.
+- [x] Zero `gevent` / `monkey` imports; `grep -r gevent backend/` empty.
+- [x] Zero blocking `requests` in request handlers; `httpx` async only.
+- [x] `pytest` suite runs without Redis/DB (fake cache + sqlite memory via DI override).
+- [x] Ruff + mypy strict pass on `backend/` (narrow carve-outs for SQLAlchemy
+  expression typing, documented in `pyproject.toml`; gated in `validate.yml`).
 
 ## Phased tasks
-- [ ] 1. Scaffold `backend/main.py` + health/ready (`/healthz`, `/readyz`) + structured logging.
-- [ ] 2. Port `core/config.py` (pydantic-settings) with v2 `redirect.config.json` importer (backward compat).
-- [ ] 3. SQLModel entities (clean v3 schema — breaks allowed, see EPIC-04) + async engine/session DI.
-- [ ] 4. Port `redirects` hot path first (highest value), then shortcuts CRUD, then upstreams, then admin/misc.
-- [ ] 5. Replace `requests` → `httpx` in upstream + version checks.
+- [x] 1. Scaffold `backend/main.py` + health/ready (`/healthz`, `/readyz`) + structured logging.
+  (Lifespan migrate → seed → warm cache is EPIC-04.)
+- [x] 2. Port `core/config.py` (pydantic-settings) with v2 `redirect.config.json` importer (backward compat).
+- [x] 3. SQLModel entities (clean v3 schema — breaks allowed, see EPIC-04) + async engine/session DI.
+- [x] 4. Port `redirects` hot path first (highest value), then shortcuts CRUD, then upstreams, then admin/misc.
+- [x] 5. Replace `requests` → `httpx` in upstream + version checks.
 - [ ] 6. Wire `arq` (or `dramatiq`) for resync/purge; remove in-request bulk loops.
+  (Resync/purge/bulk-delete ship inline for admin-scale use; graduate to
+  workers in EPIC-04/06 if they outgrow request scope.)
 - [ ] 7. Dockerfile + compose update (uvicorn workers, `--loop uvloop`).
+  (Blocked on EPIC-08 M3 — the image still boots gunicorn/gevent for v2.)
 
 ## Out of scope
 - React SPA (EPIC-02); FastAPI initially renders nothing — serve legacy Flask templates via proxy (see EPIC-08).

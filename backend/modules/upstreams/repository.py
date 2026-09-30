@@ -157,3 +157,23 @@ class UpstreamRepository:
             )
             self.session.add(log_entry)
         await self.session.commit()
+
+    async def list_check_logs(
+        self, upstream_name: str | None = None, limit: int = 50
+    ) -> list[UpstreamCheckLog]:
+        """Most-recent check logs, newest first (v2 upstream-logs view)."""
+        stmt = select(UpstreamCheckLog)
+        if upstream_name:
+            stmt = stmt.where(UpstreamCheckLog.upstream_name == upstream_name)
+        stmt = stmt.order_by(UpstreamCheckLog.tried_at.desc()).limit(limit)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def clear_check_logs(self, upstream_name: str | None = None) -> int:
+        """Delete check logs (v2 clear-upstream-logs); returns rows removed."""
+        stmt = delete(UpstreamCheckLog)
+        if upstream_name:
+            stmt = stmt.where(UpstreamCheckLog.upstream_name == upstream_name)
+        result = await self.session.execute(stmt)
+        await self.session.commit()
+        return result.rowcount

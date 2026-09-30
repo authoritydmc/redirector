@@ -7,10 +7,11 @@ This project includes two Locust scripts:
 ## v3 script (`locustfile_v3.py`)
 
 Covers shortcuts CRUD + bulk-delete, the resolve hot path (static, dynamic,
-user-dynamic, unknown → 404), upstreams CRUD + cache purge + SSE check stream,
-metrics (`/kpi`, `/live`), QR (`/api/v1/qr`, `/qr/<pattern>`), and ops probes
-(`/healthz`, `/health`, `/readyz`). Auth-gated admin/config endpoints are
-excluded on purpose — load runs target public/read paths.
+user-dynamic, unknown → 404), upstreams CRUD + cache purge/entry-purge/resync
++ check-logs + SSE check stream, metrics (`/kpi`, `/live`), QR
+(`/api/v1/qr`, `/qr/<pattern>`), and ops probes (`/healthz`, `/health`,
+`/readyz`). Auth-gated admin/config endpoints are excluded on purpose —
+load runs target public/read paths.
 
 Run against a local v3 server:
 

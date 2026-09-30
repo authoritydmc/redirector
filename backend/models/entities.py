@@ -87,6 +87,9 @@ class Upstream(SQLModel, table=True):
     fail_url: str | None = Field(default=None)
     fail_status_code: int | None = Field(default=None)
     verify_ssl: bool = Field(default=True)
+    # Informational: SSO/login targets are NEVER cached or served, for every
+    # upstream (see is_sso_url guards in repository/service). Kept for v2
+    # config compat; setting it changes nothing.
     skip_sso_cache: bool = Field(default=False)
 
 

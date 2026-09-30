@@ -28,7 +28,7 @@ class CurrentUserResponse(BaseModel):
     sub: str
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse, summary="Admin login")
 async def login(request: LoginRequest) -> TokenResponse:
     """Authenticate admin password and return JWT access token."""
     if not verify_password(request.password, settings.admin_password):
@@ -41,7 +41,7 @@ async def login(request: LoginRequest) -> TokenResponse:
     return TokenResponse(access_token=token, role="admin")
 
 
-@router.get("/me", response_model=CurrentUserResponse)
+@router.get("/me", response_model=CurrentUserResponse, summary="Current admin")
 async def get_me(admin: Annotated[dict[str, Any], Depends(get_current_admin)]) -> CurrentUserResponse:
     """Return currently authenticated identity."""
     return CurrentUserResponse(role=admin["role"], sub=admin["sub"])

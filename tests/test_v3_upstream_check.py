@@ -305,3 +305,91 @@ def test_resync_unknown_upstream_404() -> None:
             json={"upstream": "nope", "pattern": "x"},
         )
         assert res.status_code == 404
+
+
+def test_purge_single_cache_entry(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("httpx.AsyncClient", RoutingClient)
+    with _api_client() as client:
+        _seed_upstream(client)
+        assert client.post(
+            "/api/v1/upstreams/cache/resync",
+            json={"upstream": "wiki", "pattern": "good"},
+        ).status_code == 200
+
+        purged = client.delete("/api/v1/upstreams/cache/wiki/good")
+        assert purged.status_code == 200
+        assert purged.json() == {"success": True, "purged": 1}
+        assert client.get("/api/v1/upstreams/cache").json() == []
+
+        # Idempotent: missing entry purges nothing.
+        again = client.delete("/api/v1/upstreams/cache/wiki/good")
+        assert again.json() == {"success": True, "purged": 0}
+
+
+def test_check_logs_list_and_filter(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("httpx.AsyncClient", RoutingClient)
+    with _api_client() as client:
+        _seed_upstream(client)
+        client.post(
+            "/api/v1/upstreams/cache/resync",
+            json={"upstream": "wiki", "pattern": "good"},
+        )
+        client.post(
+            "/api/v1/upstreams/cache/resync",
+            json={"upstream": "wiki", "pattern": "gone"},
+        )
+
+        logs = client.get("/api/v1/upstreams/check-logs").json()
+        by_pattern = {e["pattern"]: e for e in logs}
+        assert by_pattern["good"]["result"] == "success"
+        assert by_pattern["gone"]["result"] == "not_found"
+        assert all(e["upstream_name"] == "wiki" for e in logs)
+
+        filtered = client.get("/api/v1/upstreams/check-logs?upstream=other").json()
+        assert filtered == []
+
+        limited = client.get("/api/v1/upstreams/check-logs?limit=1").json()
+        assert len(limited) == 1
+
+
+def test_clear_check_logs(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("httpx.AsyncClient", RoutingClient)
+    with _api_client() as client:
+        _seed_upstream(client)
+        client.post(
+            "/api/v1/upstreams/cache/resync",
+            json={"upstream": "wiki", "pattern": "good"},
+        )
+        assert len(client.get("/api/v1/upstreams/check-logs").json()) > 0
+
+        # Filtered clear leaves other upstreams alone (none here: 0).
+        assert client.delete("/api/v1/upstreams/check-logs?upstream=other").json() == {
+            "success": True,
+            "purged": 0,
+        }
+
+        cleared = client.delete("/api/v1/upstreams/check-logs").json()
+        assert cleared["success"] is True
+        assert cleared["purged"] >= 1
+        assert client.get("/api/v1/upstreams/check-logs").json() == []
+
+
+def test_sso_outcome_is_never_cached(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SSO/login targets must never land in the cache, whatever the
+    upstream's skip_sso_cache flag says (default False here)."""
+
+    class SsoClient(RoutingClient):
+        async def get(self, url: str, **kwargs: Any) -> FakeResp:
+            self.calls.append(url)
+            return FakeResp("https://login.example/sso?x=1", 200)
+
+    monkeypatch.setattr("httpx.AsyncClient", SsoClient)
+    with _api_client() as client:
+        _seed_upstream(client)
+        res = client.post(
+            "/api/v1/upstreams/cache/resync",
+            json={"upstream": "wiki", "pattern": "sso-page"},
+        ).json()
+        assert res["updated"] == 0
+        assert res["results"][0]["status"] == "sso_required"
+        assert client.get("/api/v1/upstreams/cache").json() == []

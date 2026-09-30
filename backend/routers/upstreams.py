@@ -4,19 +4,21 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
-from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.db import get_session
 from backend.models.entities import Upstream
 from backend.modules.upstreams.repository import UpstreamRepository
 from backend.modules.upstreams.schemas import (
+    CachePurgeResult,
     CacheResyncRequest,
     CacheResyncResponse,
+    CheckLogEntry,
     UpstreamCacheEntry,
     UpstreamCreate,
     UpstreamRead,
@@ -55,7 +57,14 @@ async def create_upstream(
         verify_ssl=body.verify_ssl,
         skip_sso_cache=body.skip_sso_cache,
     )
-    return UpstreamRead.model_validate(await repo.create(up))
+    try:
+        return UpstreamRead.model_validate(await repo.create(up))
+    except IntegrityError:
+        # Lost the check-then-insert race with a concurrent create.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Upstream with name '{body.name}' already exists",
+        ) from None
 
 
 @router.get("/cache", response_model=list[UpstreamCacheEntry], summary="List cached upstream shortcuts")
@@ -75,13 +84,13 @@ async def list_upstream_cache(
     ]
 
 
-@router.delete("/cache", summary="Purge upstream shortcut cache")
+@router.delete("/cache", response_model=CachePurgeResult, summary="Purge upstream shortcut cache")
 async def purge_upstream_cache(
     upstream: str | None = Query(None, description="Purge specific upstream only, or all if omitted"),
     repo: UpstreamRepository = Depends(get_upstream_repo),
-) -> dict[str, Any]:
+) -> CachePurgeResult:
     count = await repo.purge_cache(upstream_name=upstream)
-    return {"success": True, "purged": count}
+    return CachePurgeResult(success=True, purged=count)
 
 
 @router.post("/cache/resync", response_model=CacheResyncResponse, summary="Resync upstream cache")
@@ -117,6 +126,60 @@ async def resync_upstream_cache(
         cleared=cleared,
         results=results,
     )
+
+
+@router.delete(
+    "/cache/{upstream}/{pattern:path}",
+    response_model=CachePurgeResult,
+    summary="Purge one cached upstream entry",
+)
+async def purge_cache_entry(
+    upstream: str,
+    pattern: str,
+    repo: UpstreamRepository = Depends(get_upstream_repo),
+) -> CachePurgeResult:
+    deleted = await repo.clear_cache_entry(pattern, upstream)
+    return CachePurgeResult(success=True, purged=1 if deleted else 0)
+
+
+@router.get(
+    "/check-logs",
+    response_model=list[CheckLogEntry],
+    summary="List upstream check logs",
+)
+async def list_check_logs(
+    upstream: str | None = Query(None, description="Filter by upstream name"),
+    limit: int = Query(50, ge=1, le=200, description="Max entries, newest first"),
+    repo: UpstreamRepository = Depends(get_upstream_repo),
+) -> list[CheckLogEntry]:
+    rows = await repo.list_check_logs(upstream_name=upstream, limit=limit)
+    return [
+        CheckLogEntry(
+            id=r.id,
+            pattern=r.pattern,
+            upstream_name=r.upstream_name,
+            check_url=r.check_url,
+            result=r.result,
+            detail=r.detail,
+            tried_at=r.tried_at.isoformat(),
+            count=r.count,
+            cached=r.cached,
+        )
+        for r in rows
+    ]
+
+
+@router.delete(
+    "/check-logs",
+    response_model=CachePurgeResult,
+    summary="Clear upstream check logs",
+)
+async def clear_check_logs(
+    upstream: str | None = Query(None, description="Clear one upstream only, or all if omitted"),
+    repo: UpstreamRepository = Depends(get_upstream_repo),
+) -> CachePurgeResult:
+    count = await repo.clear_check_logs(upstream_name=upstream)
+    return CachePurgeResult(success=True, purged=count)
 
 
 # NOTE: static sub-paths (/cache, /check/...) must stay ABOVE /{upstream_id}:

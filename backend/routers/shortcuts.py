@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.cache import MemoryCache
@@ -99,7 +100,14 @@ async def create_shortcut(
         expires_at=as_utc(exp),
         owner_email=body.owner_email,
     )
-    created = await repo.create(sc)
+    try:
+        created = await repo.create(sc)
+    except IntegrityError:
+        # Lost the check-then-insert race with a concurrent create.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Shortcut with pattern '{clean_pat}' already exists",
+        ) from None
     return ShortcutRead.model_validate(created)
 
 
