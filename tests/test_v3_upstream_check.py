@@ -131,7 +131,7 @@ def test_check_insecure_upstream_uses_dedicated_client(
     assert seen.get("verify") is False
 
 
-def _sse_client() -> TestClient:
+def _api_client() -> TestClient:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     factory = async_sessionmaker(engine, expire_on_commit=False)
     app = create_app()
@@ -158,7 +158,7 @@ def test_stream_endpoint_emits_result_and_done(monkeypatch: pytest.MonkeyPatch) 
             return None
 
     monkeypatch.setattr("httpx.AsyncClient", StreamClient)
-    with _sse_client() as client:
+    with _api_client() as client:
         created = client.post(
             "/api/v1/upstreams", json={"name": "wiki", "base_url": "https://wiki.example"}
         )
@@ -175,3 +175,133 @@ def test_stream_endpoint_emits_result_and_done(monkeypatch: pytest.MonkeyPatch) 
         assert payloads[0]["message"].startswith("Starting check")
         assert any(p.get("status") == "found" for p in payloads)
         assert payloads[-1] == {"done": True}
+
+
+class RoutingClient:
+    """Fake httpx.AsyncClient resolving per-pattern: /gone/* 404s, rest 200."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.calls: list[str] = []
+
+    async def __aenter__(self) -> RoutingClient:
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        return None
+
+    async def get(self, url: str, **kwargs: Any) -> FakeResp:
+        self.calls.append(url)
+        if "/gone" in url:
+            return FakeResp(url, 404)
+        return FakeResp(url, 200)
+
+
+def _seed_upstream(client: TestClient) -> None:
+    created = client.post(
+        "/api/v1/upstreams",
+        json={
+            "name": "wiki",
+            "base_url": "https://wiki.example",
+            "fail_status_code": 404,
+        },
+    )
+    assert created.status_code == 201
+
+
+def test_resync_single_found_writes_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("httpx.AsyncClient", RoutingClient)
+    with _api_client() as client:
+        _seed_upstream(client)
+        res = client.post(
+            "/api/v1/upstreams/cache/resync",
+            json={"upstream": "wiki", "pattern": "good"},
+        )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["checked"] == 1
+        assert body["updated"] == 1
+        assert body["cleared"] == 0
+        assert body["results"][0]["status"] == "found"
+
+        cached = client.get("/api/v1/upstreams/cache").json()
+        assert len(cached) == 1
+        assert cached[0]["pattern"] == "good"
+        assert cached[0]["resolved_url"] == "https://wiki.example/good"
+
+
+def test_resync_single_not_found_stores_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("httpx.AsyncClient", RoutingClient)
+    with _api_client() as client:
+        _seed_upstream(client)
+        assert client.post(
+            "/api/v1/upstreams/cache/resync",
+            json={"upstream": "wiki", "pattern": "good"},
+        ).status_code == 200
+
+        res = client.post(
+            "/api/v1/upstreams/cache/resync",
+            json={"upstream": "wiki", "pattern": "gone"},
+        )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["updated"] == 0
+        assert body["cleared"] == 0  # nothing was stored for a failing pattern
+        assert body["results"][0]["status"] == "not_found"
+        assert len(client.get("/api/v1/upstreams/cache").json()) == 1
+
+
+def test_resync_clears_previously_cached_row(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A row cached earlier is dropped once the upstream 404s it."""
+    calls: list[str] = []
+
+    class FlipFlopClient(RoutingClient):
+        async def get(self, url: str, **kwargs: Any) -> FakeResp:
+            # First request (seed) succeeds, later ones 404.
+            calls.append(url)
+            if len(calls) == 1:
+                return FakeResp(url, 200)
+            return FakeResp(url, 404)
+
+    monkeypatch.setattr("httpx.AsyncClient", FlipFlopClient)
+    with _api_client() as client:
+        _seed_upstream(client)
+        assert client.post(
+            "/api/v1/upstreams/cache/resync",
+            json={"upstream": "wiki", "pattern": "flip"},
+        ).json()["updated"] == 1
+        assert len(client.get("/api/v1/upstreams/cache").json()) == 1
+
+        res = client.post(
+            "/api/v1/upstreams/cache/resync",
+            json={"upstream": "wiki", "pattern": "flip"},
+        ).json()
+        assert res["updated"] == 0
+        assert res["cleared"] == 1
+        assert client.get("/api/v1/upstreams/cache").json() == []
+
+
+def test_resync_all_refreshes_cached_patterns(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("httpx.AsyncClient", RoutingClient)
+    with _api_client() as client:
+        _seed_upstream(client)
+        for pat in ("good-1", "good-2"):
+            assert client.post(
+                "/api/v1/upstreams/cache/resync",
+                json={"upstream": "wiki", "pattern": pat},
+            ).status_code == 200
+
+        res = client.post("/api/v1/upstreams/cache/resync", json={"upstream": "wiki"})
+        assert res.status_code == 200
+        body = res.json()
+        assert body["checked"] == 2
+        assert body["updated"] == 2
+        assert body["cleared"] == 0
+
+
+def test_resync_unknown_upstream_404() -> None:
+    with _api_client() as client:
+        res = client.post(
+            "/api/v1/upstreams/cache/resync",
+            json={"upstream": "nope", "pattern": "x"},
+        )
+        assert res.status_code == 404

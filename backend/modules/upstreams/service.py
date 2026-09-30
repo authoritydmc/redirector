@@ -7,7 +7,7 @@ import httpx
 from backend.models.entities import Upstream
 from backend.modules.shortcuts.repository import is_sso_url
 from backend.modules.upstreams.repository import UpstreamRepository
-from backend.modules.upstreams.schemas import UpstreamCheckResult
+from backend.modules.upstreams.schemas import CacheResyncResult, UpstreamCheckResult
 
 
 class UpstreamCheckService:
@@ -119,3 +119,41 @@ class UpstreamCheckService:
                 status="error",
                 message=f"Connection error: {e}",
             )
+
+    async def refresh_patterns(
+        self,
+        upstream: Upstream,
+        patterns: list[str],
+        client: httpx.AsyncClient,
+    ) -> tuple[list[CacheResyncResult], int, int]:
+        """Re-check patterns and reconcile the cache (v2 resync port).
+
+        found -> upsert cache row; sso/not_found/error -> drop the row
+        (stale entries must not survive); skipped -> row left untouched.
+        Returns (per-pattern results, updated count, cleared count).
+        """
+        results: list[CacheResyncResult] = []
+        updated = 0
+        cleared = 0
+        for pattern in patterns:
+            check = await self.check_single(upstream, pattern, client)
+            if check.status == "found" and check.target_url:
+                await self.repo.save_cache(pattern, upstream.name, check.target_url)
+                updated += 1
+                results.append(CacheResyncResult(
+                    pattern=pattern, success=True, status="found",
+                    resolved_url=check.target_url, message=check.message,
+                ))
+            elif check.status == "skipped":
+                results.append(CacheResyncResult(
+                    pattern=pattern, success=False, status="skipped",
+                    message=check.message,
+                ))
+            else:
+                if await self.repo.clear_cache_entry(pattern, upstream.name):
+                    cleared += 1
+                results.append(CacheResyncResult(
+                    pattern=pattern, success=False, status=check.status,
+                    message=check.message,
+                ))
+        return results, updated, cleared

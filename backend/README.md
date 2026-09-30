@@ -59,7 +59,7 @@ export REDIRECTOR_AUTO_REDIRECT_DELAY=0   # instant 302s; default 1 = countdown 
 |---|---|---|
 | `health` | `/healthz`, `/health`, `/readyz` | No auth, no DB |
 | `shortcuts` | `/api/v1/shortcuts` | CRUD + `POST /bulk-delete` |
-| `upstreams` | `/api/v1/upstreams` | CRUD, `/cache`, `/check/stream/{pattern}` (SSE) |
+| `upstreams` | `/api/v1/upstreams` | CRUD, `/cache` + `/cache/resync`, `/check/stream/{pattern}` (SSE) |
 | `resolve` | `/api/v1/resolve`, `/{pattern}` | Hot path; catch-all registered LAST |
 | `auth` | `/api/v1/auth` | `POST /login`, `GET /me` (MFA/API keys: EPIC-05) |
 | `config` | `/api/v1/admin/config` | Admin JWT, DB-backed settings |

@@ -48,3 +48,28 @@ class UpstreamCacheEntry(BaseModel):
     checked_at: str
 
     model_config = {"from_attributes": True}
+
+
+class CacheResyncRequest(BaseModel):
+    upstream: str = Field(..., description="Upstream name to resync against")
+    pattern: str | None = Field(
+        default=None,
+        description="Single pattern to refresh; omit to re-check all cached patterns",
+    )
+
+
+class CacheResyncResult(BaseModel):
+    pattern: str
+    success: bool
+    status: str  # found | sso_required | not_found | error | skipped
+    resolved_url: str | None = None
+    message: str = ""
+
+
+class CacheResyncResponse(BaseModel):
+    success: bool
+    upstream: str
+    checked: int
+    updated: int
+    cleared: int
+    results: list[CacheResyncResult]

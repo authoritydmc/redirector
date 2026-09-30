@@ -15,6 +15,8 @@ from backend.core.db import get_session
 from backend.models.entities import Upstream
 from backend.modules.upstreams.repository import UpstreamRepository
 from backend.modules.upstreams.schemas import (
+    CacheResyncRequest,
+    CacheResyncResponse,
     UpstreamCacheEntry,
     UpstreamCreate,
     UpstreamRead,
@@ -80,6 +82,41 @@ async def purge_upstream_cache(
 ) -> dict[str, Any]:
     count = await repo.purge_cache(upstream_name=upstream)
     return {"success": True, "purged": count}
+
+
+@router.post("/cache/resync", response_model=CacheResyncResponse, summary="Resync upstream cache")
+async def resync_upstream_cache(
+    body: CacheResyncRequest,
+    repo: UpstreamRepository = Depends(get_upstream_repo),
+) -> CacheResyncResponse:
+    """Re-check one pattern (or all cached ones) and reconcile cache rows.
+
+    Synchronous by design at this scale; graduate to arq workers (EPIC-04/06)
+    if resync-all outgrows the 3 s-per-check request budget.
+    """
+    upstream = await repo.get_by_name(body.upstream)
+    if upstream is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Upstream '{body.upstream}' not found",
+        )
+    if body.pattern:
+        patterns = [body.pattern.strip().strip("/")]
+    else:
+        patterns = [r.pattern for r in await repo.list_cache(upstream_name=upstream.name)]
+
+    service = UpstreamCheckService(repo)
+    timeout = httpx.Timeout(3.0, connect=3.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        results, updated, cleared = await service.refresh_patterns(upstream, patterns, client)
+    return CacheResyncResponse(
+        success=True,
+        upstream=upstream.name,
+        checked=len(patterns),
+        updated=updated,
+        cleared=cleared,
+        results=results,
+    )
 
 
 # NOTE: static sub-paths (/cache, /check/...) must stay ABOVE /{upstream_id}:

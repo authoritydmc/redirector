@@ -77,6 +77,48 @@ class UpstreamRepository:
         await self.session.commit()
         return result.rowcount
 
+    async def save_cache(
+        self, pattern: str, upstream_name: str, resolved_url: str
+    ) -> UpstreamCache:
+        """Insert or refresh one upstream-cache row (resync write path)."""
+        existing = (await self.session.execute(
+            select(UpstreamCache).where(
+                UpstreamCache.pattern == pattern,
+                UpstreamCache.upstream_name == upstream_name,
+            )
+        )).scalar_one_or_none()
+        now = datetime.now(UTC)
+        if existing is not None:
+            existing.resolved_url = resolved_url
+            existing.checked_at = now
+            await self.session.commit()
+            await self.session.refresh(existing)
+            return existing
+        row = UpstreamCache(
+            pattern=pattern,
+            upstream_name=upstream_name,
+            resolved_url=resolved_url,
+            checked_at=now,
+        )
+        self.session.add(row)
+        await self.session.commit()
+        await self.session.refresh(row)
+        return row
+
+    async def clear_cache_entry(self, pattern: str, upstream_name: str) -> bool:
+        """Delete one upstream-cache row; False when nothing was stored."""
+        row = (await self.session.execute(
+            select(UpstreamCache).where(
+                UpstreamCache.pattern == pattern,
+                UpstreamCache.upstream_name == upstream_name,
+            )
+        )).scalar_one_or_none()
+        if row is None:
+            return False
+        await self.session.delete(row)
+        await self.session.commit()
+        return True
+
     async def log_check(
         self,
         pattern: str,
