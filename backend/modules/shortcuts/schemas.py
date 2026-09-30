@@ -20,6 +20,30 @@ class ShortcutRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ShortcutCreate(BaseModel):
+    pattern: str
+    target: str
+    type: ShortcutType = ShortcutType.STATIC
+    tags: list[str] = Field(default_factory=list)
+    visibility: Visibility = Visibility.PUBLIC
+    expires_at: str | None = None
+    owner_email: str | None = None
+
+
+class ShortcutUpdate(BaseModel):
+    target: str | None = None
+    type: ShortcutType | None = None
+    tags: list[str] | None = None
+    visibility: Visibility | None = None
+    expires_at: str | None = None
+    owner_email: str | None = None
+
+
+class ShortcutListResponse(BaseModel):
+    data: list[ShortcutRead]
+    meta: dict[str, int | str]
+
+
 class Resolution(BaseModel):
     """Outcome of resolving a subpath. `outcome` drives client behavior."""
 

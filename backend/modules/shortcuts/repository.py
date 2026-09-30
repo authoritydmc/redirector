@@ -163,6 +163,76 @@ class SQLAlchemyShortcutRepository:
             select(UserParam).where(UserParam.shortcut_pattern == pattern))
         return list(result.scalars().all())
 
+    async def list_paged(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        query: str = "",
+        tag: str = "",
+        sort_by: str = "updated_at",
+    ) -> tuple[list[Shortcut], int]:
+        stmt = select(Shortcut)
+        count_stmt = select(func.count(Shortcut.id))
+
+        if query:
+            q = f"%{query.strip().lower()}%"
+            stmt = stmt.where(func.lower(Shortcut.pattern).like(q) | func.lower(Shortcut.target).like(q))
+            count_stmt = count_stmt.where(func.lower(Shortcut.pattern).like(q) | func.lower(Shortcut.target).like(q))
+
+        if tag:
+            t = f"%{tag.strip().lower()}%"
+            stmt = stmt.where(func.lower(Shortcut.tags).like(t))
+            count_stmt = count_stmt.where(func.lower(Shortcut.tags).like(t))
+
+        if sort_by == "popular":
+            stmt = stmt.order_by(Shortcut.access_count.desc(), Shortcut.updated_at.desc())
+        elif sort_by == "created_at":
+            stmt = stmt.order_by(Shortcut.created_at.desc())
+        else:
+            stmt = stmt.order_by(Shortcut.updated_at.desc())
+
+        total = (await self.session.execute(count_stmt)).scalar() or 0
+        offset = max(0, (page - 1) * page_size)
+        stmt = stmt.offset(offset).limit(page_size)
+        rows = (await self.session.execute(stmt)).scalars().all()
+        return list(rows), total
+
+    async def create(self, shortcut: Shortcut) -> Shortcut:
+        self.session.add(shortcut)
+        await self.session.commit()
+        await self.session.refresh(shortcut)
+        # Invalidate cache
+        await self.cache.delete(f"{SHORTCUT_CACHE_PREFIX}{shortcut.pattern.lower()}")
+        return shortcut
+
+    async def update(self, pattern: str, data: dict) -> Shortcut | None:
+        row = (await self.session.execute(
+            select(Shortcut).where(Shortcut.pattern == pattern.lower())
+        )).scalar_one_or_none()
+        if row is None:
+            return None
+        for k, v in data.items():
+            if v is not None and hasattr(row, k):
+                setattr(row, k, v)
+        row.updated_at = datetime.now(timezone.utc)
+        await self.session.commit()
+        await self.session.refresh(row)
+        # Invalidate cache
+        await self.cache.delete(f"{SHORTCUT_CACHE_PREFIX}{pattern.lower()}")
+        return row
+
+    async def delete(self, pattern: str) -> bool:
+        row = (await self.session.execute(
+            select(Shortcut).where(Shortcut.pattern == pattern.lower())
+        )).scalar_one_or_none()
+        if row is None:
+            return False
+        await self.session.delete(row)
+        await self.session.commit()
+        # Invalidate cache
+        await self.cache.delete(f"{SHORTCUT_CACHE_PREFIX}{pattern.lower()}")
+        return True
+
 
 def normalize_subpath(subpath: str | None) -> str:
     if subpath is None or not isinstance(subpath, str):

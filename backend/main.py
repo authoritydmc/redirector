@@ -11,6 +11,7 @@ from fastapi import FastAPI
 
 from backend.core.config import settings
 from backend.routers import health
+from backend.routers import shortcuts as shortcuts_router
 from backend.routers import resolve as resolve_router
 
 
@@ -27,6 +28,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(health.router)
+    app.include_router(shortcuts_router.router)
     # Catch-all /{pattern} lives in resolve_router: register LAST so
     # /healthz, /docs, /openapi.json and /api/* keep matching first.
     app.include_router(resolve_router.router)
