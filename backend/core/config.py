@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./data/redirect.db"
     redis_url: str = "redis://localhost:6379/0"
     log_level: str = "INFO"
+    auto_redirect_delay: int = 1  # seconds before redirect; 0 = instant 302
 
 
 @lru_cache

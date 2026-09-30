@@ -5,6 +5,7 @@ import pytest
 
 fastapi = pytest.importorskip("fastapi")
 pytest.importorskip("httpx")
+pytest.importorskip("sqlmodel")
 
 # The v2 Flask app runs `gevent.monkey.patch_all()` when the app is built
 # (app/__init__.py). If that happens in this pytest process AFTER anyio/ssl
