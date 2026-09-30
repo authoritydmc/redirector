@@ -6,6 +6,15 @@ We follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic
 
 ---
 
+## [3.2.1] — 2026-09-30
+
+### Fixed
+- **Landing Page Sync & SEO**: Stamped version sync automation and landing page metadata enhancements.
+- **Workflow Permissions**: Added explicit top-level permissions to validate workflow for CodeQL compliance.
+- **Test Import Isolation**: Ensured optional v3 dependencies skip cleanly when running the standard test suite.
+
+---
+
 ## [3.2.0] — 2026-09-26
 
 **Upgrades you can't lose data to, and metrics that show everything.**
