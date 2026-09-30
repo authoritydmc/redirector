@@ -7,12 +7,11 @@ pytest.importorskip("httpx")
 pytest.importorskip("sqlmodel")
 
 from fastapi.testclient import TestClient
-from sqlmodel import SQLModel, create_engine
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlmodel import SQLModel
 
-from backend.main import create_app
 from backend.core.db import get_session
-from backend.models.entities import Shortcut, ShortcutType, Visibility
+from backend.main import create_app
 
 
 @pytest.fixture()
@@ -142,4 +141,23 @@ def test_bulk_delete_invalid_patterns_reported_not_found(client):
 
 def test_bulk_delete_requires_patterns_field(client):
     res = client.post("/api/v1/shortcuts/bulk-delete", json={})
+    assert res.status_code == 422
+
+
+def test_create_rejects_unknown_type_and_visibility(client):
+    bad_type = client.post("/api/v1/shortcuts", json={
+        "pattern": "badtype", "target": "https://example.com", "type": "direct",
+    })
+    assert bad_type.status_code == 422
+
+    bad_vis = client.post("/api/v1/shortcuts", json={
+        "pattern": "badvis", "target": "https://example.com", "visibility": "internal",
+    })
+    assert bad_vis.status_code == 422
+
+
+def test_create_rejects_malformed_expires_at(client):
+    res = client.post("/api/v1/shortcuts", json={
+        "pattern": "badexp", "target": "https://example.com", "expires_at": "not-a-date",
+    })
     assert res.status_code == 422

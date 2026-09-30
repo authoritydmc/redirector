@@ -83,4 +83,5 @@ jobs:
       - name: Backend v3 tests (isolated process)
         run: |
           export PYTHONPATH=$(pwd)
-          pytest tests/test_backend_smoke.py tests/test_v3_models.py tests/test_v3_shortcuts_api.py tests/test_v3_upstreams_api.py tests/test_v3_upstream_check.py tests/test_v3_resolve.py tests/test_v3_auth_api.py tests/test_v3_metrics_api.py tests/test_v3_qr_api.py tests/test_v3_errors.py tests/test_import_v2.py -v
+          # Glob keeps pace with new test_v3_* files automatically.
+          pytest tests/test_v3_*.py tests/test_backend_smoke.py tests/test_import_v2.py -v

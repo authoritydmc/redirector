@@ -7,11 +7,14 @@ import pytest
 sqlmodel = pytest.importorskip("sqlmodel")
 
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine  # noqa: E402
+from sqlalchemy.ext.asyncio import (  # noqa: E402
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from backend.core.db import get_session  # noqa: E402
 from backend.main import create_app  # noqa: E402
-from backend.models.entities import Shortcut, ShortcutType, Visibility  # noqa: E402
 
 
 @pytest.fixture()

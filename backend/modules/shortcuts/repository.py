@@ -12,7 +12,7 @@ import json
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.cache import Cache
@@ -132,12 +132,17 @@ class SQLAlchemyShortcutRepository:
         return None, ""
 
     async def increment_access(self, pattern: str) -> None:
-        row = (await self.session.execute(
-            select(Shortcut).where(Shortcut.pattern == pattern))).scalar_one_or_none()
-        if row is not None:
-            row.access_count = (row.access_count or 0) + 1
-            row.updated_at = datetime.now(UTC)
-            await self.session.commit()
+        # Single atomic UPDATE: concurrent redirects must not lose counts
+        # to read-modify-write races.
+        await self.session.execute(
+            update(Shortcut)
+            .where(Shortcut.pattern == pattern)
+            .values(
+                access_count=Shortcut.access_count + 1,
+                updated_at=datetime.now(UTC),
+            )
+        )
+        await self.session.commit()
 
     async def list_dynamic(self) -> list[Shortcut]:
         result = await self.session.execute(

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import io
+import re
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import Response
@@ -17,6 +18,16 @@ class QRCodeResponse(BaseModel):
     pattern: str
     target_url: str
     qr_base64: str
+
+
+_FILENAME_SAFE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def _safe_filename(pattern: str) -> str:
+    """Header-safe download name: path input must never reach headers raw
+    (quotes/newlines would split the header or 500 on validation)."""
+    cleaned = _FILENAME_SAFE.sub("_", pattern.replace("/", "_")).strip("._")
+    return f"{cleaned or 'shortcut'}_qr.png"
 
 
 def _generate_qr_png_bytes(content: str) -> bytes:
@@ -43,7 +54,7 @@ async def get_qr_image(pattern: str, request: Request) -> Response:
     return Response(
         content=png_bytes,
         media_type="image/png",
-        headers={"Content-Disposition": f'inline; filename="{pattern.replace("/", "_")}_qr.png"'},
+        headers={"Content-Disposition": f'inline; filename="{_safe_filename(pattern)}"'},
     )
 
 

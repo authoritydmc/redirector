@@ -70,7 +70,7 @@ async def create_shortcut(
     clean_pat = sanitize_pattern(body.pattern)
     if not clean_pat:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid pattern: must be alphanumeric or contain - _ . /",
         )
     existing, _ = await repo.lookup(clean_pat)
@@ -86,7 +86,7 @@ async def create_shortcut(
             exp = datetime.fromisoformat(body.expires_at.replace("Z", "+00:00"))
         except ValueError:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="expires_at must be an ISO 8601 timestamp string",
             ) from None
 
@@ -152,7 +152,7 @@ async def update_shortcut(
             )
         except ValueError:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="expires_at must be an ISO 8601 timestamp string",
             ) from None
 

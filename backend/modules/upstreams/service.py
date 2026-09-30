@@ -11,9 +11,8 @@ from backend.modules.upstreams.schemas import UpstreamCheckResult
 
 
 class UpstreamCheckService:
-    def __init__(self, repo: UpstreamRepository, client: httpx.AsyncClient | None = None) -> None:
+    def __init__(self, repo: UpstreamRepository) -> None:
         self.repo = repo
-        self._client = client
 
     async def check_single(
         self,
