@@ -39,5 +39,6 @@ module = [
   "backend.modules.shortcuts.repository",
   "backend.modules.upstreams.repository",
   "backend.modules.jobs.repository",
+  "backend.modules.auth.repository",
 ]
 disable_error_code = ["arg-type", "attr-defined"]

@@ -8,9 +8,12 @@ from typing import Annotated, Any
 import jwt
 from fastapi import Depends, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import settings
+from backend.core.db import get_session
 from backend.core.errors import AppError
+from backend.modules.auth.repository import ApiKeyRepository
 
 security = HTTPBearer(auto_error=False)
 
@@ -50,8 +53,15 @@ def decode_access_token(token: str) -> dict[str, Any]:
 
 async def get_current_admin(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
-    """FastAPI dependency requiring valid admin JWT bearer token."""
+    """FastAPI dependency requiring admin identity: JWT bearer or API key.
+
+    JWT (existing behavior, codes unchanged) is primary; `rk_*` bearer
+    tokens verify as API keys and yield an equivalent admin identity with
+    `auth_method` set (`jwt` vs `api_key`) so key-management endpoints can
+    require an interactive session. Unknown/malformed tokens 401 either way.
+    """
     if not credentials or credentials.scheme.lower() != "bearer":
         raise AppError(
             "Authentication required",
@@ -60,7 +70,25 @@ async def get_current_admin(
             code="auth:required",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    payload = decode_access_token(credentials.credentials)
+    token = credentials.credentials
+    if token.startswith("rk_"):
+        row = await ApiKeyRepository(session).verify(token)
+        if row is None:
+            raise AppError(
+                "Invalid credentials",
+                status=status.HTTP_401_UNAUTHORIZED,
+                detail="Unknown, revoked, or mismatched API key",
+                code="auth:invalid-api-key",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return {
+            "role": "admin",
+            "sub": f"apikey:{row.id}",
+            "auth_method": "api_key",
+            "key_name": row.name,
+            "scopes": row.scopes,
+        }
+    payload = decode_access_token(token)
     if payload.get("role") != "admin":
         raise AppError(
             "Admin privileges required",
@@ -68,4 +96,4 @@ async def get_current_admin(
             detail="Admin privileges required",
             code="auth:forbidden",
         )
-    return payload
+    return {**payload, "auth_method": "jwt"}

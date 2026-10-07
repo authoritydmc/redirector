@@ -172,3 +172,24 @@ class Job(SQLModel, table=True):
     error: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
+
+
+class ApiKey(SQLModel, table=True):
+    """API key for automation without a browser session (EPIC-05 task 4).
+
+    Only the sha256 of the secret is stored — the plaintext is shown once
+    at issuance. `prefix` identifies the row (and masks logs); revocation
+    is a timestamp so history (`last_used_at`) survives. Scopes are
+    recorded now and enforced by the RBAC audit (EPIC-05 task 3).
+    """
+
+    __tablename__ = "api_keys"
+
+    id: int | None = Field(default=None, primary_key=True)
+    prefix: str = Field(unique=True, index=True)
+    secret_hash: str = Field()
+    name: str = Field()
+    scopes: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=utcnow)
+    last_used_at: datetime | None = Field(default=None)
+    revoked_at: datetime | None = Field(default=None)

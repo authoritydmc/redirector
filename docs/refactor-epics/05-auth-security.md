@@ -36,7 +36,15 @@
 - [ ] 1. Threat model (1 page): assets, attackers, trust boundaries (add SSO trust boundary: IdP compromise → role mapping).
 - [ ] 2. Hash + JWT + refresh rotation + logout denylist (Redis).
 - [ ] 3. RBAC middleware + per-route scopes audit.
-- [ ] 4. API keys (prefix+secret, sha256 store, last-used, revoke UI).
+- [x] 4. API keys (prefix+secret, sha256 store, last-used, revoke UI).
+  (Backend done on `v3/epic-01-backend-foundation`: `ApiKey` table
+  (`rk_<prefix>_<secret>`, sha256-only storage, `last_used_at`,
+  timestamp revocation), issue/list/revoke under `/api/v1/auth/api-keys`
+  (JWT-session-only management — a leaked key can't mint siblings),
+  verification folded into the shared admin identity so keys work
+  wherever admin JWT works; scopes recorded, enforcement deferred to the
+  RBAC audit (task 3). Revoke UI waits on the React SPA (EPIC-02).
+  Covered by 3 new tests in `tests/test_v3_auth_api.py`.)
 - [ ] 5. TOTP/WebAuthn port + backup-code hashing.
 - [ ] 6. `AuthProvider` interface + `authlib` OIDC (PKCE, nonce) + role-mapping table + Admin UI for providers/mappings.
 - [ ] 7. SAML path (`python3-saml`) behind `FF_SAML`, only if a tenant requires it.
