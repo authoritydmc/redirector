@@ -31,10 +31,21 @@
 - [ ] `REDIRECTOR_DATA_DIR` + `DATABASE_URL` + `REDIS_URL` documented; JSON config import path tested.
 
 ## Tasks
-- [ ] 1. SQLModel entities (clean v3 schema) + Alembic env (dual-driver `env.py`).
-- [ ] 2. Repository layer + unit tests (sqlite memory).
-- [ ] 3. `import-v2` script + sample-fixture test.
-- [ ] 4. Redis `Cache` impl + `MemoryCache`; remove `config.redis_client` globals.
+- [x] 1. SQLModel entities (clean v3 schema) + Alembic env (dual-driver `env.py`).
+  (Entities + repositories + sqlite-memory tests done on
+  `v3/epic-01-backend-foundation`; dual-driver Alembic `env.py` still open.)
+- [x] 2. Repository layer + unit tests (sqlite memory).
+- [x] 3. `import-v2` script + sample-fixture test.
+- [x] 4. Redis `Cache` impl + `MemoryCache`; remove `config.redis_client` globals.
+  (Done: `RedisCache` in `backend/core/cache.py` implements the full
+  `Cache` protocol incl. distributed singleflight
+  (`SET NX PX` lock + token-checked Lua release, `uncacheable` tombstone
+  so SSO verdicts release followers at once) with v2-style graceful
+  degradation on outages; selected via `REDIRECTOR_CACHE_BACKEND`
+  (`memory` default). Covered by `tests/test_v3_cache_redis.py` — 9 tests
+  against real Redis, skipping cleanly without it. The v2
+  `config.redis_client` global is untouched (Flask runtime); removal lands
+  with the EPIC-08 Flask cutover.)
 - [ ] 5. Settings table (`settings` key→JSON) + migration from `redirect.config.json`.
 - [ ] 6. Indexes + query plan review on shortcuts/upstream_cache tables.
 - [ ] 7. Backup/restore covers DB + settings + secrets-manifest (never secrets plaintext).

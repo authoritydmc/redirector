@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.core.cache import MemoryCache
+from backend.core.cache import build_cache
 from backend.core.config import settings
 from backend.core.db import get_session
 from backend.modules.shortcuts.repository import SQLAlchemyShortcutRepository, is_sso_url
@@ -29,13 +29,13 @@ from backend.modules.shortcuts.service import resolve
 
 router = APIRouter()
 
-# M1 single-process cache. EPIC-04 swaps this for RedisCache built from
-# settings when REDIRECTOR_REDIS_URL is configured (same Cache protocol).
-_memory_cache = MemoryCache()
+# Process-wide lookup cache (EPIC-04): per-process memory by default, shared
+# Redis with REDIRECTOR_CACHE_BACKEND=redis. Same Cache protocol either way.
+_cache = build_cache(settings.cache_backend, settings.redis_url)
 
 
 async def get_repo(session: AsyncSession = Depends(get_session)) -> SQLAlchemyShortcutRepository:
-    return SQLAlchemyShortcutRepository(session, _memory_cache)
+    return SQLAlchemyShortcutRepository(session, _cache)
 
 
 def _no_store(response: Response, target: str | None) -> None:

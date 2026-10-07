@@ -45,7 +45,8 @@ export REDIRECTOR_AUTO_REDIRECT_DELAY=0   # instant 302s; default 1 = countdown 
 |---|---|---|
 | `REDIRECTOR_DATA_DIR` | `./data` | Readiness probe file lives here |
 | `REDIRECTOR_DATABASE_URL` | `sqlite+aiosqlite:///./data/redirect.db` | `asyncpg` URL for Postgres |
-| `REDIRECTOR_REDIS_URL` | `redis://localhost:6379/0` | arq broker (`REDIRECTOR_JOB_BACKEND=arq`); reserved for EPIC-04 cache |
+| `REDIRECTOR_REDIS_URL` | `redis://localhost:6379/0` | arq broker (`REDIRECTOR_JOB_BACKEND=arq`) + Redis lookup cache (`REDIRECTOR_CACHE_BACKEND=redis`); reserved for EPIC-04 full-cache work |
+| `REDIRECTOR_CACHE_BACKEND` | `memory` | Shortcut lookup cache: `memory` (per-process) or `redis` (shared; outages degrade to DB reads) |
 | `REDIRECTOR_JOB_BACKEND` | `in-process` | `in-process` (asyncio tasks, no broker) or `arq` (Redis + workers) |
 | `REDIRECTOR_LOG_LEVEL` | `INFO` | stdlib logging, `%(asctime)s %(levelname)s [%(name)s]`; per-request access lines on `redirector.access` |
 | `REDIRECTOR_AUTO_REDIRECT_DELAY` | `1` | Seconds before redirect; `0` = instant 302 |

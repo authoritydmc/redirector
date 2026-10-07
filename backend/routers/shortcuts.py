@@ -16,7 +16,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.core.cache import MemoryCache
+from backend.core.cache import build_cache
+from backend.core.config import settings
 from backend.core.db import get_session
 from backend.core.errors import AppError
 from backend.models.entities import Shortcut, as_utc
@@ -35,11 +36,11 @@ from backend.modules.shortcuts.schemas import (
 
 router = APIRouter(prefix="/api/v1/shortcuts", tags=["shortcuts"])
 
-_memory_cache = MemoryCache()
+_cache = build_cache(settings.cache_backend, settings.redis_url)
 
 
 async def get_repo(session: AsyncSession = Depends(get_session)) -> SQLAlchemyShortcutRepository:
-    return SQLAlchemyShortcutRepository(session, _memory_cache)
+    return SQLAlchemyShortcutRepository(session, _cache)
 
 
 @router.get("", response_model=ShortcutListResponse, summary="List shortcuts")

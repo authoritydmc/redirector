@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     data_dir: Path = PROJECT_ROOT / "data"
     database_url: str = "sqlite+aiosqlite:///./data/redirect.db"
     redis_url: str = "redis://localhost:6379/0"
+    # Shortcut lookup cache: "memory" (per-process, default — no broker
+    # needed) or "redis" (shared across API/worker processes). Same Cache
+    # protocol either way; Redis outages degrade to DB reads, never 500s.
+    cache_backend: str = "memory"
     # Background job execution: "in-process" (asyncio tasks, default — no
     # broker needed) or "arq" (Redis broker + `arq` worker processes).
     # The DB row + SSE surface is identical; only execution moves.
