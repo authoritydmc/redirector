@@ -18,6 +18,7 @@ backend/
 ├── models/entities.py   # SQLModel tables (clean v3 schema, breaks allowed)
 ├── modules/             # repository + service + schemas per domain
 ├── routers/             # thin HTTP layer (validation + status codes only)
+├── workers/             # arq broker tasks (upstream resync; EPIC-06)
 ├── migrations/import_v2.py  # best-effort v2 DB/config import (EPIC-04)
 └── requirements.txt     # v3 deps (uvicorn[standard] off-Windows, plain on win32)
 ```
@@ -44,7 +45,8 @@ export REDIRECTOR_AUTO_REDIRECT_DELAY=0   # instant 302s; default 1 = countdown 
 |---|---|---|
 | `REDIRECTOR_DATA_DIR` | `./data` | Readiness probe file lives here |
 | `REDIRECTOR_DATABASE_URL` | `sqlite+aiosqlite:///./data/redirect.db` | `asyncpg` URL for Postgres |
-| `REDIRECTOR_REDIS_URL` | `redis://localhost:6379/0` | Reserved for EPIC-04 cache |
+| `REDIRECTOR_REDIS_URL` | `redis://localhost:6379/0` | arq broker (`REDIRECTOR_JOB_BACKEND=arq`); reserved for EPIC-04 cache |
+| `REDIRECTOR_JOB_BACKEND` | `in-process` | `in-process` (asyncio tasks, no broker) or `arq` (Redis + workers) |
 | `REDIRECTOR_LOG_LEVEL` | `INFO` | stdlib logging, `%(asctime)s %(levelname)s [%(name)s]`; per-request access lines on `redirector.access` |
 | `REDIRECTOR_AUTO_REDIRECT_DELAY` | `1` | Seconds before redirect; `0` = instant 302 |
 | `REDIRECTOR_ADMIN_PASSWORD` | `admin` | Change in production |
@@ -93,8 +95,27 @@ Fixtures use in-memory `sqlite+aiosqlite` + `MemoryCache` via
   `repository.py`; routers only validate, map status codes, and convert to
   response models.
 
+## Background workers (arq)
+
+`POST /api/v1/jobs` runs in-process by default. For durable execution:
+
+```sh
+# Redis (local dev via WSL docker; CI provides a redis service):
+wsl docker run -d --name redirector-redis -p 6379:6379 redis:8-alpine
+
+export REDIRECTOR_JOB_BACKEND=arq
+export REDIRECTOR_REDIS_URL="redis://localhost:6379/0"
+uvicorn backend.main:app --port 8123 &   # API enqueues to Redis
+arq backend.workers.settings.WorkerSettings  # worker drains the queue
+```
+
+Job rows stay the source of truth either way (poll `GET /api/v1/jobs/{id}`,
+stream `/events`); only execution moves. Workers skip rows cancelled while
+queued. `tests/test_v3_jobs_arq.py` covers the full loop with a burst
+worker and skips cleanly without Redis.
+
 ## Status / non-goals
 
 - `GET /{pattern}` is shadowed by the Flask proxy until EPIC-08 M3 flips it.
-- `backend/workers/` (arq) + Dockerfile/compose uvicorn switch land with
-  EPIC-04/06/08 — the Dockerfile still boots gunicorn/gevent for v2.
+- Dockerfile/compose uvicorn switch lands with EPIC-04/06/08 — the Dockerfile
+  still boots gunicorn/gevent for v2.

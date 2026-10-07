@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     data_dir: Path = PROJECT_ROOT / "data"
     database_url: str = "sqlite+aiosqlite:///./data/redirect.db"
     redis_url: str = "redis://localhost:6379/0"
+    # Background job execution: "in-process" (asyncio tasks, default — no
+    # broker needed) or "arq" (Redis broker + `arq` worker processes).
+    # The DB row + SSE surface is identical; only execution moves.
+    job_backend: str = "in-process"
     log_level: str = "INFO"
     auto_redirect_delay: int = 1  # seconds before redirect; 0 = instant 302
     admin_password: str = "admin"

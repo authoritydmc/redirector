@@ -29,16 +29,19 @@
 
 ## Tasks
 - [x] 1. `httpx` client + fan-out service + stub-upstream test harness.
-- [ ] 2. arq worker + Redis broker + job events table/SSE endpoint.
-  (In progress on `v3/epic-01-backend-foundation`: DB-backed `jobs` table +
+- [x] 2. arq worker + Redis broker + job events table/SSE endpoint.
+  (Done on `v3/epic-01-backend-foundation`: DB-backed `jobs` table +
   `POST /api/v1/jobs` (202) + `GET /api/v1/jobs` (list) +
   `GET /api/v1/jobs/{id}` + `DELETE /api/v1/jobs/{id}` (cancel) +
-  `GET /api/v1/jobs/{id}/events` (SSE) with an in-process asyncio runner
-  for `upstream_resync`, plus boot reaping of stale rows
-  (`backend/modules/jobs/`, `backend/routers/jobs.py`,
-  `tests/test_v3_jobs_api.py`). Routers depend only on `JobRunner`, so arq +
-  Redis lands as a runner swap. Still open: arq worker process, Redis
-  broker, restart-surviving execution.)
+  `GET /api/v1/jobs/{id}/events` (SSE), boot reaping of stale rows, and an
+  `ArqJobRunner` broker backend (`REDIRECTOR_JOB_BACKEND=arq`) with
+  `backend/workers/` task functions run via
+  `arq backend.workers.settings.WorkerSettings`. Execution funnels through
+  shared `execute_job` with a cancel guard, so the API/SSE surface is
+  identical in both modes. Covered by `tests/test_v3_jobs_api.py` (9 tests)
+  and `tests/test_v3_jobs_arq.py` (burst-worker full loop + cancel guard,
+  skips cleanly without Redis; CI `backend-smoke` provides a redis
+  service). Local Redis: `wsl docker run -d -p 6379:6379 redis:8-alpine`.)
 - [x] 3. Cache stampede guard (singleflight) + negative caching.
   (Done: `MemoryCache.get_or_compute` singleflight + `CACHE_MISS_SENTINEL`
   with 60 s TTL in shortcut `lookup`; see `tests/test_v3_lookup_singleflight.py`.)

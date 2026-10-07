@@ -14,8 +14,10 @@ from sqlalchemy.exc import OperationalError
 
 from backend.core.config import settings
 from backend.core.db import SessionFactory
+from backend.core.db import engine as db_engine
 from backend.core.errors import register_error_handlers
-from backend.modules.jobs.runner import JobRunner
+from backend.modules.jobs.redis import redis_settings_from_url
+from backend.modules.jobs.runner import ArqJobRunner, JobRunner
 from backend.routers import auth as auth_router
 from backend.routers import config as config_router
 from backend.routers import health
@@ -41,7 +43,11 @@ def configure_logging() -> None:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # M1: stateless boot. EPIC-04 adds: migrate → seed → warm cache here.
     if not hasattr(app.state, "jobs"):
-        app.state.jobs = JobRunner(SessionFactory)
+        if settings.job_backend == "arq":
+            app.state.jobs = ArqJobRunner(
+                SessionFactory, redis_settings_from_url(settings.redis_url))
+        else:
+            app.state.jobs = JobRunner(SessionFactory)
     try:
         reaped = await app.state.jobs.reap_stale()
     except OperationalError:
@@ -56,6 +62,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     runner: JobRunner | None = getattr(app.state, "jobs", None)
     if runner is not None:
         await runner.shutdown()
+    # Drop pooled DB connections: loop-pinned aiosqlite handles hang
+    # interpreter exit otherwise (see workers/settings.on_shutdown).
+    await db_engine.dispose()
     logger.info("redirector shutting down")
 
 

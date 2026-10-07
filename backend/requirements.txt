@@ -10,8 +10,8 @@ sqlalchemy>=2.0.32
 aiosqlite>=0.20
 asyncpg>=0.29
 httpx>=0.27
-# Forward deps for upcoming epics (imported by EPIC-04/05/06, not yet by
-# backend/ code): Redis-backed cache, MFA/TOTP, background workers.
+# Shared infra deps (imported by backend/ code): Redis broker for arq workers
+# (EPIC-06), MFA/TOTP + JWT auth (EPIC-05), Redis-backed cache (EPIC-04).
 redis>=5.0
 pyjwt>=2.9
 psutil>=5.9
