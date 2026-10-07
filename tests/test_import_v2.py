@@ -20,7 +20,7 @@ from backend.migrations.import_v2 import (  # noqa: E402
     read_table,
     split_tags,
 )
-from backend.models.entities import Shortcut, Upstream  # noqa: E402
+from backend.models.entities import Setting, Shortcut, Upstream  # noqa: E402
 
 
 def make_v2_data_dir(tmp_path):
@@ -57,7 +57,16 @@ def make_v2_data_dir(tmp_path):
         "upstreams": [
             {"name": "go", "base_url": "http://go/", "fail_status_code": 404},
             {"name": "bad", "base_url": "http://bad/", "fail_status_code": "NaN"},
-        ]
+        ],
+        "auto_redirect_delay": "0",
+        "log_level": "debug",
+        "delete_requires_password": "yes",
+        "upstream_cache": {"enabled": False},
+        "admin_password": "s3cret-plaintext",
+        "session_secret": "shh-session",
+        "mfa": {"enabled": True, "secret": "shh-mfa"},
+        "port": 80,
+        "database": "sqlite:///redirect.db",
     }), encoding="utf-8")
     return data_dir
 
@@ -94,6 +103,40 @@ def test_dry_run_writes_nothing(tmp_path):
     assert main(["--data-dir", str(data_dir), "--database-url", db_url, "--dry-run"]) == 0
     with Session(create_engine(db_url)) as s:
         assert s.exec(select(Shortcut)).all() == []
+
+
+def _settings_map(engine):
+    with Session(engine) as s:
+        return {row.key: row.value for row in s.exec(select(Setting)).all()}
+
+
+def test_import_migrates_config_settings(tmp_path):
+    data_dir = make_v2_data_dir(tmp_path)
+    db_url = f"sqlite:///{tmp_path}/v3settings.db"
+    assert main(["--data-dir", str(data_dir), "--database-url", db_url]) == 0
+
+    engine = create_engine(db_url)
+    got = _settings_map(engine)
+    # Curated allowlist, coerced + normalized ...
+    assert got["auto_redirect_delay"] == 0
+    assert got["log_level"] == "DEBUG"
+    assert got["delete_requires_password"] is True
+    assert got["upstream_cache.enabled"] is False
+    # ... secrets never land in the table, deployment-owned keys are skipped.
+    for forbidden in ("admin_password", "session_secret", "mfa",
+                      "port", "database", "upstreams"):
+        assert forbidden not in got
+
+    # Idempotent re-run skips everything, and admin edits win over re-import.
+    with Session(engine) as s:
+        row = s.exec(select(Setting).where(Setting.key == "auto_redirect_delay")).one()
+        row.value = 5
+        s.add(row)
+        s.commit()
+    assert main(["--data-dir", str(data_dir), "--database-url", db_url]) == 0
+    got = _settings_map(engine)
+    assert got["auto_redirect_delay"] == 5
+    assert len(got) == 4
 
 
 def test_helpers():

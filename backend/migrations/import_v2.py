@@ -8,7 +8,9 @@ Reads (stdlib sqlite3 — no dependency on the v2 ORM):
   <data-dir>/redirect.db          tables: redirects, upstream_cache,
                                   upstream_check_log, user_params
                                   (missing tables/columns tolerated)
-  <data-dir>/redirect.config.json `upstreams` list → upstreams table
+  <data-dir>/redirect.config.json `upstreams` list → upstreams table,
+                                  curated non-secret settings → settings table
+                                  (secrets are never migrated — see below)
 
 Usage:
   python -m backend.migrations.import_v2 --data-dir ./data \\
@@ -85,11 +87,103 @@ def _to_sync_url(url: str) -> str:
     return url.replace("+aiosqlite", "").replace("+asyncpg", "+psycopg2")
 
 
+# Secrets must never land in the settings table (EPIC-05 hygiene): their
+# presence is counted as skipped, values never inspected further.
+SECRET_CONFIG_KEYS = ("admin_password", "session_secret", "mfa")
+
+_BOOL_TRUE = {"1", "true", "yes", "y", "on"}
+_BOOL_FALSE = {"0", "false", "no", "n", "off"}
+_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+
+
+def _read_v2_config(data_dir: Path) -> dict[str, Any]:
+    try:
+        data = json.loads((data_dir / "redirect.config.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _coerce_bool(raw: object) -> bool | None:
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, (int, float)):
+        if raw == 1:
+            return True
+        if raw == 0:
+            return False
+        return None
+    text = str(raw).strip().lower()
+    if text in _BOOL_TRUE:
+        return True
+    if text in _BOOL_FALSE:
+        return False
+    return None
+
+
+def _coerce_delay(raw: object) -> int | None:
+    if isinstance(raw, bool):
+        value = int(raw)
+    elif isinstance(raw, (int, float)):
+        value = int(raw)
+    elif isinstance(raw, str):
+        try:
+            value = int(raw.strip())
+        except ValueError:
+            return None
+    else:
+        return None
+    return max(0, min(10, value))  # v2 admin UI bounds
+
+
+def _migratable_settings(config: dict[str, Any]) -> tuple[list[tuple[str, Any, bool]], int]:
+    """Curated non-secret settings as (key, value, normalized) + skip count.
+
+    Dotted keys mirror v2's dot notation (`update_from_flat_dict`). Absent
+    keys are ignored silently; present-but-unusable values and secrets count
+    as skipped. Connection topology (`redis`, `database`, `port`) and
+    `setup_completed` stay env-/deployment-owned in v3 and are not carried.
+    """
+    items: list[tuple[str, Any, bool]] = []
+    skipped = 0
+    if "auto_redirect_delay" in config:
+        raw, delay = config["auto_redirect_delay"], _coerce_delay(config["auto_redirect_delay"])
+        if delay is None:
+            skipped += 1
+        else:
+            items.append(("auto_redirect_delay", delay, delay != raw))
+    if "log_level" in config:
+        level = str(config["log_level"]).strip().upper()
+        if level in _LOG_LEVELS:
+            items.append(("log_level", level, level != config["log_level"]))
+        else:
+            skipped += 1
+    if "delete_requires_password" in config:
+        raw, flag = config["delete_requires_password"], _coerce_bool(config["delete_requires_password"])
+        if flag is None:
+            skipped += 1
+        else:
+            items.append(("delete_requires_password", flag, flag != raw))
+    if "upstream_cache" in config:
+        nested = config["upstream_cache"]
+        raw_enabled = nested.get("enabled") if isinstance(nested, dict) else None
+        enabled = _coerce_bool(raw_enabled)
+        if enabled is None:
+            skipped += 1
+        else:
+            items.append(("upstream_cache.enabled", enabled, enabled != raw_enabled))
+    for secret in SECRET_CONFIG_KEYS:
+        if secret in config:
+            skipped += 1
+    return items, skipped
+
+
 def run_import(data_dir: Path, database_url: str, *, dry_run: bool = False) -> ImportStats:
     from sqlalchemy import create_engine
     from sqlmodel import Session, SQLModel, select
 
     from backend.models.entities import (
+        Setting,
         Shortcut,
         ShortcutType,
         Upstream,
@@ -232,6 +326,22 @@ def run_import(data_dir: Path, database_url: str, *, dry_run: bool = False) -> I
             ))
             seen_params.add(key)
             stats.add("user_params", inserted=1)
+
+        # Non-secret config → settings table. Idempotent by design: keys
+        # already present (e.g. edited via the admin API after a first
+        # import) win, so re-runs can never clobber admin changes.
+        seen_settings = known(Setting, "key", set())
+        candidates, config_skipped = _migratable_settings(_read_v2_config(data_dir))
+        stats.add("settings", skipped=config_skipped)
+        for skey, svalue, was_normalized in candidates:
+            if skey in seen_settings:
+                stats.add("settings", skipped=1)
+                continue
+            session.add(Setting(key=skey, value=svalue))
+            seen_settings.add(skey)
+            stats.add("settings", inserted=1)
+            if was_normalized:
+                stats.normalized += 1
 
         if dry_run:
             session.rollback()

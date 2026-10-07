@@ -46,7 +46,16 @@
   against real Redis, skipping cleanly without it. The v2
   `config.redis_client` global is untouched (Flask runtime); removal lands
   with the EPIC-08 Flask cutover.)
-- [ ] 5. Settings table (`settings` key→JSON) + migration from `redirect.config.json`.
+- [x] 5. Settings table (`settings` key→JSON) + migration from `redirect.config.json`.
+  (Done on `v3/epic-01-backend-foundation`: `Setting` table + admin
+  GET/PATCH API existed; `import-v2` now migrates the curated non-secret
+  allowlist — `auto_redirect_delay` (int, clamped 0–10),
+  `log_level` (validated), `delete_requires_password` (bool-coerced),
+  `upstream_cache.enabled` (dotted key) — with normalization counted.
+  Secrets (`admin_password`, `session_secret`, `mfa.*`) are never migrated;
+  connection topology (`redis`, `database`, `port`) stays env-owned.
+  Idempotent: existing keys win so admin edits stick. Covered by
+  `test_import_migrates_config_settings`.)
 - [x] 6. Indexes + query plan review on shortcuts/upstream_cache tables.
   (Reviewed on `v3/epic-01-backend-foundation` against seeded SQLite plans:
   both hot-path pattern lookups SEARCH their indexes; check-log filter
