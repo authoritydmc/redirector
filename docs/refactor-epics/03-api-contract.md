@@ -24,7 +24,11 @@ Standards:
 - **Idempotency:** `Idempotency-Key` header on create/import; bulk ops return per-item results.
 
 ## Acceptance criteria
-- [ ] `openapi.json` committed + diff-checked in CI (fail on unreviewed contract change).
+- [x] `openapi.json` committed + diff-checked in CI (fail on unreviewed contract change).
+  (Done on `v3/epic-01-backend-foundation`: `docs/openapi.json` snapshot +
+  `scripts/export-openapi.py` stamp/`--check` gate, enforced in
+  `validate.yml` backend-smoke. Regenerate after any router/schema change
+  and on every VERSION bump — the spec carries the app version.)
 - [ ] Generated TS client (`frontend/src/lib/api.ts`) compiles; no hand-written endpoint strings in React.
 - [ ] Legacy endpoints shimmed with `Deprecation: true` header + sunset date, mapped in EPIC-08.
 - [ ] Contract tests (schemathesis / schemathesis-style snapshot) green.

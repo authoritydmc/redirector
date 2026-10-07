@@ -95,3 +95,6 @@ jobs:
           export PYTHONPATH=$(pwd)
           # Glob keeps pace with new test_v3_* files automatically.
           pytest tests/test_v3_*.py tests/test_backend_smoke.py tests/test_import_v2.py -v
+      - name: OpenAPI snapshot in sync (EPIC-03 contract gate)
+        run: |
+          python scripts/export-openapi.py --check

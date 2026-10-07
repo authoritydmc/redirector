@@ -78,6 +78,8 @@ pytest tests/test_v3_*.py tests/test_backend_smoke.py tests/test_import_v2.py -v
 ruff check backend/
 mypy backend/          # strict; narrow carve-outs only for SQLAlchemy expr typing
 flake8 backend/ --select=E9,F63,F7,F82
+# API contract snapshot (EPIC-03): regenerate after any router/schema change
+python scripts/export-openapi.py --check
 ```
 
 Fixtures use in-memory `sqlite+aiosqlite` + `MemoryCache` via
