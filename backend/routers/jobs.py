@@ -19,9 +19,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.db import get_session
 from backend.core.errors import AppError
+from backend.modules.backup.service import sanitize_label
 from backend.modules.jobs.repository import JobRepository
 from backend.modules.jobs.runner import TERMINAL, JobRunner
-from backend.modules.jobs.schemas import JobEnqueue, JobRead
+from backend.modules.jobs.schemas import BackupEnqueue, JobEnqueue, JobRead
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
 
@@ -37,11 +38,22 @@ async def get_job_repo(session: AsyncSession = Depends(get_session)) -> JobRepos
 
 @router.post("", response_model=JobRead, status_code=status.HTTP_202_ACCEPTED, summary="Enqueue a background job")
 async def enqueue_job(body: JobEnqueue, runner: JobRunner = Depends(get_runner)) -> JobRead:
-    job = await runner.enqueue(
-        body.kind,
-        {"upstream": body.upstream, "patterns": body.patterns},
-        total=len(body.patterns),
-    )
+    if isinstance(body, BackupEnqueue):
+        label = sanitize_label(body.label)
+        if body.label is not None and label is None:
+            raise AppError(
+                "Invalid backup label",
+                status=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Label must match [a-z0-9-] (max 32 chars)",
+                code="jobs:invalid-label",
+            )
+        job = await runner.enqueue(body.kind, {"label": label}, total=0)
+    else:
+        job = await runner.enqueue(
+            body.kind,
+            {"upstream": body.upstream, "patterns": body.patterns},
+            total=len(body.patterns),
+        )
     return JobRead.model_validate(job)
 
 

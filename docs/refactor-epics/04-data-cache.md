@@ -66,6 +66,16 @@
   hottest write path (per-check log upserts) for admin-page reads.
   Regression-pinned by `tests/test_v3_query_plans.py`.)
 - [ ] 7. Backup/restore covers DB + settings + secrets-manifest (never secrets plaintext).
+  (Backup half done on `v3/epic-01-backend-foundation`: zip archives
+  (`manifest.json` + per-table JSON via `model_dump(mode="json")`) under
+  `data/backups`, covering shortcuts/upstreams/upstream_cache/user_params/
+  settings/api_keys (operational check-logs/jobs excluded by design);
+  `POST /api/v1/admin/backup` enqueues a `backup_create` job (second job
+  kind, same SSE progress), plus list/download/delete with traversal-safe
+  naming. Secrets hygiene verified by test (no plaintext in archive bytes;
+  hashes only; env-owned secrets named-not-valued in the manifest).
+  Restore stays staged — JSON dumps are shaped for a future
+  import-v2-style row upsert (`POST /api/v1/admin/backup/{name}:restore`).)
 
 ## `gh` snippet
 ```bash

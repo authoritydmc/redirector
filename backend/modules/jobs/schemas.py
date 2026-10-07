@@ -7,10 +7,18 @@ from pydantic import BaseModel, Field
 from backend.models.entities import JSONValue
 
 
-class JobEnqueue(BaseModel):
+class UpstreamResyncEnqueue(BaseModel):
     kind: Literal["upstream_resync"] = Field(description="Job kind to run")
     upstream: str = Field(..., description="Upstream name to resync against")
     patterns: list[str] = Field(..., min_length=1, description="Patterns to re-check")
+
+
+class BackupEnqueue(BaseModel):
+    kind: Literal["backup_create"] = Field(description="Job kind to run")
+    label: str | None = Field(default=None, description="Optional filename tag")
+
+
+JobEnqueue = UpstreamResyncEnqueue | BackupEnqueue
 
 
 class JobRead(BaseModel):

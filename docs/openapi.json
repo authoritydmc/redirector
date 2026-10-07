@@ -145,6 +145,100 @@
         "title": "ApiKeyRead",
         "type": "object"
       },
+      "BackupCreate": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional filename tag, [a-z0-9-] max 32 chars",
+            "title": "Label"
+          }
+        },
+        "title": "BackupCreate",
+        "type": "object"
+      },
+      "BackupDeleteResponse": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "name"
+        ],
+        "title": "BackupDeleteResponse",
+        "type": "object"
+      },
+      "BackupEnqueue": {
+        "properties": {
+          "kind": {
+            "const": "backup_create",
+            "description": "Job kind to run",
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional filename tag",
+            "title": "Label"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "BackupEnqueue",
+        "type": "object"
+      },
+      "BackupRead": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "tables": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Tables",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "size_bytes",
+          "created_at",
+          "tables"
+        ],
+        "title": "BackupRead",
+        "type": "object"
+      },
       "BulkDeleteRequest": {
         "properties": {
           "patterns": {
@@ -504,37 +598,6 @@
           "shortcuts"
         ],
         "title": "HitBucket",
-        "type": "object"
-      },
-      "JobEnqueue": {
-        "properties": {
-          "kind": {
-            "const": "upstream_resync",
-            "description": "Job kind to run",
-            "title": "Kind",
-            "type": "string"
-          },
-          "patterns": {
-            "description": "Patterns to re-check",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "title": "Patterns",
-            "type": "array"
-          },
-          "upstream": {
-            "description": "Upstream name to resync against",
-            "title": "Upstream",
-            "type": "string"
-          }
-        },
-        "required": [
-          "kind",
-          "upstream",
-          "patterns"
-        ],
-        "title": "JobEnqueue",
         "type": "object"
       },
       "JobRead": {
@@ -1351,6 +1414,37 @@
         "title": "UpstreamRead",
         "type": "object"
       },
+      "UpstreamResyncEnqueue": {
+        "properties": {
+          "kind": {
+            "const": "upstream_resync",
+            "description": "Job kind to run",
+            "title": "Kind",
+            "type": "string"
+          },
+          "patterns": {
+            "description": "Patterns to re-check",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Patterns",
+            "type": "array"
+          },
+          "upstream": {
+            "description": "Upstream name to resync against",
+            "title": "Upstream",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "upstream",
+          "patterns"
+        ],
+        "title": "UpstreamResyncEnqueue",
+        "type": "object"
+      },
       "UpstreamStats": {
         "properties": {
           "cached_entries": {
@@ -1506,6 +1600,170 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/backup": {
+      "get": {
+        "operationId": "list_backup_archives_api_v1_admin_backup_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BackupRead"
+                  },
+                  "title": "Response List Backup Archives Api V1 Admin Backup Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List backups",
+        "tags": [
+          "admin-backup"
+        ]
+      },
+      "post": {
+        "operationId": "create_backup_job_api_v1_admin_backup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Enqueue a backup job",
+        "tags": [
+          "admin-backup"
+        ]
+      }
+    },
+    "/api/v1/admin/backup/{name}": {
+      "delete": {
+        "operationId": "delete_backup_api_v1_admin_backup__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete a backup",
+        "tags": [
+          "admin-backup"
+        ]
+      },
+      "get": {
+        "operationId": "download_backup_api_v1_admin_backup__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download a backup archive",
+        "tags": [
+          "admin-backup"
+        ]
+      }
+    },
     "/api/v1/admin/config": {
       "get": {
         "description": "Return active system configuration and stored settings.",
@@ -1830,7 +2088,15 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobEnqueue"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/UpstreamResyncEnqueue"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BackupEnqueue"
+                  }
+                ],
+                "title": "Body"
               }
             }
           },
@@ -3078,6 +3344,10 @@
     {
       "description": "DB-backed settings (admin only)",
       "name": "admin-config"
+    },
+    {
+      "description": "Backup archives (admin only)",
+      "name": "admin-backup"
     },
     {
       "description": "Login + current admin",

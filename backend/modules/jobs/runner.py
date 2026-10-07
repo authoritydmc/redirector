@@ -18,7 +18,14 @@ import httpx
 from arq.connections import ArqRedis, RedisSettings, create_pool
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.core.config import settings
 from backend.models.entities import Job, JobStatus
+from backend.modules.backup.service import (
+    TABLE_MODELS,
+    backup_dir,
+    create_backup,
+    sanitize_label,
+)
 from backend.modules.jobs.repository import JobRepository
 from backend.modules.upstreams.repository import UpstreamRepository
 from backend.modules.upstreams.service import UpstreamCheckService
@@ -50,12 +57,38 @@ async def execute_job(session_factory: SessionFactory, job_id: int) -> None:
         try:
             if job.kind == "upstream_resync":
                 await _resync(session, repo, job)
+            elif job.kind == "backup_create":
+                await _backup(session, repo, job)
             else:
                 raise ValueError(f"unknown job kind: {job.kind}")
         except asyncio.CancelledError:
             raise
         except Exception as exc:
             await repo.fail(job, f"{type(exc).__name__}: {exc}")
+
+
+async def _backup(session: AsyncSession, repo: JobRepository, job: Job) -> None:
+    label = job.payload.get("label")
+    if label is not None and not isinstance(label, str):
+        await repo.fail(job, "backup_create payload needs {label: str | null}")
+        return
+    clean = sanitize_label(label)
+    if label is not None and clean is None:
+        await repo.fail(job, "backup_create label must match [a-z0-9-] (max 32 chars)")
+        return
+    await repo.mark_running(job, len(TABLE_MODELS))
+    service_dir = backup_dir()
+
+    async def _progress(done: int, total: int) -> None:
+        job.done = done
+        job.total = total
+        await session.commit()
+
+    result = await create_backup(
+        session, service_dir, clean, settings.app_version, on_progress=_progress,
+    )
+    await repo.succeed(job, {"name": result.name, "size_bytes": result.size_bytes,
+                             "tables": result.tables})
 
 
 async def _resync(session: AsyncSession, repo: JobRepository, job: Job) -> None:
@@ -162,7 +195,10 @@ class ArqJobRunner(JobRunner):
     once a worker appears, and reaped as failed only on API restart.
     """
 
-    ARQ_FUNCTION = "run_upstream_resync"
+    ARQ_FUNCTIONS = {
+        "upstream_resync": "run_upstream_resync",
+        "backup_create": "run_backup_create",
+    }
 
     def __init__(
         self,
@@ -184,12 +220,16 @@ class ArqJobRunner(JobRunner):
 
     async def enqueue(self, kind: str, payload: dict[str, Any], total: int) -> Job:
         """Persist a queued job row, then hand it to the Redis broker."""
+        try:
+            function = self.ARQ_FUNCTIONS[kind]
+        except KeyError:
+            raise ValueError(f"unknown job kind: {kind}") from None
         async with self._factory() as session:
             job = await JobRepository(session).create(kind, payload, total)
             assert job.id is not None
             job_id = job.id
         pool = await self._pool_conn()
-        await pool.enqueue_job(self.ARQ_FUNCTION, job_id, _queue_name=self._queue_name)
+        await pool.enqueue_job(function, job_id, _queue_name=self._queue_name)
         return job
 
     async def shutdown(self) -> None:

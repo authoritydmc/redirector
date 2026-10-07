@@ -67,6 +67,7 @@ export REDIRECTOR_AUTO_REDIRECT_DELAY=0   # instant 302s; default 1 = countdown 
 | `jobs` | `/api/v1/jobs` | Enqueue (202) + list/status/cancel + `/events` SSE; in-process runner (arq swap later); boot reaps stale rows |
 | `auth` | `/api/v1/auth` | `POST /login`, `GET /me`, `/api-keys` issue/list/revoke (JWT-session-only management; MFA: EPIC-05) |
 | `config` | `/api/v1/admin/config` | Admin JWT, DB-backed settings |
+| `backup` | `/api/v1/admin/backup` | Enqueue/list/download/delete archives (restore staged) |
 | `metrics` | `/api/v1/metrics` | `/kpi` (typed schemas), `/live` |
 | `qr` | `/qr/{pattern}`, `/api/v1/qr` | PNG bytes or base64 JSON |
 

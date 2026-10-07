@@ -65,6 +65,7 @@ def test_openapi_covers_all_routers(client):
         "/api/v1/metrics",
         "/api/v1/auth",
         "/api/v1/admin/config",
+        "/api/v1/admin/backup",
         "/api/v1/jobs",
         "/api/v1/qr",
         "/api/v1/resolve",

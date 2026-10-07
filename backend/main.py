@@ -19,6 +19,7 @@ from backend.core.errors import register_error_handlers
 from backend.modules.jobs.redis import redis_settings_from_url
 from backend.modules.jobs.runner import ArqJobRunner, JobRunner
 from backend.routers import auth as auth_router
+from backend.routers import backup as backup_router
 from backend.routers import config as config_router
 from backend.routers import health
 from backend.routers import jobs as jobs_router
@@ -82,6 +83,7 @@ def create_app() -> FastAPI:
             {"name": "upstreams", "description": "Upstream CRUD, cache, live checks"},
             {"name": "metrics", "description": "KPI aggregates + process telemetry"},
             {"name": "admin-config", "description": "DB-backed settings (admin only)"},
+            {"name": "admin-backup", "description": "Backup archives (admin only)"},
             {"name": "auth", "description": "Login + current admin"},
             {"name": "jobs", "description": "Background jobs + progress streams"},
             {"name": "qr", "description": "QR code generation"},
@@ -108,6 +110,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(auth_router.router)
+    app.include_router(backup_router.router)
     app.include_router(jobs_router.router)
     app.include_router(config_router.router)
     app.include_router(qr_router.router)
