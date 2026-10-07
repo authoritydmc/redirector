@@ -160,18 +160,32 @@ class UpstreamCheckService:
         upstream: Upstream,
         patterns: list[str],
         client: httpx.AsyncClient,
+        max_concurrency: int = 10,
     ) -> tuple[list[CacheResyncResult], int, int]:
         """Re-check patterns and reconcile the cache (v2 resync port).
 
         found -> upsert cache row; sso/not_found/error -> drop the row
         (stale entries must not survive); skipped -> row left untouched.
         Returns (per-pattern results, updated count, cleared count).
+
+        Phase 1 fans the HTTP checks out concurrently (bounded by
+        `max_concurrency`); phase 2 reconciles cache rows sequentially so
+        counts and result order stay deterministic. Session writes stay
+        safe via the repo lock held in check_single/_save_cache/_clear_entry.
         """
+        if not patterns:
+            return [], 0, 0
+        sem = asyncio.Semaphore(max(1, max_concurrency))
+
+        async def _checked(pattern: str) -> UpstreamCheckResult:
+            async with sem:
+                return await self.check_single(upstream, pattern, client)
+
+        checks = await asyncio.gather(*(_checked(p) for p in patterns))
         results: list[CacheResyncResult] = []
         updated = 0
         cleared = 0
-        for pattern in patterns:
-            check = await self.check_single(upstream, pattern, client)
+        for pattern, check in zip(patterns, checks, strict=True):
             if check.status == "found" and check.target_url:
                 await self._save_cache(pattern, upstream.name, check.target_url)
                 updated += 1

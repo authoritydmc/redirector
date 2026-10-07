@@ -435,3 +435,34 @@ def test_check_all_fans_out_concurrently() -> None:
     assert [r.upstream_name for r in results] == ["u0", "u1", "u2"]
     assert all(r.status == "found" for r in results)
     assert elapsed < 1.4, f"fan-out took {elapsed:.2f}s, expected ~0.5s (max, not sum)"
+
+
+def test_refresh_patterns_fans_out_concurrently() -> None:
+    """EPIC-06 resync-all shape: 4 x 300ms stubs must take ~max, not sum.
+
+    Sequential would need >= 1.2 s; bounded fan-out shares one session,
+    so this also proves check-log + cache writes stay safe under
+    concurrent resync.
+    """
+
+    async def _main() -> tuple[int, int, float]:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        async with engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.create_all)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as session:
+            service = UpstreamCheckService(UpstreamRepository(session))
+            up = Upstream(name="wiki", base_url="https://slow.example")
+            patterns = [f"p{i}" for i in range(4)]
+            started = time.perf_counter()
+            results, updated, cleared = await service.refresh_patterns(
+                up, patterns, SlowClient(delay=0.3),  # type: ignore[arg-type]
+            )
+            elapsed = time.perf_counter() - started
+            assert [r.pattern for r in results] == patterns
+            return updated, cleared, elapsed
+
+    updated, cleared, elapsed = asyncio.run(_main())
+    assert updated == 4
+    assert cleared == 0
+    assert elapsed < 1.0, f"resync took {elapsed:.2f}s, expected ~0.3s (max, not sum)"
