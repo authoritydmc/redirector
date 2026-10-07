@@ -75,7 +75,7 @@ class UpstreamRepository:
             stmt = stmt.where(UpstreamCache.upstream_name == upstream_name)
         result = await self.session.execute(stmt)
         await self.session.commit()
-        return result.rowcount
+        return int(result.rowcount or 0)
 
     async def save_cache(
         self, pattern: str, upstream_name: str, resolved_url: str
@@ -176,4 +176,4 @@ class UpstreamRepository:
             stmt = stmt.where(UpstreamCheckLog.upstream_name == upstream_name)
         result = await self.session.execute(stmt)
         await self.session.commit()
-        return result.rowcount
+        return int(result.rowcount or 0)

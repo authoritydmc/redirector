@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import desc as sa_desc
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,8 +28,11 @@ class JobRepository:
 
     async def list_recent(self, limit: int = 50) -> list[Job]:
         """Newest jobs first (admin UI polling surface)."""
+        # Table-column form (not Job.id.desc()): newest-first over the PK
+        # stays well-typed across SQLAlchemy versions (see CI drift note in
+        # PR #114 — unpinned mypy/SQLAlchemy disagree on Optional .desc()).
         rows = await self.session.execute(
-            select(Job).order_by(sa_desc(Job.id)).limit(limit))
+            select(Job).order_by(Job.__table__.c.id.desc()).limit(limit))
         return list(rows.scalars().all())
 
     async def _save(self, job: Job) -> Job:
