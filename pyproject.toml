@@ -38,5 +38,6 @@ ignore_errors = true
 module = [
   "backend.modules.shortcuts.repository",
   "backend.modules.upstreams.repository",
+  "backend.modules.jobs.repository",
 ]
 disable_error_code = ["arg-type", "attr-defined"]

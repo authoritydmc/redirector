@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import httpx
@@ -161,6 +162,7 @@ class UpstreamCheckService:
         patterns: list[str],
         client: httpx.AsyncClient,
         max_concurrency: int = 10,
+        on_progress: Callable[[int, int], Awaitable[None]] | None = None,
     ) -> tuple[list[CacheResyncResult], int, int]:
         """Re-check patterns and reconcile the cache (v2 resync port).
 
@@ -172,9 +174,12 @@ class UpstreamCheckService:
         `max_concurrency`); phase 2 reconciles cache rows sequentially so
         counts and result order stay deterministic. Session writes stay
         safe via the repo lock held in check_single/_save_cache/_clear_entry.
+        `on_progress(done, total)` fires after each reconciled pattern
+        (used by background jobs; None keeps the call synchronous-quiet).
         """
         if not patterns:
             return [], 0, 0
+        total = len(patterns)
         sem = asyncio.Semaphore(max(1, max_concurrency))
 
         async def _checked(pattern: str) -> UpstreamCheckResult:
@@ -185,7 +190,7 @@ class UpstreamCheckService:
         results: list[CacheResyncResult] = []
         updated = 0
         cleared = 0
-        for pattern, check in zip(patterns, checks, strict=True):
+        for i, (pattern, check) in enumerate(zip(patterns, checks, strict=True), start=1):
             if check.status == "found" and check.target_url:
                 await self._save_cache(pattern, upstream.name, check.target_url)
                 updated += 1
@@ -205,4 +210,6 @@ class UpstreamCheckService:
                     pattern=pattern, success=False, status=check.status,
                     message=check.message,
                 ))
+            if on_progress is not None:
+                await on_progress(i, total)
         return results, updated, cleared

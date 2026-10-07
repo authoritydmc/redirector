@@ -30,6 +30,13 @@
 ## Tasks
 - [x] 1. `httpx` client + fan-out service + stub-upstream test harness.
 - [ ] 2. arq worker + Redis broker + job events table/SSE endpoint.
+  (In progress on `v3/epic-01-backend-foundation`: DB-backed `jobs` table +
+  `POST /api/v1/jobs` (202) + `GET /api/v1/jobs/{id}` +
+  `GET /api/v1/jobs/{id}/events` (SSE) with an in-process asyncio runner
+  for `upstream_resync` (`backend/modules/jobs/`, `backend/routers/jobs.py`,
+  `tests/test_v3_jobs_api.py`). Routers depend only on `JobRunner`, so arq +
+  Redis lands as a runner swap. Still open: arq worker process, Redis
+  broker, restart-surviving execution.)
 - [x] 3. Cache stampede guard (singleflight) + negative caching.
   (Done: `MemoryCache.get_or_compute` singleflight + `CACHE_MISS_SENTINEL`
   with 60 s TTL in shortcut `lookup`; see `tests/test_v3_lookup_singleflight.py`.)

@@ -138,3 +138,36 @@ class Setting(SQLModel, table=True):
     key: str = Field(primary_key=True)
     value: JSONValue = Field(sa_column=Column(JSON))
     updated_at: datetime = Field(default_factory=utcnow)
+
+
+class JobStatus(str, Enum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class Job(SQLModel, table=True):
+    """Background job record (EPIC-06 task 2).
+
+    Rows are the source of truth for status/progress; the in-process runner
+    (later: arq worker) executes the payload and updates the row. SSE
+    progress streams poll the row, so progress survives runner restarts
+    even before a durable broker lands.
+    """
+
+    __tablename__ = "jobs"
+
+    id: int | None = Field(default=None, primary_key=True)
+    kind: str = Field(index=True)  # e.g. "upstream_resync"
+    status: JobStatus = Field(
+        default=JobStatus.QUEUED,
+        sa_column=Column(SAEnum(JobStatus, values_callable=lambda cls: [m.value for m in cls])),
+    )
+    total: int = Field(default=0)
+    done: int = Field(default=0)
+    payload: dict[str, JSONValue] = Field(default_factory=dict, sa_column=Column(JSON))
+    result: dict[str, JSONValue] | None = Field(default=None, sa_column=Column(JSON))
+    error: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
