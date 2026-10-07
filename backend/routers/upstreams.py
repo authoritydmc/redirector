@@ -123,7 +123,8 @@ async def resync_upstream_cache(
 
     service = UpstreamCheckService(repo)
     timeout = httpx.Timeout(3.0, connect=3.0)
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    limits = httpx.Limits(max_connections=100, max_keepalive_connections=20)
+    async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
         results, updated, cleared = await service.refresh_patterns(upstream, patterns, client)
     return CacheResyncResponse(
         success=True,
@@ -235,11 +236,14 @@ async def stream_upstream_check(
 
     async def event_generator() -> AsyncIterator[str]:
         # EPIC-01 timeout budget: 3s per upstream check (fast-fail on SSE).
+        # EPIC-06 pool budget: 100 connections / 20 keepalive.
         timeout = httpx.Timeout(3.0, connect=3.0)
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        limits = httpx.Limits(max_connections=100, max_keepalive_connections=20)
+        async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
             yield f"data: {json.dumps({'message': f'Starting check for pattern: {pattern}'})}\n\n"
-            for up in upstreams:
-                res = await service.check_single(up, pattern, client)
+            # Concurrent fan-out, then yield in configured order with the same
+            # stop-on-first-hit rule as the old sequential loop.
+            for res in await service.check_all(upstreams, pattern, client):
                 yield f"data: {res.model_dump_json()}\n\n"
                 if res.status in ("found", "sso_required"):
                     break

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from typing import Any
 
 import pytest
@@ -393,3 +394,44 @@ def test_sso_outcome_is_never_cached(monkeypatch: pytest.MonkeyPatch) -> None:
         assert res["updated"] == 0
         assert res["results"][0]["status"] == "sso_required"
         assert client.get("/api/v1/upstreams/cache").json() == []
+
+
+class SlowClient(FakeClient):
+    """Stub upstream with latency: every check takes `delay` seconds."""
+
+    def __init__(self, delay: float = 0.5) -> None:
+        super().__init__(FakeResp("https://slow.example/x", 200))
+        self.delay = delay
+
+    async def get(self, url: str, **kwargs: Any) -> FakeResp:
+        self.calls.append({"url": url, **kwargs})
+        await asyncio.sleep(self.delay)
+        return self.resp
+
+
+def test_check_all_fans_out_concurrently() -> None:
+    """EPIC-06 acceptance shape: 3 x 500ms stubs must take ~max, not sum.
+
+    Sequential would need >= 1.5 s; concurrent shares one session, so this
+    also proves the repo-write lock keeps concurrent checks safe.
+    """
+
+    async def _main() -> tuple[list[UpstreamCheckResult], float]:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        async with engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.create_all)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as session:
+            service = UpstreamCheckService(UpstreamRepository(session))
+            ups = [
+                Upstream(name=f"u{i}", base_url="https://slow.example")
+                for i in range(3)
+            ]
+            started = time.perf_counter()
+            results = await service.check_all(ups, "x", SlowClient())  # type: ignore[arg-type]
+            return results, time.perf_counter() - started
+
+    results, elapsed = asyncio.run(_main())
+    assert [r.upstream_name for r in results] == ["u0", "u1", "u2"]
+    assert all(r.status == "found" for r in results)
+    assert elapsed < 1.4, f"fan-out took {elapsed:.2f}s, expected ~0.5s (max, not sum)"

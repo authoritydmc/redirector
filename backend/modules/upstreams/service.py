@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+from typing import Any
+
 import httpx
 
 from backend.models.entities import Upstream
@@ -13,6 +16,21 @@ from backend.modules.upstreams.schemas import CacheResyncResult, UpstreamCheckRe
 class UpstreamCheckService:
     def __init__(self, repo: UpstreamRepository) -> None:
         self.repo = repo
+        # AsyncSession is not safe for concurrent use: fan-out keeps HTTP
+        # parallel while repo writes serialize on this lock.
+        self._lock = asyncio.Lock()
+
+    async def _log_check(self, **kwargs: Any) -> None:
+        async with self._lock:
+            await self.repo.log_check(**kwargs)
+
+    async def _save_cache(self, pattern: str, upstream_name: str, resolved_url: str) -> None:
+        async with self._lock:
+            await self.repo.save_cache(pattern, upstream_name, resolved_url)
+
+    async def _clear_entry(self, pattern: str, upstream_name: str) -> bool:
+        async with self._lock:
+            return await self.repo.clear_cache_entry(pattern, upstream_name)
 
     async def check_single(
         self,
@@ -44,7 +62,7 @@ class UpstreamCheckService:
 
             # Check SSO
             if is_sso_url(actual_url):
-                await self.repo.log_check(
+                await self._log_check(
                     pattern=pattern,
                     upstream_name=upstream.name,
                     check_url=check_url,
@@ -70,7 +88,7 @@ class UpstreamCheckService:
 
             if not fail_url_match and not fail_status_match:
                 # Found!
-                await self.repo.log_check(
+                await self._log_check(
                     pattern=pattern,
                     upstream_name=upstream.name,
                     check_url=check_url,
@@ -88,7 +106,7 @@ class UpstreamCheckService:
                     message=f"Found target: {actual_url}",
                 )
             else:
-                await self.repo.log_check(
+                await self._log_check(
                     pattern=pattern,
                     upstream_name=upstream.name,
                     check_url=check_url,
@@ -105,7 +123,7 @@ class UpstreamCheckService:
                 )
 
         except Exception as e:
-            await self.repo.log_check(
+            await self._log_check(
                 pattern=pattern,
                 upstream_name=upstream.name,
                 check_url=check_url,
@@ -119,6 +137,23 @@ class UpstreamCheckService:
                 status="error",
                 message=f"Connection error: {e}",
             )
+
+    async def check_all(
+        self,
+        upstreams: list[Upstream],
+        pattern: str,
+        client: httpx.AsyncClient,
+    ) -> list[UpstreamCheckResult]:
+        """Concurrent fan-out (EPIC-06): check latency = max(upstreams), not
+        sum. Results keep configured order so first-found/first-SSO priority
+        is unchanged. Note: unlike the old sequential loop, every upstream is
+        probed (check-log rows upsert per pattern+upstream, no row growth)."""
+        if not upstreams:
+            return []
+        results = await asyncio.gather(
+            *(self.check_single(up, pattern, client) for up in upstreams)
+        )
+        return list(results)
 
     async def refresh_patterns(
         self,
@@ -138,7 +173,7 @@ class UpstreamCheckService:
         for pattern in patterns:
             check = await self.check_single(upstream, pattern, client)
             if check.status == "found" and check.target_url:
-                await self.repo.save_cache(pattern, upstream.name, check.target_url)
+                await self._save_cache(pattern, upstream.name, check.target_url)
                 updated += 1
                 results.append(CacheResyncResult(
                     pattern=pattern, success=True, status="found",
@@ -150,7 +185,7 @@ class UpstreamCheckService:
                     message=check.message,
                 ))
             else:
-                if await self.repo.clear_cache_entry(pattern, upstream.name):
+                if await self._clear_entry(pattern, upstream.name):
                     cleared += 1
                 results.append(CacheResyncResult(
                     pattern=pattern, success=False, status=check.status,
