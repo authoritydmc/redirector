@@ -45,8 +45,9 @@
 - [ ] 4. Nginx/Caddy examples updated (SSE, gzip/brotli, static caching).
 - [ ] 5. k6 scripts + CI nightly + PR smoke (10 VUs, 60s).
   (In progress, locust instead of k6 per repo standard: `locustfile_v3.py`
-  + `load-smoke.sh` + `check_stats.py` CSV gate + nightly workflow.
-  PR trigger and baseline-relative p99 gating still open.)
+  + `load-smoke.sh` + `check_stats.py` CSV gate + `load-smoke.yml`
+  (nightly + PR paths + dispatch). Still open: baseline-relative p99
+  gating.)
 
 ## `gh` snippet
 ```bash

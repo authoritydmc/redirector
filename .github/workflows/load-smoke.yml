@@ -1,8 +1,8 @@
-# Nightly v3 load smoke (EPIC-06 task 5): boots the FastAPI backend on a
-# scratch DB and runs the locust v3 script headless (10 VUs, 60s).
-# Gates on zero request failures; p99 figures land in the step summary and
-# the CSV artifact for trend-spotting. Full p99-regression-vs-baseline
-# gating is still open (see docs/refactor-epics/06-perf-realtime.md).
+# v3 load smoke (EPIC-06 task 5): boots the FastAPI backend on a scratch DB
+# and runs the locust v3 script headless (10 VUs, 60s). Gates on zero
+# request failures; p99 figures land in the step summary and the CSV
+# artifact for trend-spotting. Full p99-regression-vs-baseline gating is
+# still open (see docs/refactor-epics/06-perf-realtime.md).
 name: Load smoke (v3)
 
 permissions:
@@ -12,6 +12,12 @@ on:
   schedule:
     - cron: "0 3 * * *"
   workflow_dispatch:
+  pull_request:
+    branches: ["main", "develop"]
+    paths:
+      - "backend/**"
+      - "load_testing/**"
+      - ".github/workflows/load-smoke.yml"
 
 jobs:
   locust-smoke:
