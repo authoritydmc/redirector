@@ -62,9 +62,9 @@ def make_v2_data_dir(tmp_path):
         "log_level": "debug",
         "delete_requires_password": "yes",
         "upstream_cache": {"enabled": False},
-        "admin_password": "s3cret-plaintext",
-        "session_secret": "shh-session",
-        "mfa": {"enabled": True, "secret": "shh-mfa"},
+        "admin_password": "fixture-password-not-real",
+        "session_secret": "fixture-secret-not-real",
+        "mfa": {"enabled": True, "secret": "fixture-mfa-seed-not-real"},
         "port": 80,
         "database": "sqlite:///redirect.db",
     }), encoding="utf-8")

@@ -165,9 +165,9 @@ def _seed_upstream(client: TestClient) -> None:
 
 def test_redis_settings_parsing() -> None:
     assert redis_settings_from_url("redis://localhost:6379/0").database == 0
-    parsed = redis_settings_from_url("redis://:s3cret@jobs.internal:6380/2")
+    parsed = redis_settings_from_url("redis://:fixture-redis-pw@jobs.internal:6380/2")
     assert (parsed.host, parsed.port, parsed.database, parsed.password) == (
-        "jobs.internal", 6380, 2, "s3cret")
+        "jobs.internal", 6380, 2, "fixture-redis-pw")
     assert redis_settings_from_url("rediss://h:6379/0").ssl is True
     with pytest.raises(ValueError):
         redis_settings_from_url("http://h:6379/0")
