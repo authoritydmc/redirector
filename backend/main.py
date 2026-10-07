@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
+from sqlalchemy.exc import OperationalError
 
 from backend.core.config import settings
 from backend.core.db import SessionFactory
@@ -41,6 +42,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # M1: stateless boot. EPIC-04 adds: migrate → seed → warm cache here.
     if not hasattr(app.state, "jobs"):
         app.state.jobs = JobRunner(SessionFactory)
+    try:
+        reaped = await app.state.jobs.reap_stale()
+    except OperationalError:
+        # Fresh database whose tables are created lazily (tests) or an
+        # install that hasn't bootstrapped yet: nothing to reap.
+        logger.debug("jobs table not present yet, skipping stale reap")
+        reaped = 0
+    if reaped:
+        logger.warning("marked %d stale job(s) failed (previous process)", reaped)
     logger.info("redirector v%s starting (data_dir=%s)", settings.app_version, settings.data_dir)
     yield
     runner: JobRunner | None = getattr(app.state, "jobs", None)

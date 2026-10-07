@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import desc as sa_desc
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +26,12 @@ class JobRepository:
     async def get(self, job_id: int) -> Job | None:
         return (await self.session.execute(
             select(Job).where(Job.id == job_id))).scalar_one_or_none()
+
+    async def list_recent(self, limit: int = 50) -> list[Job]:
+        """Newest jobs first (admin UI polling surface)."""
+        rows = await self.session.execute(
+            select(Job).order_by(sa_desc(Job.id)).limit(limit))
+        return list(rows.scalars().all())
 
     async def _save(self, job: Job) -> Job:
         job.updated_at = datetime.now(UTC)
@@ -52,3 +59,25 @@ class JobRepository:
         job.status = JobStatus.FAILED
         job.error = error
         return await self._save(job)
+
+    async def cancel(self, job: Job) -> Job:
+        job.status = JobStatus.CANCELLED
+        job.error = "cancelled"
+        return await self._save(job)
+
+    async def fail_stale(self, error: str) -> int:
+        """Fail jobs left non-terminal by a previous process (boot reaping).
+
+        The in-process runner cannot resume them; a durable broker (arq,
+        EPIC-06 task 2 remainder) will requeue instead of failing.
+        """
+        rows = (await self.session.execute(
+            select(Job).where(Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING]))
+        )).scalars().all()
+        now = datetime.now(UTC)
+        for job in rows:
+            job.status = JobStatus.FAILED
+            job.error = error
+            job.updated_at = now
+        await self.session.commit()
+        return len(rows)

@@ -16,7 +16,7 @@ from typing import Any
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.entities import Job
+from backend.models.entities import Job, JobStatus
 from backend.modules.jobs.repository import JobRepository
 from backend.modules.upstreams.repository import UpstreamRepository
 from backend.modules.upstreams.service import UpstreamCheckService
@@ -24,6 +24,8 @@ from backend.modules.upstreams.service import UpstreamCheckService
 logger = logging.getLogger("redirector")
 
 SessionFactory = Callable[[], AsyncSession]
+
+TERMINAL = (JobStatus.SUCCEEDED, JobStatus.FAILED, JobStatus.CANCELLED)
 
 
 class JobRunner:
@@ -113,3 +115,23 @@ class JobRunner:
             task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def cancel_job(self, job_id: int) -> Job | None:
+        """Cancel a queued/running job; terminal rows pass through untouched."""
+        async with self._lock:
+            task = self._tasks.pop(job_id, None)
+        if task is not None:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        async with self._factory() as session:
+            repo = JobRepository(session)
+            job = await repo.get(job_id)
+            if job is None or job.status in TERMINAL:
+                return job
+            return await repo.cancel(job)
+
+    async def reap_stale(self) -> int:
+        """Fail rows left non-terminal by a previous process (boot only)."""
+        async with self._factory() as session:
+            return await JobRepository(session).fail_stale(
+                "server restarted before completion")

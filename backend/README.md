@@ -61,7 +61,7 @@ export REDIRECTOR_AUTO_REDIRECT_DELAY=0   # instant 302s; default 1 = countdown 
 | `shortcuts` | `/api/v1/shortcuts` | CRUD + `POST /bulk-delete` |
 | `upstreams` | `/api/v1/upstreams` | CRUD, `/cache` (+ entry purge, resync), `/check-logs`, `/check/stream` (SSE) |
 | `resolve` | `/api/v1/resolve`, `/{pattern}` | Hot path; catch-all registered LAST |
-| `jobs` | `/api/v1/jobs` | Enqueue (202) + status + `/events` SSE; in-process runner (arq swap later) |
+| `jobs` | `/api/v1/jobs` | Enqueue (202) + list/status/cancel + `/events` SSE; in-process runner (arq swap later); boot reaps stale rows |
 | `auth` | `/api/v1/auth` | `POST /login`, `GET /me` (MFA/API keys: EPIC-05) |
 | `config` | `/api/v1/admin/config` | Admin JWT, DB-backed settings |
 | `metrics` | `/api/v1/metrics` | `/kpi` (typed schemas), `/live` |

@@ -31,9 +31,11 @@
 - [x] 1. `httpx` client + fan-out service + stub-upstream test harness.
 - [ ] 2. arq worker + Redis broker + job events table/SSE endpoint.
   (In progress on `v3/epic-01-backend-foundation`: DB-backed `jobs` table +
-  `POST /api/v1/jobs` (202) + `GET /api/v1/jobs/{id}` +
+  `POST /api/v1/jobs` (202) + `GET /api/v1/jobs` (list) +
+  `GET /api/v1/jobs/{id}` + `DELETE /api/v1/jobs/{id}` (cancel) +
   `GET /api/v1/jobs/{id}/events` (SSE) with an in-process asyncio runner
-  for `upstream_resync` (`backend/modules/jobs/`, `backend/routers/jobs.py`,
+  for `upstream_resync`, plus boot reaping of stale rows
+  (`backend/modules/jobs/`, `backend/routers/jobs.py`,
   `tests/test_v3_jobs_api.py`). Routers depend only on `JobRunner`, so arq +
   Redis lands as a runner swap. Still open: arq worker process, Redis
   broker, restart-surviving execution.)
