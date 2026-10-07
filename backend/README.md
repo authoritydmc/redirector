@@ -65,7 +65,7 @@ export REDIRECTOR_AUTO_REDIRECT_DELAY=0   # instant 302s; default 1 = countdown 
 | `upstreams` | `/api/v1/upstreams` | CRUD, `/cache` (+ entry purge, resync), `/check-logs`, `/check/stream` (SSE) |
 | `resolve` | `/api/v1/resolve`, `/{pattern}` | Hot path; catch-all registered LAST |
 | `jobs` | `/api/v1/jobs` | Enqueue (202) + list/status/cancel + `/events` SSE; in-process runner (arq swap later); boot reaps stale rows |
-| `auth` | `/api/v1/auth` | `POST /login`, `GET /me`, `/api-keys` issue/list/revoke (JWT-session-only management; MFA: EPIC-05) |
+| `auth` | `/api/v1/auth` | `POST /login` (MFA-challenged when enrolled), `GET /me`, `/api-keys` issue/list/revoke (JWT-session-only), `/mfa/*` TOTP enroll/verify (WebAuthn: EPIC-05) |
 | `config` | `/api/v1/admin/config` | Admin JWT, DB-backed settings |
 | `backup` | `/api/v1/admin/backup` | Enqueue/list/download/delete archives (restore staged) |
 | `metrics` | `/api/v1/metrics` | `/kpi` (typed schemas), `/live` |

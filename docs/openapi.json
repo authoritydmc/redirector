@@ -869,6 +869,146 @@
         "title": "LoginRequest",
         "type": "object"
       },
+      "MfaChallengeResponse": {
+        "description": "Challenged login: no JWT yet \u2014 exchange `pending_token` + TOTP at\n`POST /api/v1/auth/mfa/verify`.",
+        "properties": {
+          "mfa_required": {
+            "default": true,
+            "title": "Mfa Required",
+            "type": "boolean"
+          },
+          "pending_token": {
+            "title": "Pending Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pending_token"
+        ],
+        "title": "MfaChallengeResponse",
+        "type": "object"
+      },
+      "MfaDisableRequest": {
+        "properties": {
+          "token": {
+            "description": "Current TOTP confirming the disable",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "MfaDisableRequest",
+        "type": "object"
+      },
+      "MfaEnableRequest": {
+        "properties": {
+          "token": {
+            "description": "Current 6-digit TOTP from the new seed",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "MfaEnableRequest",
+        "type": "object"
+      },
+      "MfaEnableResponse": {
+        "properties": {
+          "backup_codes": {
+            "description": "Single-use codes, plaintext exactly once \u2014 store them now",
+            "items": {
+              "type": "string"
+            },
+            "title": "Backup Codes",
+            "type": "array"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "backup_codes"
+        ],
+        "title": "MfaEnableResponse",
+        "type": "object"
+      },
+      "MfaRegenerateRequest": {
+        "properties": {
+          "token": {
+            "description": "Current TOTP proving possession",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "MfaRegenerateRequest",
+        "type": "object"
+      },
+      "MfaSetupResponse": {
+        "description": "Fresh TOTP seed: render `otpauth_url` as QR, keep `secret` for manual\nentry. Nothing is enabled until a token verifies (see enable).",
+        "properties": {
+          "otpauth_url": {
+            "title": "Otpauth Url",
+            "type": "string"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "otpauth_url",
+          "secret"
+        ],
+        "title": "MfaSetupResponse",
+        "type": "object"
+      },
+      "MfaStatusResponse": {
+        "properties": {
+          "backup_codes_remaining": {
+            "title": "Backup Codes Remaining",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "backup_codes_remaining"
+        ],
+        "title": "MfaStatusResponse",
+        "type": "object"
+      },
+      "MfaVerifyRequest": {
+        "properties": {
+          "pending_token": {
+            "description": "Short-lived login token from a challenged login",
+            "title": "Pending Token",
+            "type": "string"
+          },
+          "token": {
+            "description": "Current TOTP or one unused backup code",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pending_token",
+          "token"
+        ],
+        "title": "MfaVerifyRequest",
+        "type": "object"
+      },
       "MostPopular": {
         "properties": {
           "hits": {
@@ -2034,7 +2174,7 @@
     },
     "/api/v1/auth/login": {
       "post": {
-        "description": "Authenticate admin password and return JWT access token.",
+        "description": "Authenticate admin password: JWT immediately, or an MFA challenge\n(exchange at `mfa/verify`) when TOTP is enrolled.",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
           "content": {
@@ -2051,7 +2191,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TokenResponse"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TokenResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MfaChallengeResponse"
+                    }
+                  ],
+                  "title": "Response Login Api V1 Auth Login Post"
                 }
               }
             },
@@ -2096,6 +2244,242 @@
           }
         ],
         "summary": "Current admin",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/backup-codes:regenerate": {
+      "post": {
+        "description": "Mint a fresh backup-code set (old codes die) with TOTP possession proof.",
+        "operationId": "mfa_regenerate_codes_api_v1_auth_mfa_backup_codes_regenerate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaRegenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnableResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Regenerate backup codes",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/disable": {
+      "post": {
+        "description": "Disable MFA with TOTP proof of possession; clears seed and codes.",
+        "operationId": "mfa_disable_api_v1_auth_mfa_disable_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaDisableRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Disable MFA",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/enable": {
+      "post": {
+        "description": "Verify a token from the staged seed: enables MFA and mints single-use\nbackup codes (plaintext exactly once \u2014 store them now).",
+        "operationId": "mfa_enable_api_v1_auth_mfa_enable_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaEnableRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnableResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Enable TOTP",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/setup": {
+      "post": {
+        "description": "Stage a fresh seed (render the URL as QR). Nothing is enabled until\na token from the new seed verifies at `mfa/enable`.",
+        "operationId": "mfa_setup_api_v1_auth_mfa_setup_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaSetupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Start TOTP enrollment",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/status": {
+      "get": {
+        "operationId": "mfa_status_api_v1_auth_mfa_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "MFA enrollment status",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/verify": {
+      "post": {
+        "description": "Exchange a pending login token + TOTP (or one unused backup code,\nconsumed on use) for a full JWT.",
+        "operationId": "mfa_verify_api_v1_auth_mfa_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete MFA login",
         "tags": [
           "auth"
         ]

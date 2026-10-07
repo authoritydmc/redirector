@@ -6,8 +6,10 @@ import pytest
 
 pytest.importorskip("fastapi")
 pytest.importorskip("jwt")
+pytest.importorskip("pyotp")
 sqlmodel = pytest.importorskip("sqlmodel")
 
+import pyotp  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy.ext.asyncio import (  # noqa: E402
     AsyncSession,
@@ -193,3 +195,136 @@ def test_star_scoped_key_matches_jwt(client: TestClient):
     assert client.get("/api/v1/admin/config", headers=key_headers).status_code == 200
     assert client.patch("/api/v1/admin/config", headers=key_headers,
                         json={"settings": {"y": 2}}).status_code == 200
+
+
+def _enroll(client: TestClient, headers: dict) -> tuple[str, list]:
+    """Setup + enable MFA, returning (seed, backup codes)."""
+    setup = client.post("/api/v1/auth/mfa/setup", headers=headers).json()
+    assert setup["otpauth_url"].startswith("otpauth://")
+    token = pyotp.TOTP(setup["secret"]).now()
+    enabled = client.post("/api/v1/auth/mfa/enable", headers=headers,
+                          json={"token": token}).json()
+    assert len(enabled["backup_codes"]) == 10
+    return setup["secret"], enabled["backup_codes"]
+
+
+def _login_challenge(client: TestClient) -> str:
+    """Password login while MFA is on; returns the pending token."""
+    body = client.post("/api/v1/auth/login",
+                       json={"password": settings.admin_password}).json()
+    assert body["mfa_required"] is True
+    assert "access_token" not in body
+    return body["pending_token"]
+
+
+def test_mfa_enroll_and_login_flow(client: TestClient):
+    headers = _jwt_headers(client)
+    assert client.get("/api/v1/auth/mfa/status", headers=headers).json() == {
+        "enabled": False, "backup_codes_remaining": 0}
+
+    setup = client.post("/api/v1/auth/mfa/setup", headers=headers).json()
+    assert setup["otpauth_url"].startswith("otpauth://")
+
+    # Wrong token enrolls nothing.
+    assert client.post("/api/v1/auth/mfa/enable", headers=headers,
+                       json={"token": "000000"}).status_code == 401
+
+    token = pyotp.TOTP(setup["secret"]).now()
+    enabled = client.post("/api/v1/auth/mfa/enable", headers=headers,
+                          json={"token": token}).json()
+    assert len(enabled["backup_codes"]) == 10
+    assert client.post("/api/v1/auth/mfa/setup", headers=headers).status_code == 409
+
+    status = client.get("/api/v1/auth/mfa/status", headers=headers).json()
+    assert status == {"enabled": True, "backup_codes_remaining": 10}
+
+    # Password login now challenges instead of minting JWT ...
+    pending = _login_challenge(client)
+    # ... and the pending token is useless everywhere else.
+    assert client.get("/api/v1/auth/me",
+                      headers={"Authorization": f"Bearer {pending}"}).status_code == 401
+    assert client.get("/api/v1/admin/config",
+                      headers={"Authorization": f"Bearer {pending}"}).status_code == 401
+
+    # Correct TOTP completes the login.
+    verify = client.post("/api/v1/auth/mfa/verify",
+                         json={"pending_token": pending,
+                               "token": pyotp.TOTP(setup["secret"]).now()}).json()
+    assert "access_token" in verify
+    me = client.get("/api/v1/auth/me",
+                    headers={"Authorization": f"Bearer {verify['access_token']}"}).json()
+    assert me["role"] == "admin"
+
+
+def test_mfa_backup_code_single_use(client: TestClient):
+    headers = _jwt_headers(client)
+    _, codes = _enroll(client, headers)
+
+    first = client.post("/api/v1/auth/mfa/verify",
+                        json={"pending_token": _login_challenge(client),
+                              "token": codes[0]})
+    assert first.status_code == 200
+
+    # Same code spent: rejected, and the count dropped by exactly one.
+    again = client.post("/api/v1/auth/mfa/verify",
+                        json={"pending_token": _login_challenge(client),
+                              "token": codes[0]})
+    assert again.status_code == 401
+    status = client.get("/api/v1/auth/mfa/status", headers=headers).json()
+    assert status["backup_codes_remaining"] == 9
+
+
+def test_mfa_disable_and_regenerate(client: TestClient):
+    headers = _jwt_headers(client)
+    secret, codes = _enroll(client, headers)
+
+    # Regeneration needs TOTP possession proof and kills the old set.
+    assert client.post("/api/v1/auth/mfa/backup-codes:regenerate", headers=headers,
+                       json={"token": "000000"}).status_code == 401
+    fresh = client.post("/api/v1/auth/mfa/backup-codes:regenerate", headers=headers,
+                        json={"token": pyotp.TOTP(secret).now()}).json()["backup_codes"]
+    assert len(fresh) == 10 and set(fresh) != set(codes)
+    assert client.post("/api/v1/auth/mfa/verify",
+                       json={"pending_token": _login_challenge(client),
+                             "token": codes[0]}).status_code == 401
+
+    # Disable needs TOTP proof too; login goes direct again afterwards.
+    assert client.post("/api/v1/auth/mfa/disable", headers=headers,
+                       json={"token": "000000"}).status_code == 401
+    assert client.post("/api/v1/auth/mfa/disable", headers=headers,
+                       json={"token": pyotp.TOTP(secret).now()}).status_code == 200
+    assert client.get("/api/v1/auth/mfa/status", headers=headers).json()["enabled"] is False
+    direct = client.post("/api/v1/auth/login",
+                         json={"password": settings.admin_password}).json()
+    assert "access_token" in direct
+
+
+def test_mfa_verify_rejections(client: TestClient):
+    headers = _jwt_headers(client)
+    # Garbage pending token, and a full JWT abused as pending: both 401.
+    assert client.post("/api/v1/auth/mfa/verify",
+                       json={"pending_token": "garbage", "token": "000000"}
+                       ).status_code == 401
+    assert client.post("/api/v1/auth/mfa/verify",
+                       json={"pending_token": headers["Authorization"].split()[1],
+                             "token": "000000"}).status_code == 401
+    # Enabling without setup, and verifying while disabled: no-ops with codes.
+    assert client.post("/api/v1/auth/mfa/enable", headers=headers,
+                       json={"token": "000000"}).status_code == 409
+    assert client.post("/api/v1/auth/mfa/verify",
+                       json={"pending_token": "garbage", "token": "000000"}
+                       ).status_code == 401
+
+
+def test_mfa_verify_after_disable(client: TestClient):
+    """A pending token outlives enrollment: verify 400s instead of minting."""
+    headers = _jwt_headers(client)
+    secret, _ = _enroll(client, headers)
+    pending = _login_challenge(client)
+    assert client.post("/api/v1/auth/mfa/disable", headers=headers,
+                       json={"token": pyotp.TOTP(secret).now()}).status_code == 200
+    res = client.post("/api/v1/auth/mfa/verify",
+                      json={"pending_token": pending,
+                            "token": pyotp.TOTP(secret).now()})
+    assert res.status_code == 400
+    assert res.json()["code"] == "auth:mfa-not-enrolled"

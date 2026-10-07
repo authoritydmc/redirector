@@ -54,6 +54,13 @@
   RBAC audit (task 3). Revoke UI waits on the React SPA (EPIC-02).
   Covered by 3 new tests in `tests/test_v3_auth_api.py`.)
 - [ ] 5. TOTP/WebAuthn port + backup-code hashing.
+  (TOTP half done on `v3/epic-01-backend-foundation`: settings-backed
+  enrollment (`mfa/setup` → `mfa/enable` with token proof), TOTP-gated
+  login via short-lived `mfa-pending` tokens (`mfa/verify`), single-use
+  sha256 backup codes + possession-proofed regeneration, TOTP-proofed
+  disable, pending tokens rejected as general credentials. WebAuthn/
+  passkeys untouched — separate slice needing a new dependency.
+  Covered by 5 new tests in `tests/test_v3_auth_api.py`.)
 - [ ] 6. `AuthProvider` interface + `authlib` OIDC (PKCE, nonce) + role-mapping table + Admin UI for providers/mappings.
 - [ ] 7. SAML path (`python3-saml`) behind `FF_SAML`, only if a tenant requires it.
 - [ ] 8. SCIM 2.0 inbound (Users + group-push) with per-tenant tokens.

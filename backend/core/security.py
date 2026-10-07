@@ -103,6 +103,16 @@ async def get_current_admin(
             detail="Admin privileges required",
             code="auth:forbidden",
         )
+    if "purpose" in payload:
+        # Scoped tokens (e.g. mfa-pending) are only valid at their own
+        # endpoint — never as general admin credentials.
+        raise AppError(
+            "Invalid credentials",
+            status=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            code="auth:invalid-token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return {**payload, "auth_method": "jwt", "scopes": ["*"]}
 
 
