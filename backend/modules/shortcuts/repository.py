@@ -25,6 +25,15 @@ from backend.models.entities import (
 
 SHORTCUT_CACHE_PREFIX = "shortcut:"
 SHORTCUT_CACHE_TTL = 300
+# Negative caching (EPIC-06): total misses park a sentinel briefly so
+# scanner traffic for unknown patterns costs one DB read per TTL, not one
+# per request. Strictly less stale than the pre-existing 300 s positive
+# caching (upstream resync already accepts that window — see
+# UpstreamRepository.save_cache, which has no memory-cache invalidation).
+NEGATIVE_CACHE_TTL = 60
+CACHE_MISS_SENTINEL = "__redirector_miss__"
+
+LookupResult = tuple[Shortcut | UpstreamCache | None, str]
 
 # Ported verbatim from app/utils/utils.py::SSO_URL_PATTERNS.
 SSO_URL_PATTERNS = (
@@ -85,51 +94,119 @@ class SQLAlchemyShortcutRepository:
             created_ip=data.get("created_ip"),
         )
 
-    async def lookup(self, pattern: str) -> tuple[Shortcut | UpstreamCache | None, str]:
-        cached = await self.cache.get(f"{SHORTCUT_CACHE_PREFIX}{pattern}")
-        if cached:
-            try:
-                data = json.loads(cached)
-                target = data.get("resolved_url") or data.get("target", "")
-                if is_sso_url(target):
-                    await self.cache.delete(f"{SHORTCUT_CACHE_PREFIX}{pattern}")
-                elif "resolved_url" in data:
-                    return (
-                        UpstreamCache(pattern=pattern,
-                                      upstream_name=data.get("upstream_name", ""),
-                                      resolved_url=data["resolved_url"]), "memory",
-                    )
-                else:
-                    # Served straight from cache (v2 parity); edits invalidate.
-                    return self._from_snapshot(data), "memory"
-            except (ValueError, KeyError, TypeError):
-                await self.cache.delete(f"{SHORTCUT_CACHE_PREFIX}{pattern}")
+    async def lookup(self, pattern: str) -> LookupResult:
+        key = f"{SHORTCUT_CACHE_PREFIX}{pattern}"
+        raw = await self.cache.get(key)
+        if raw is None:
+            return await self._cold_lookup(key, pattern)
+        if raw == CACHE_MISS_SENTINEL:
+            return None, ""
+        parsed = self._parse(pattern, raw)
+        if parsed is not None:
+            return parsed
+        # Corrupt or SSO-evicted entry: drop it and take the miss path once.
+        await self.cache.delete(key)
+        return await self._cold_lookup(key, pattern)
 
+    async def _cold_lookup(self, key: str, pattern: str) -> LookupResult:
+        """Miss path with stampede guard (EPIC-06 singleflight).
+
+        Concurrent cold lookups for `key` share one DB read. The leader is
+        served its own DB-loaded row (single-caller semantics unchanged);
+        followers decode the shared stored string, so ORM rows are never
+        shared across per-request sessions.
+        """
+        holder: dict[str, LookupResult] = {}
+
+        async def _factory() -> tuple[str | None, int]:
+            store, ttl, direct = await self._miss_load(pattern)
+            holder["direct"] = direct
+            return store, ttl
+
+        raw = await self.cache.get_or_compute(key, _factory)
+        if raw is None:
+            # Explicitly uncacheable (SSO target): leader serves its own
+            # DB-loaded row; a follower loads directly in its own session.
+            direct = holder.get("direct")
+            if direct is not None:
+                return direct
+            return await self._read_uncacheable(pattern)
+        if raw == CACHE_MISS_SENTINEL:
+            return None, ""
+        direct = holder.get("direct")
+        if direct is not None:
+            # Leader: pre-singleflight result verbatim. Followers carry no
+            # holder entry and decode the shared store below.
+            return direct
+        parsed = self._parse(pattern, raw)
+        if parsed is not None:
+            return parsed
+        await self.cache.delete(key)
+        return await self._read_uncacheable(pattern)
+
+    async def _miss_load(self, pattern: str) -> tuple[str | None, int, LookupResult]:
+        """DB read behind a cold cache miss.
+
+        Returns (store_value, ttl, direct) where `direct` is the exact
+        pre-singleflight lookup result the leader serves. Total misses
+        store a short-TTL sentinel (negative caching); SSO rows return
+        None as store_value so they are served from DB but never cached
+        (v2 parity).
+        """
         row = (await self.session.execute(
             select(Shortcut).where(Shortcut.pattern == pattern))).scalar_one_or_none()
         if row is not None:
-            if not is_sso_url(row.target):
-                await self.cache.set(
-                    f"{SHORTCUT_CACHE_PREFIX}{pattern}",
-                    json.dumps(self._snapshot(row)),
-                    SHORTCUT_CACHE_TTL,
-                )
-            return row, "db"
+            if is_sso_url(row.target):
+                return None, 0, (row, "db")
+            return json.dumps(self._snapshot(row)), SHORTCUT_CACHE_TTL, (row, "db")
 
         cached_row = (await self.session.execute(
             select(UpstreamCache).where(UpstreamCache.pattern == pattern)
         )).scalar_one_or_none()
         if cached_row is not None:
             if is_sso_url(cached_row.resolved_url):
+                return None, 0, (None, "")
+            return json.dumps({"upstream_name": cached_row.upstream_name,
+                               "resolved_url": cached_row.resolved_url}), SHORTCUT_CACHE_TTL, (cached_row, "upstream")
+        return CACHE_MISS_SENTINEL, NEGATIVE_CACHE_TTL, (None, "")
+
+    async def _read_uncacheable(self, pattern: str) -> LookupResult:
+        """Direct DB read that never touches the cache (SSO/corrupt paths).
+
+        SSO shortcut targets are served from the DB every time but never
+        stored; SSO upstream rows resolve to nothing.
+        """
+        row = (await self.session.execute(
+            select(Shortcut).where(Shortcut.pattern == pattern))).scalar_one_or_none()
+        if row is not None:
+            return row, "db"
+        cached_row = (await self.session.execute(
+            select(UpstreamCache).where(UpstreamCache.pattern == pattern)
+        )).scalar_one_or_none()
+        if cached_row is not None:
+            if is_sso_url(cached_row.resolved_url):
                 return None, ""
-            await self.cache.set(
-                f"{SHORTCUT_CACHE_PREFIX}{pattern}",
-                json.dumps({"upstream_name": cached_row.upstream_name,
-                            "resolved_url": cached_row.resolved_url}),
-                SHORTCUT_CACHE_TTL,
-            )
             return cached_row, "upstream"
         return None, ""
+
+    @staticmethod
+    def _parse(pattern: str, raw: str) -> LookupResult | None:
+        """Decode a stored cache string; None = corrupt or SSO (drop it)."""
+        try:
+            data = json.loads(raw)
+            target = data.get("resolved_url") or data.get("target", "")
+            if is_sso_url(target):
+                return None
+            if "resolved_url" in data:
+                return (
+                    UpstreamCache(pattern=pattern,
+                                  upstream_name=data.get("upstream_name", ""),
+                                  resolved_url=data["resolved_url"]), "memory",
+                )
+            # Served straight from cache (v2 parity); edits invalidate.
+            return SQLAlchemyShortcutRepository._from_snapshot(data), "memory"
+        except (ValueError, KeyError, TypeError):
+            return None
 
     async def increment_access(self, pattern: str) -> None:
         # Single atomic UPDATE: concurrent redirects must not lose counts

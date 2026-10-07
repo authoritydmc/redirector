@@ -16,15 +16,20 @@
 - **Budgets:** p99 cached <10ms, uncached <150ms, upstream-check p95 <2s; k6/locust scripts in `load_testing/` run nightly + on `main`.
 
 ## Acceptance criteria
-- [ ] New-shortcut upstream check latency = max(upstreams), not sum (test with 3×500ms stubs).
+- [x] New-shortcut upstream check latency = max(upstreams), not sum (test with 3×500ms stubs).
+  (Done on `v3/epic-01-backend-foundation`: `UpstreamCheckService.check_all`
+  via `asyncio.gather` + `test_check_all_fans_out_concurrently`; resync-all
+  fans out too via bounded `refresh_patterns` + `test_refresh_patterns_fans_out_concurrently`.)
 - [ ] Resync-1000-shortcuts never blocks HTTP (>30s job streams progress, survives restart via job queue).
 - [ ] SSE live-log + metrics pages work behind nginx sample config (buffering off).
 - [ ] Load test gates in CI (`main` fails if cached p99 regresses >20%).
 
 ## Tasks
-- [ ] 1. `httpx` client + fan-out service + stub-upstream test harness.
+- [x] 1. `httpx` client + fan-out service + stub-upstream test harness.
 - [ ] 2. arq worker + Redis broker + job events table/SSE endpoint.
-- [ ] 3. Cache stampede guard (singleflight) + negative caching.
+- [x] 3. Cache stampede guard (singleflight) + negative caching.
+  (Done: `MemoryCache.get_or_compute` singleflight + `CACHE_MISS_SENTINEL`
+  with 60 s TTL in shortcut `lookup`; see `tests/test_v3_lookup_singleflight.py`.)
 - [ ] 4. Nginx/Caddy examples updated (SSE, gzip/brotli, static caching).
 - [ ] 5. k6 scripts + CI nightly + PR smoke (10 VUs, 60s).
 
