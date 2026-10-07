@@ -52,9 +52,11 @@ Key decisions:
 - [x] 3. SQLModel entities (clean v3 schema — breaks allowed, see EPIC-04) + async engine/session DI.
 - [x] 4. Port `redirects` hot path first (highest value), then shortcuts CRUD, then upstreams, then admin/misc.
 - [x] 5. Replace `requests` → `httpx` in upstream + version checks.
-- [ ] 6. Wire `arq` (or `dramatiq`) for resync/purge; remove in-request bulk loops.
-  (Resync/purge/bulk-delete ship inline for admin-scale use; graduate to
-  workers in EPIC-04/06 if they outgrow request scope.)
+- [x] 6. Wire `arq` (or `dramatiq`) for resync/purge; remove in-request bulk loops.
+  (Done on `v3/epic-01-backend-foundation`: `ArqJobRunner` broker backend
+  + `backend/workers/` tasks + jobs API; sync endpoints retained for
+  admin-scale use per the parenthetical. Purge still inline — bulk-purge
+  graduates to a worker if it outgrows request scope.)
 - [ ] 7. Dockerfile + compose update (uvicorn workers, `--loop uvloop`).
   (Blocked on EPIC-08 M3 — the image still boots gunicorn/gevent for v2.)
 

@@ -34,7 +34,9 @@ Standards:
 - [ ] Contract tests (schemathesis / schemathesis-style snapshot) green.
 
 ## Tasks
-- [ ] 1. Inventory every current route (method+path+auth+shape) into `docs/api-inventory.md`.
+- [x] 1. Inventory every current route (method+path+auth+shape) into `docs/api-inventory.md`.
+  (Done: 65 routes + 2 error handlers inventoried with v1 targets; auth
+  column best-effort, flagged for contract-test re-verification.)
 - [ ] 2. Write OpenAPI-first YAML for `/api/v1` (review with frontend before coding).
 - [ ] 3. Define error codes catalog (`SHORTCUT_CONFLICT_UPSTREAM`, `MFA_REQUIRED`, …).
 - [ ] 4. Pagination + filtering spec (incl. `q` semantics: prefix vs substring).

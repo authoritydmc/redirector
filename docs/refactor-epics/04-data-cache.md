@@ -47,7 +47,15 @@
   `config.redis_client` global is untouched (Flask runtime); removal lands
   with the EPIC-08 Flask cutover.)
 - [ ] 5. Settings table (`settings` key→JSON) + migration from `redirect.config.json`.
-- [ ] 6. Indexes + query plan review on shortcuts/upstream_cache tables.
+- [x] 6. Indexes + query plan review on shortcuts/upstream_cache tables.
+  (Reviewed on `v3/epic-01-backend-foundation` against seeded SQLite plans:
+  both hot-path pattern lookups SEARCH their indexes; check-log filter
+  SEARCHes `upstream_name`; jobs newest-first walks the PK backward with no
+  TEMP B-TREE sort. Deliberately NO new indexes: remaining SCANs are
+  substring-LIKE (unindexable — FTS5 is the future fix, not a b-tree),
+  small-table scans, or admin-only sorts; new indexes would tax the
+  hottest write path (per-check log upserts) for admin-page reads.
+  Regression-pinned by `tests/test_v3_query_plans.py`.)
 - [ ] 7. Backup/restore covers DB + settings + secrets-manifest (never secrets plaintext).
 
 ## `gh` snippet
