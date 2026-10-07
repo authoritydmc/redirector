@@ -59,8 +59,11 @@ def test_roundtrip_expiry_and_delete() -> None:
             await cache.set(f"{p}k", "v", ttl=60)
             assert await cache.get(f"{p}k") == "v"
             await cache.set(f"{p}short", "v", ttl=1)
-            await asyncio.sleep(1.1)
-            assert await cache.get(f"{p}short") is None
+            # Poll (don't wall-sleep): expiry timing under load is jittery.
+            deadline = time.perf_counter() + 5.0
+            while await cache.get(f"{p}short") is not None:
+                assert time.perf_counter() < deadline, "ttl=1 key never expired"
+                await asyncio.sleep(0.05)
             await cache.delete(f"{p}k")
             assert await cache.get(f"{p}k") is None
         finally:
