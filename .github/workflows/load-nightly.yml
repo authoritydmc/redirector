@@ -1,0 +1,36 @@
+# Nightly v3 load smoke (EPIC-06 task 5): boots the FastAPI backend on a
+# scratch DB and runs the locust v3 script headless (10 VUs, 60s).
+# Gates on zero request failures; p99 figures land in the step summary and
+# the CSV artifact for trend-spotting. Full p99-regression-vs-baseline
+# gating is still open (see docs/refactor-epics/06-perf-realtime.md).
+name: Load smoke (v3)
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  locust-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend + locust
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt locust
+      - name: Run load smoke
+        run: sh load_testing/load-smoke.sh
+      - name: Upload CSV report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-smoke-report
+          path: load_testing/report/

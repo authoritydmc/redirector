@@ -23,6 +23,9 @@
 - [ ] Resync-1000-shortcuts never blocks HTTP (>30s job streams progress, survives restart via job queue).
 - [ ] SSE live-log + metrics pages work behind nginx sample config (buffering off).
 - [ ] Load test gates in CI (`main` fails if cached p99 regresses >20%).
+  (In progress: nightly `load-nightly.yml` runs the locust v3 script
+  headless and fails on any request failure, with p99s in the CSV
+  artifact. Full p99-regression-vs-baseline and PR-triggered runs still open.)
 
 ## Tasks
 - [x] 1. `httpx` client + fan-out service + stub-upstream test harness.
@@ -32,6 +35,9 @@
   with 60 s TTL in shortcut `lookup`; see `tests/test_v3_lookup_singleflight.py`.)
 - [ ] 4. Nginx/Caddy examples updated (SSE, gzip/brotli, static caching).
 - [ ] 5. k6 scripts + CI nightly + PR smoke (10 VUs, 60s).
+  (In progress, locust instead of k6 per repo standard: `locustfile_v3.py`
+  + `load-smoke.sh` + `check_stats.py` CSV gate + nightly workflow.
+  PR trigger and baseline-relative p99 gating still open.)
 
 ## `gh` snippet
 ```bash

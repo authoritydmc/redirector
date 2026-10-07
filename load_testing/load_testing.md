@@ -4,6 +4,23 @@ This project includes two Locust scripts:
 - `load_testing/locustfile.py` — legacy v2 Flask routes (`/edit/…`, `/check-upstreams-ui`, `/admin/…`).
 - `load_testing/locustfile_v3.py` — v3 FastAPI backend (`/api/v1/*` + `/{pattern}` hot path).
 
+## CI smoke (`load-smoke.sh`, EPIC-06 task 5)
+
+`.github/workflows/load-nightly.yml` runs nightly (plus on manual dispatch):
+it boots uvicorn on a scratch DB, runs the v3 script headless (10 VUs,
+60s), and gates on **zero request failures** via `check_stats.py` (locust's
+own exit code is not failure-sensitive, so the CSV gate is the verdict).
+CSVs land as the `load-smoke-report` artifact with per-endpoint p99s.
+
+```sh
+sh load_testing/load-smoke.sh   # honors LOAD_VUS / LOAD_RATE / LOAD_TIME / LOAD_PORT
+python load_testing/check_stats.py load_testing/report/load-smoke
+```
+
+Deliberately NOT yet gated: p99-regression-vs-baseline (needs stored
+baselines) and PR-triggered runs (enable at merge-to-main time if the
+~3 min runtime is acceptable on every PR).
+
 ## v3 script (`locustfile_v3.py`)
 
 Covers shortcuts CRUD + bulk-delete, the resolve hot path (static, dynamic,
