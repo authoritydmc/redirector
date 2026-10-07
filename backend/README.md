@@ -123,3 +123,15 @@ worker and skips cleanly without Redis.
 - `GET /{pattern}` is shadowed by the Flask proxy until EPIC-08 M3 flips it.
 - Dockerfile/compose uvicorn switch lands with EPIC-04/06/08 — the Dockerfile
   still boots gunicorn/gevent for v2.
+
+## Authorization audit (EPIC-05 task 3, scopes enforced on the admin surface)
+
+JWT sessions carry scope `*` (implies everything). API keys (`rk_*`) carry
+the scopes they were issued with; `RequireScopes(...)` denies with 403
+`auth:insufficient-scope`. Key management itself stays JWT-only.
+
+| Surface | Requirement |
+|---|---|
+| `GET /api/v1/admin/config`, `GET /api/v1/admin/backup`, `GET /api/v1/admin/backup/{name}` | `admin:read` |
+| `PATCH /api/v1/admin/config`, backup create/restore/delete, `POST/GET/DELETE /api/v1/auth/api-keys` (JWT-only) | `admin:write` (management: JWT session) |
+| Shortcuts CRUD, upstreams, jobs, resolve, metrics, QR, `/me` | public for now — full-route enforcement is the RBAC cutover (open) |

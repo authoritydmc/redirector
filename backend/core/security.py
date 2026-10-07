@@ -17,6 +17,13 @@ from backend.modules.auth.repository import ApiKeyRepository
 
 security = HTTPBearer(auto_error=False)
 
+# Scope vocabulary (EPIC-05 task 3, minimal): `*` implies everything and is
+# what interactive JWT sessions carry. API keys carry a subset; routes
+# declare what they need. Roles (owner/admin/editor/viewer) land later —
+# scopes are the mechanism roles will map onto.
+ADMIN_READ = "admin:read"
+ADMIN_WRITE = "admin:write"
+
 
 def verify_password(plain_password: str, expected_password: str) -> bool:
     """Constant-time password comparison."""
@@ -96,4 +103,32 @@ async def get_current_admin(
             detail="Admin privileges required",
             code="auth:forbidden",
         )
-    return {**payload, "auth_method": "jwt"}
+    return {**payload, "auth_method": "jwt", "scopes": ["*"]}
+
+
+class RequireScopes:
+    """Dependency factory enforcing scopes on admin endpoints.
+
+    Usage: `admin: Annotated[dict, Depends(RequireScopes("admin:read"))]`.
+    JWT sessions carry `*` (imply everything); API keys must list every
+    required scope. Denials are 403 `auth:insufficient-scope` (distinct
+    from 401 unauthenticated and 403 non-admin, so automation can tell
+    "bad key" from "narrow key" apart).
+    """
+
+    def __init__(self, *required: str) -> None:
+        self.required = required
+
+    async def __call__(
+        self,
+        admin: Annotated[dict[str, Any], Depends(get_current_admin)],
+    ) -> dict[str, Any]:
+        granted = admin.get("scopes") or []
+        if "*" in granted or all(scope in granted for scope in self.required):
+            return admin
+        raise AppError(
+            "Insufficient scope",
+            status=status.HTTP_403_FORBIDDEN,
+            detail=f"Endpoint requires scope(s): {', '.join(self.required)}",
+            code="auth:insufficient-scope",
+        )

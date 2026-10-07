@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import settings
 from backend.core.db import get_session
-from backend.core.security import get_current_admin
+from backend.core.security import ADMIN_READ, ADMIN_WRITE, RequireScopes
 from backend.models.entities import Setting, utcnow
 
 router = APIRouter(prefix="/api/v1/admin/config", tags=["admin-config"])
@@ -23,7 +23,7 @@ class ConfigUpdate(BaseModel):
 
 @router.get("", response_model=dict[str, Any], summary="Get system configuration")
 async def get_config(
-    _admin: Annotated[dict[str, Any], Depends(get_current_admin)],
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_READ))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     """Return active system configuration and stored settings."""
@@ -42,7 +42,7 @@ async def get_config(
 @router.patch("", response_model=dict[str, Any], summary="Update system settings")
 async def update_config(
     payload: ConfigUpdate,
-    _admin: Annotated[dict[str, Any], Depends(get_current_admin)],
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     """Update settings entries in the database."""

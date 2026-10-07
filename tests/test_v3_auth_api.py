@@ -156,3 +156,40 @@ def test_api_key_cannot_manage_keys(client: TestClient):
     ).status_code == 403
     assert client.get("/api/v1/auth/api-keys", headers=key_headers).status_code == 403
     assert client.delete("/api/v1/auth/api-keys/1", headers=key_headers).status_code == 403
+
+
+def test_api_key_scopes_enforced(client: TestClient):
+    """A read-scoped key reads but cannot write (403 insufficient-scope)."""
+    headers = _jwt_headers(client)
+    plaintext = client.post(
+        "/api/v1/auth/api-keys", headers=headers,
+        json={"name": "reader", "scopes": ["admin:read"]}).json()["api_key"]
+    key_headers = {"Authorization": f"Bearer {plaintext}"}
+
+    assert client.get("/api/v1/admin/config", headers=key_headers).status_code == 200
+    assert client.get("/api/v1/admin/backup", headers=key_headers).status_code == 200
+
+    patch = client.patch("/api/v1/admin/config", headers=key_headers,
+                         json={"settings": {"x": 1}})
+    assert patch.status_code == 403
+    assert patch.json()["code"] == "auth:insufficient-scope"
+
+    enqueue = client.post("/api/v1/admin/backup", headers=key_headers, json={})
+    assert enqueue.status_code == 403
+
+    # Empty scope lists rejected at issuance.
+    assert client.post(
+        "/api/v1/auth/api-keys", headers=headers,
+        json={"name": "useless", "scopes": []}).status_code == 422
+
+
+def test_star_scoped_key_matches_jwt(client: TestClient):
+    """An explicitly *-scoped key has full admin-surface access like JWT."""
+    headers = _jwt_headers(client)
+    plaintext = client.post(
+        "/api/v1/auth/api-keys", headers=headers,
+        json={"name": "rootish", "scopes": ["*"]}).json()["api_key"]
+    key_headers = {"Authorization": f"Bearer {plaintext}"}
+    assert client.get("/api/v1/admin/config", headers=key_headers).status_code == 200
+    assert client.patch("/api/v1/admin/config", headers=key_headers,
+                        json={"settings": {"y": 2}}).status_code == 200

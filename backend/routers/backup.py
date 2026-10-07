@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import FileResponse
 
 from backend.core.errors import AppError
-from backend.core.security import get_current_admin
+from backend.core.security import ADMIN_READ, ADMIN_WRITE, RequireScopes
 from backend.modules.backup.schemas import (
     BackupCreate,
     BackupDeleteResponse,
@@ -66,7 +66,7 @@ def _resolve_or_404(name: str) -> Path:
              summary="Enqueue a backup job")
 async def create_backup_job(
     body: BackupCreate,
-    _admin: Annotated[dict[str, Any], Depends(get_current_admin)],
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
     runner: Annotated[JobRunner, Depends(get_runner)],
 ) -> JobRead:
     label = sanitize_label(body.label)
@@ -83,7 +83,7 @@ async def create_backup_job(
 
 @router.get("", response_model=list[BackupRead], summary="List backups")
 async def list_backup_archives(
-    _admin: Annotated[dict[str, Any], Depends(get_current_admin)],
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_READ))],
 ) -> list[BackupRead]:
     return [_to_read(result) for result in list_backups(backup_dir())]
 
@@ -92,7 +92,7 @@ async def list_backup_archives(
              summary="Enqueue a restore job")
 async def restore_backup_job(
     name: str,
-    _admin: Annotated[dict[str, Any], Depends(get_current_admin)],
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
     runner: Annotated[JobRunner, Depends(get_runner)],
 ) -> JobRead:
     if backup_path(backup_dir(), name) is None:
@@ -109,7 +109,7 @@ async def restore_backup_job(
 @router.get("/{name}", summary="Download a backup archive")
 async def download_backup(
     name: str,
-    _admin: Annotated[dict[str, Any], Depends(get_current_admin)],
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_READ))],
 ) -> FileResponse:
     path = _resolve_or_404(name)
     return FileResponse(path, filename=name, media_type="application/zip")
@@ -118,7 +118,7 @@ async def download_backup(
 @router.delete("/{name}", response_model=BackupDeleteResponse, summary="Delete a backup")
 async def delete_backup(
     name: str,
-    _admin: Annotated[dict[str, Any], Depends(get_current_admin)],
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
 ) -> BackupDeleteResponse:
     path = _resolve_or_404(name)
     try:

@@ -7,6 +7,7 @@ class ApiKeyCreate(BaseModel):
     name: str = Field(..., description="Human label, e.g. 'nightly import cron'")
     scopes: list[str] = Field(
         default_factory=lambda: ["*"],
+        min_length=1,
         description="Recorded now, enforced by the RBAC audit (EPIC-05 task 3)",
     )
 

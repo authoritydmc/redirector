@@ -35,7 +35,15 @@
 ## Tasks
 - [ ] 1. Threat model (1 page): assets, attackers, trust boundaries (add SSO trust boundary: IdP compromise → role mapping).
 - [ ] 2. Hash + JWT + refresh rotation + logout denylist (Redis).
-- [ ] 3. RBAC middleware + per-route scopes audit.
+- [x] 3. RBAC middleware + per-route scopes audit.
+  (Backend slice done on `v3/epic-01-backend-foundation`: `RequireScopes`
+  dependency + `admin:read`/`admin:write` vocabulary (`*` implies all; JWT
+  sessions carry `*`), enforced on the admin surface (config read/write,
+  backup list/download vs create/restore/delete); audit table in
+  `backend/README.md`. Full-route enforcement + roles
+  (owner/admin/editor/viewer) stay open — public surfaces unchanged, so no
+  test/locust churn by design. Covered by `test_api_key_scopes_enforced`
+  and `test_star_scoped_key_matches_jwt`.)
 - [x] 4. API keys (prefix+secret, sha256 store, last-used, revoke UI).
   (Backend done on `v3/epic-01-backend-foundation`: `ApiKey` table
   (`rk_<prefix>_<secret>`, sha256-only storage, `last_used_at`,
