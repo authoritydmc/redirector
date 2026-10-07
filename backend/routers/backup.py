@@ -1,10 +1,11 @@
-"""Admin backup API under /api/v1/admin/backup (EPIC-04 task 7, backup half).
+"""Admin backup API under /api/v1/admin/backup (EPIC-04 task 7).
 
-POST   ""         — enqueue a `backup_create` job (202 + job row; poll/SSE
-                   it like any job). Restore stays staged (see api-inventory).
-GET    ""         — list archives, newest first
-GET    /{name}    — download the zip (name strictly validated: no traversal)
-DELETE /{name}    — delete the archive
+POST   ""               — enqueue a `backup_create` job (202 + job row)
+POST   /{name}:restore  — enqueue a `backup_restore` job: safety backup
+                         first, then merge-upsert by natural key (202)
+GET    ""               — list archives, newest first
+GET    /{name}          — download the zip (name strictly validated)
+DELETE /{name}          — delete the archive
 """
 
 from __future__ import annotations
@@ -85,6 +86,24 @@ async def list_backup_archives(
     _admin: Annotated[dict[str, Any], Depends(get_current_admin)],
 ) -> list[BackupRead]:
     return [_to_read(result) for result in list_backups(backup_dir())]
+
+
+@router.post("/{name}:restore", response_model=JobRead, status_code=status.HTTP_202_ACCEPTED,
+             summary="Enqueue a restore job")
+async def restore_backup_job(
+    name: str,
+    _admin: Annotated[dict[str, Any], Depends(get_current_admin)],
+    runner: Annotated[JobRunner, Depends(get_runner)],
+) -> JobRead:
+    if backup_path(backup_dir(), name) is None:
+        raise AppError(
+            "Backup not found",
+            status=status.HTTP_404_NOT_FOUND,
+            detail=f"Backup '{name}' not found",
+            code="backup:not-found",
+        )
+    job = await runner.enqueue("backup_restore", {"name": name}, total=0)
+    return JobRead.model_validate(job)
 
 
 @router.get("/{name}", summary="Download a backup archive")

@@ -239,6 +239,27 @@
         "title": "BackupRead",
         "type": "object"
       },
+      "BackupRestoreEnqueue": {
+        "properties": {
+          "kind": {
+            "const": "backup_restore",
+            "description": "Job kind to run",
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "description": "Archive name to restore",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "BackupRestoreEnqueue",
+        "type": "object"
+      },
       "BulkDeleteRequest": {
         "properties": {
           "patterns": {
@@ -1764,6 +1785,53 @@
         ]
       }
     },
+    "/api/v1/admin/backup/{name}:restore": {
+      "post": {
+        "operationId": "restore_backup_job_api_v1_admin_backup__name__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Enqueue a restore job",
+        "tags": [
+          "admin-backup"
+        ]
+      }
+    },
     "/api/v1/admin/config": {
       "get": {
         "description": "Return active system configuration and stored settings.",
@@ -2094,6 +2162,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/BackupEnqueue"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BackupRestoreEnqueue"
                   }
                 ],
                 "title": "Body"

@@ -22,8 +22,10 @@ from backend.core.config import settings
 from backend.models.entities import Job, JobStatus
 from backend.modules.backup.service import (
     TABLE_MODELS,
+    RestoreError,
     backup_dir,
     create_backup,
+    restore_backup,
     sanitize_label,
 )
 from backend.modules.jobs.repository import JobRepository
@@ -59,12 +61,35 @@ async def execute_job(session_factory: SessionFactory, job_id: int) -> None:
                 await _resync(session, repo, job)
             elif job.kind == "backup_create":
                 await _backup(session, repo, job)
+            elif job.kind == "backup_restore":
+                await _restore(session, repo, job)
             else:
                 raise ValueError(f"unknown job kind: {job.kind}")
         except asyncio.CancelledError:
             raise
+        except RestoreError as exc:
+            await repo.fail(job, str(exc))
         except Exception as exc:
             await repo.fail(job, f"{type(exc).__name__}: {exc}")
+
+
+async def _restore(session: AsyncSession, repo: JobRepository, job: Job) -> None:
+    name = job.payload.get("name")
+    if not isinstance(name, str) or not name:
+        await repo.fail(job, "backup_restore payload needs {name: str}")
+        return
+    await repo.mark_running(job, len(TABLE_MODELS))
+
+    async def _progress(done: int, total: int) -> None:
+        job.done = done
+        job.total = total
+        await session.commit()
+
+    result = await restore_backup(
+        session, backup_dir(), name, settings.app_version, on_progress=_progress,
+    )
+    await repo.succeed(job, {"safety_backup": result.safety_backup,
+                             "restored": result.restored})
 
 
 async def _backup(session: AsyncSession, repo: JobRepository, job: Job) -> None:
@@ -198,6 +223,7 @@ class ArqJobRunner(JobRunner):
     ARQ_FUNCTIONS = {
         "upstream_resync": "run_upstream_resync",
         "backup_create": "run_backup_create",
+        "backup_restore": "run_backup_restore",
     }
 
     def __init__(

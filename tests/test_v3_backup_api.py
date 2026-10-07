@@ -178,3 +178,67 @@ def test_backup_requires_admin(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -
         assert client.delete(
             "/api/v1/admin/backup/redirector-backup-20260101T000000Z.zip"
         ).status_code == 401
+
+
+def _restore_and_wait(client: TestClient, name: str) -> dict[str, Any]:
+    enqueued = client.post(f"/api/v1/admin/backup/{name}:restore",
+                           headers=_jwt_headers(client))
+    assert enqueued.status_code == 202
+    return _wait_terminal(client, enqueued.json()["id"])
+
+
+def test_restore_roundtrip(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    with _seeded_client(tmp_path, monkeypatch) as client:
+        headers = _jwt_headers(client)
+        job_id = client.post("/api/v1/admin/backup", headers=headers, json={}).json()["id"]
+        name = _wait_terminal(client, job_id)["result"]["name"]
+
+        # Mutate live state after the backup: delete a row, change a value,
+        # add a row the backup never saw.
+        assert client.delete("/api/v1/shortcuts/docs").status_code == 204
+        assert client.patch(
+            "/api/v1/admin/config", headers=headers,
+            json={"settings": {"welcome_message": "changed"}},
+        ).status_code == 200
+        assert client.post(
+            "/api/v1/shortcuts",
+            json={"pattern": "intruder", "target": "https://evil.example"},
+        ).status_code == 201
+
+        final = _restore_and_wait(client, name)
+        assert final["status"] == "succeeded"
+        assert final["result"]["restored"]["shortcuts"] == 1
+        assert final["result"]["safety_backup"].endswith("-pre-restore.zip")
+
+        # Backup state is back; the intruder survives (merge, not wipe).
+        assert client.get("/api/v1/shortcuts/docs").status_code == 200
+        assert client.get("/api/v1/shortcuts/intruder").status_code == 200
+        config = client.get("/api/v1/admin/backup", headers=headers).json()
+        assert len(config) == 2  # original + safety backup
+        assert any(b["name"].endswith("-pre-restore.zip") for b in config)
+
+
+def test_restore_missing_and_corrupt(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    with _seeded_client(tmp_path, monkeypatch) as client:
+        headers = _jwt_headers(client)
+
+        # Unknown archive and traversal attempts 404 before any job exists.
+        assert client.post(
+            "/api/v1/admin/backup/redirector-backup-20200101T000000Z.zip:restore",
+            headers=headers,
+        ).status_code == 404
+        assert client.post(
+            "/api/v1/admin/backup/..%2F..%2Fsecret:restore", headers=headers
+        ).status_code in (404, 405)
+
+        # A corrupt archive enqueues, then fails with a clear error —
+        # and live data is untouched (validate-before-apply).
+        backups = tmp_path / "data" / "backups"
+        backups.mkdir(parents=True, exist_ok=True)
+        corrupt = "redirector-backup-20200101T000000Z.zip"
+        (backups / corrupt).write_bytes(b"not a zip archive")
+        before = client.get("/api/v1/shortcuts/docs").status_code
+        final = _restore_and_wait(client, corrupt)
+        assert final["status"] == "failed"
+        assert "zip" in (final["error"] or "")
+        assert client.get("/api/v1/shortcuts/docs").status_code == before

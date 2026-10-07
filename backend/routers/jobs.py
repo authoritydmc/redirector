@@ -19,10 +19,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.db import get_session
 from backend.core.errors import AppError
-from backend.modules.backup.service import sanitize_label
+from backend.modules.backup.service import backup_dir, backup_path, sanitize_label
 from backend.modules.jobs.repository import JobRepository
 from backend.modules.jobs.runner import TERMINAL, JobRunner
-from backend.modules.jobs.schemas import BackupEnqueue, JobEnqueue, JobRead
+from backend.modules.jobs.schemas import (
+    BackupEnqueue,
+    BackupRestoreEnqueue,
+    JobEnqueue,
+    JobRead,
+)
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
 
@@ -48,6 +53,15 @@ async def enqueue_job(body: JobEnqueue, runner: JobRunner = Depends(get_runner))
                 code="jobs:invalid-label",
             )
         job = await runner.enqueue(body.kind, {"label": label}, total=0)
+    elif isinstance(body, BackupRestoreEnqueue):
+        if backup_path(backup_dir(), body.name) is None:
+            raise AppError(
+                "Backup not found",
+                status=status.HTTP_404_NOT_FOUND,
+                detail=f"Backup '{body.name}' not found",
+                code="backup:not-found",
+            )
+        job = await runner.enqueue(body.kind, {"name": body.name}, total=0)
     else:
         job = await runner.enqueue(
             body.kind,

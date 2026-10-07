@@ -18,7 +18,12 @@ class BackupEnqueue(BaseModel):
     label: str | None = Field(default=None, description="Optional filename tag")
 
 
-JobEnqueue = UpstreamResyncEnqueue | BackupEnqueue
+class BackupRestoreEnqueue(BaseModel):
+    kind: Literal["backup_restore"] = Field(description="Job kind to run")
+    name: str = Field(..., description="Archive name to restore")
+
+
+JobEnqueue = UpstreamResyncEnqueue | BackupEnqueue | BackupRestoreEnqueue
 
 
 class JobRead(BaseModel):
