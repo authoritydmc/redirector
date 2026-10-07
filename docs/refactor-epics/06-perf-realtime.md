@@ -42,7 +42,13 @@
 - [x] 3. Cache stampede guard (singleflight) + negative caching.
   (Done: `MemoryCache.get_or_compute` singleflight + `CACHE_MISS_SENTINEL`
   with 60 s TTL in shortcut `lookup`; see `tests/test_v3_lookup_singleflight.py`.)
-- [ ] 4. Nginx/Caddy examples updated (SSE, gzip/brotli, static caching).
+- [x] 4. Nginx/Caddy examples updated (SSE, gzip/brotli, static caching).
+  (Done: `deploy/examples/nginx-v3.conf` + `deploy/examples/Caddyfile` —
+  SSE locations unbuffered with long timeouts, gzip for the JSON API
+  (brotli needs the dynamic module — noted), future SPA static block
+  stubbed for EPIC-02, M1 dual-serve/M3 cutover notes for EPIC-08.
+  Live validation deferred to the EPIC-08 dual-serve harness, which will
+  actually run them.)
 - [ ] 5. k6 scripts + CI nightly + PR smoke (10 VUs, 60s).
   (In progress, locust instead of k6 per repo standard: `locustfile_v3.py`
   + `load-smoke.sh` + `check_stats.py` CSV gate + `load-smoke.yml`

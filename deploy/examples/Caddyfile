@@ -1,0 +1,39 @@
+# Redirector v3 — example Caddy front door (EPIC-06 task 4).
+# Same topology as nginx-v3.conf: internet -> Caddy (:80/:443, automatic
+# TLS) -> uvicorn 127.0.0.1:8123. `caddy fmt --overwrite` keeps this tidy.
+
+redirector.example.com {
+	# JSON API compression (Caddy skips event streams on flushed handles).
+	encode gzip
+
+	# --- SSE: flush every frame, no buffering ---
+	# Upstream check stream + job progress events (same inventory as
+	# nginx-v3.conf). flush_interval -1 disables Caddy's response
+	# buffering for these paths. A regexp matcher (not globs) because
+	# stream patterns may span multiple path segments.
+	@sse path_regexp sse ^/api/v1/(upstreams/check/stream/.*|jobs/[0-9]+/events)$
+	handle @sse {
+		reverse_proxy 127.0.0.1:8123 {
+			flush_interval -1
+		}
+	}
+
+	# --- Everything else (API, probes, docs, QR, /{pattern} hot path) ---
+	# Pre-M3 (EPIC-08 M1/M2): route `/` (but not /api/*) to Flask :5000
+	# with a second handle block; M3 flips it back here.
+	handle {
+		reverse_proxy 127.0.0.1:8123
+	}
+
+	# Future SPA static (EPIC-02):
+	# handle /app/* {
+	# 	root * /srv/redirector-spa
+	# 	file_server
+	# 	header Cache-Control "public, max-age=31536000, immutable"
+	# }
+	# handle /app/index.html {
+	# 	root * /srv/redirector-spa
+	# 	file_server
+	# 	header Cache-Control no-store
+	# }
+}
