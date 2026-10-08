@@ -57,7 +57,7 @@ describe('Login', () => {
     await user.type(screen.getByLabelText(/admin password/i), 'right')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Shortcuts' })).toBeInTheDocument()
     })
     expect(localStorage.getItem('redirector.token')).toBe('jwt-test')
   })

@@ -27,7 +27,7 @@ export default function Layout() {
       <header className="flex items-center gap-2 border-b px-4 py-2 dark:border-white/10">
         <span className="font-bold">Redirector v3</span>
         <nav className="ml-4 flex gap-1">
-          <Link className={link} to="/">Dashboard</Link>
+          <Link className={link} to="/">Shortcuts</Link>
           <Link className={link} to="/upstreams">Upstreams</Link>
           <Link className={link} to="/jobs">Jobs</Link>
           <Link className={link} to="/admin">Admin</Link>

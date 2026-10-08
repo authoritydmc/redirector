@@ -883,6 +883,15 @@ export interface components {
             /** Success */
             success: boolean;
         };
+        /** CacheStats */
+        CacheStats: {
+            /** Hit Rate */
+            hit_rate?: number | null;
+            /** Hits */
+            hits: number;
+            /** Misses */
+            misses: number;
+        };
         /** CheckLogEntry */
         CheckLogEntry: {
             /**
@@ -1015,6 +1024,7 @@ export interface components {
         };
         /** LiveResponse */
         LiveResponse: {
+            cache: components["schemas"]["CacheStats"];
             counts: components["schemas"]["LiveCounts"];
             process: components["schemas"]["ProcessInfo"];
             /** Status */
@@ -1168,14 +1178,20 @@ export interface components {
             /** @default public */
             visibility: components["schemas"]["Visibility"];
         };
+        /** ShortcutListMeta */
+        ShortcutListMeta: {
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+        };
         /** ShortcutListResponse */
         ShortcutListResponse: {
             /** Data */
             data: components["schemas"]["ShortcutRead"][];
-            /** Meta */
-            meta: {
-                [key: string]: number | string;
-            };
+            meta: components["schemas"]["ShortcutListMeta"];
         };
         /** ShortcutRead */
         ShortcutRead: {

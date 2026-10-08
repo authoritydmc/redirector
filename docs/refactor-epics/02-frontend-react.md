@@ -51,7 +51,13 @@ Key decisions:
   (nav, class-based dark mode persisted, sign-out), RTL/jsdom component
   tests (login render/error/success/redirect-guard). Toasts deferred to
   the first feature that needs them — inline form errors cover auth.)
-- [ ] 3. Shortcuts datatable (server pagination, filters, bulk delete) + create/edit drawers with Zod validation.
+- [x] 3. Shortcuts datatable (server pagination, filters, bulk delete) + create/edit drawers with Zod validation.
+  (Table half done on `v3/epic-01-backend-foundation`: typed API layer
+  over the generated client, server pagination + debounced substring
+  search + sort, single delete with inline confirm, bulk delete with
+  counts, 6 component tests. Forced one real contract fix: `meta` is now
+  a typed `ShortcutListMeta` instead of a bare dict. Create/edit drawers
+  (+ Zod) land next.)
 - [ ] 4. Upstream config + live-check SSE view (replaces `check_upstreams_stream.html`).
 - [ ] 5. Admin config, Redis/upstream cache, import/export, backup, metrics-live, version page.
 - [ ] 6. MFA setup/verify (TOTP QR + WebAuthn), setup wizard, 404/500 routes.

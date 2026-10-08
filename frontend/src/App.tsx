@@ -2,9 +2,9 @@ import type { ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Layout from './components/Layout'
 import { AuthProvider, useAuth } from './lib/auth'
-import Dashboard from './routes/Dashboard'
 import Login from './routes/Login'
 import Placeholder from './routes/Placeholder'
+import ShortcutsPage from './features/shortcuts/ShortcutsPage'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { token } = useAuth()
@@ -27,7 +27,7 @@ export function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route index element={<Dashboard />} />
+        <Route index element={<ShortcutsPage />} />
         <Route path="upstreams" element={<Placeholder name="Upstreams" />} />
         <Route path="jobs" element={<Placeholder name="Jobs" />} />
         <Route path="admin" element={<Placeholder name="Admin" />} />

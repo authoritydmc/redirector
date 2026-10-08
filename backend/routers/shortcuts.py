@@ -29,6 +29,7 @@ from backend.modules.shortcuts.schemas import (
     BulkDeleteRequest,
     BulkDeleteResponse,
     ShortcutCreate,
+    ShortcutListMeta,
     ShortcutListResponse,
     ShortcutRead,
     ShortcutUpdate,
@@ -57,11 +58,7 @@ async def list_shortcuts(
     )
     return ShortcutListResponse(
         data=[ShortcutRead.model_validate(r) for r in rows],
-        meta={
-            "page": page,
-            "pageSize": pageSize,
-            "total": total,
-        },
+        meta=ShortcutListMeta(page=page, pageSize=pageSize, total=total),
     )
 
 

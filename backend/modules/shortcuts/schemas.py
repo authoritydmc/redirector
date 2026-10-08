@@ -39,9 +39,15 @@ class ShortcutUpdate(BaseModel):
     owner_email: str | None = None
 
 
+class ShortcutListMeta(BaseModel):
+    page: int
+    pageSize: int
+    total: int
+
+
 class ShortcutListResponse(BaseModel):
     data: list[ShortcutRead]
-    meta: dict[str, int | str]
+    meta: ShortcutListMeta
 
 
 class BulkDeleteRequest(BaseModel):

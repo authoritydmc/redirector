@@ -1227,6 +1227,29 @@
         "title": "ShortcutCreate",
         "type": "object"
       },
+      "ShortcutListMeta": {
+        "properties": {
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "title": "ShortcutListMeta",
+        "type": "object"
+      },
       "ShortcutListResponse": {
         "properties": {
           "data": {
@@ -1237,18 +1260,7 @@
             "type": "array"
           },
           "meta": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "title": "Meta",
-            "type": "object"
+            "$ref": "#/components/schemas/ShortcutListMeta"
           }
         },
         "required": [
