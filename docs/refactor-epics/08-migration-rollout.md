@@ -28,7 +28,16 @@ M4: Flask removed. Single uvicorn image. v2 compose file deprecated.
 - [ ] Rollout doc (`docs/UPGRADE-v3.md`) + per-milestone verification checklist.
 
 ## Tasks
-- [ ] 1. Dual-serve harness (uvicorn :8000 + Flask :5000 + tiny proxy) + compose profile.
+- [x] 1. Dual-serve harness (uvicorn :8000 + Flask :5000 + tiny proxy) + compose profile.
+  (Done on `v3/epic-01-backend-foundation` as a dev harness:
+  `docker/compose.m1.yml` (Flask :5000 + uvicorn API :8123 + nginx :8080
+  from `docker/nginx.m1.conf`), `docker/Dockerfile.v3` (dev image; prod
+  shape later), `docker/README.md`. Verified live in WSL docker 6/6:
+  proxy `/healthz`→FastAPI, `/`→Flask HTML, upstreams list, shortcut
+  create + JSON resolve, SSE stream terminating with buffering off.
+  Same data volume, separate v3 DB file (no cross-schema interference);
+  v3 tables via in-container `alembic upgrade`. Local note: verify from
+  the WSL side — port 8080 may be squatted on the Windows host.)
 - [ ] 2. Config importer + golden-file fixtures (`tests/fixtures/data-v1/`, `data-v2/`).
 - [ ] 3. Legacy route inventory → deprecation map (feeds EPIC-03 Sunset headers).
 - [ ] 4. Auto pre-migration backup + state stamping (`schema_revision`, `app_version` already exist — extend).
