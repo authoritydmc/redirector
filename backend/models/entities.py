@@ -179,7 +179,7 @@ class ApiKey(SQLModel, table=True):
 
     Only the sha256 of the secret is stored — the plaintext is shown once
     at issuance. `prefix` identifies the row (and masks logs); revocation
-    is a timestamp so history (`last_used_at`) survives. Scopes are
+    is a timestamp, so `last_used_at` history survives. Scopes are
     recorded now and enforced by the RBAC audit (EPIC-05 task 3).
     """
 
@@ -193,3 +193,31 @@ class ApiKey(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
     last_used_at: datetime | None = Field(default=None)
     revoked_at: datetime | None = Field(default=None)
+
+
+class LoginAttempt(SQLModel, table=True):
+    """Failed-login trail for account lockout (EPIC-05 task 11).
+
+    One row per failure; rows older than the lockout window are pruned on
+    every insert, so the table stays tiny by construction.
+    """
+
+    __tablename__ = "login_attempts"
+
+    id: int | None = Field(default=None, primary_key=True)
+    ip: str = Field(index=True)
+    attempted_at: datetime = Field(default_factory=utcnow)
+
+
+class AuthEvent(SQLModel, table=True):
+    """Security audit log (EPIC-05 task 11): logins, lockouts, key and MFA
+    lifecycle. Append-only by convention — nothing deletes from it (admin
+    scale keeps it small; retention policy is future work, same as jobs)."""
+
+    __tablename__ = "auth_events"
+
+    id: int | None = Field(default=None, primary_key=True)
+    kind: str = Field(index=True)
+    detail: dict[str, JSONValue] = Field(default_factory=dict, sa_column=Column(JSON))
+    ip: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow)

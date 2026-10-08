@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # broker needed) or "arq" (Redis broker + `arq` worker processes).
     # The DB row + SSE surface is identical; only execution moves.
     job_backend: str = "in-process"
+    # Account lockout (EPIC-05 task 11): failed logins per IP inside the
+    # window that trigger a 429 lockout.
+    auth_lockout_max_attempts: int = 10
+    auth_lockout_window_minutes: int = 15
     log_level: str = "INFO"
     auto_redirect_delay: int = 1  # seconds before redirect; 0 = instant 302
     admin_password: str = "admin"

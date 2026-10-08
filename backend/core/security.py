@@ -8,11 +8,13 @@ from typing import Annotated, Any
 import jwt
 from fastapi import Depends, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import settings
 from backend.core.db import get_session
 from backend.core.errors import AppError
+from backend.models.entities import AuthEvent, LoginAttempt
 from backend.modules.auth.repository import ApiKeyRepository
 
 security = HTTPBearer(auto_error=False)
@@ -142,3 +144,42 @@ class RequireScopes:
             detail=f"Endpoint requires scope(s): {', '.join(self.required)}",
             code="auth:insufficient-scope",
         )
+
+
+def client_ip(request_ip: str | None, forwarded_for: str | None) -> str:
+    """Client identity for rate limits and lockout: leftmost X-Forwarded-For
+    when behind the documented proxy configs, else the peer address."""
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip().lower()
+    return request_ip or "unknown"
+
+
+async def log_auth_event(
+    session: AsyncSession,
+    kind: str,
+    ip: str | None,
+    detail: dict[str, Any] | None = None,
+) -> None:
+    """Append one audit row (EPIC-05 task 11)."""
+    session.add(AuthEvent(kind=kind, detail=detail or {}, ip=ip))
+    await session.commit()
+
+
+async def failed_logins_since(
+    session: AsyncSession, ip: str, window_minutes: int
+) -> int:
+    """Count failures inside the lockout window (prunes older rows first)."""
+    cutoff = datetime.now(UTC) - timedelta(minutes=window_minutes)
+    await session.execute(
+        delete(LoginAttempt).where(LoginAttempt.attempted_at < cutoff))
+    count = (await session.execute(
+        select(func.count()).select_from(LoginAttempt).where(LoginAttempt.ip == ip)
+    )).scalar() or 0
+    await session.commit()
+    return int(count)
+
+
+async def record_failed_login(session: AsyncSession, ip: str) -> None:
+    """Persist one failed attempt (lockout accounting)."""
+    session.add(LoginAttempt(ip=ip))
+    await session.commit()

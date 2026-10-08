@@ -69,12 +69,17 @@
 - [ ] 8. SCIM 2.0 inbound (Users + group-push) with per-tenant tokens.
 - [ ] 9. `docs/SSO-SETUP.md` (Entra, Okta, Google, Keycloak/Authentik) + `auth doctor` CLI.
 - [ ] 10. Secrets migration CLI (`redirector secrets migrate --from-json`).
-- [ ] 11. Rate limits, lockout, audit log (`auth_events` table, incl. `sso_login`, `scim_provision`, `role_mapped`).
-  (In progress on `v3/epic-01-backend-foundation`: per-route sliding-window
-  rate limiting (`backend/core/ratelimit.py`, per-app state so tests stay
-  isolated; 429 `auth:rate-limited` in the problem envelope) enforced on
-  login + MFA verify at 5/min/IP. Open: account lockout, Redis-backed
-  limits for multi-worker deployments, `auth_events` audit log.)
+- [x] 11. Rate limits, lockout, audit log (`auth_events` table, incl. `sso_login`, `scim_provision`, `role_mapped`).
+  (Done on `v3/epic-01-backend-foundation`: per-route sliding-window rate
+  limits (5/min/IP on login + MFA verify, 429 `auth:rate-limited`);
+  account lockout (10 failures/15 min per IP via `login_attempts` with
+  pruning, 429 `auth:locked-out`, thresholds via
+  `REDIRECTOR_AUTH_LOCKOUT_*`); append-only `auth_events` audit
+  (login success/failure, lockouts, MFA verify failures). Covered by
+  `test_login_rate_limited`, `test_mfa_verify_rate_limited`, and
+  `tests/test_v3_auth_lockout.py` (counts/prune, audit append, locked
+  IP 429-with-correct-password). Redis-backed limits for multi-worker
+  deployments stay open, as do the SSO/SCIM event kinds.)
 
 ## `gh` snippet
 ```bash

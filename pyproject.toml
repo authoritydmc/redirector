@@ -33,12 +33,14 @@ ignore_errors = true
 
 # SQLAlchemy/SQLModel expression typing (==, .in_, .desc(), func.*) is a known
 # mypy blind spot: column expressions type as bool/int/datetime. Carve out only
-# those two codes in the repository modules; everything else stays strict.
+# those two codes in the repository modules (plus core/security, whose login
+# helpers run the same query shapes); everything else stays strict.
 [[tool.mypy.overrides]]
 module = [
   "backend.modules.shortcuts.repository",
   "backend.modules.upstreams.repository",
   "backend.modules.jobs.repository",
   "backend.modules.auth.repository",
+  "backend.core.security",
 ]
 disable_error_code = ["arg-type", "attr-defined"]

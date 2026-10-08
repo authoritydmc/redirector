@@ -14,9 +14,13 @@ from backend.core.db import get_session
 from backend.core.errors import AppError
 from backend.core.ratelimit import RateLimit
 from backend.core.security import (
+    client_ip,
     create_access_token,
     decode_access_token,
+    failed_logins_since,
     get_current_admin,
+    log_auth_event,
+    record_failed_login,
     verify_password,
 )
 from backend.models.entities import ApiKey
@@ -70,17 +74,36 @@ async def login(
     request: Request,
     body: LoginRequest,
     mfa_repo: Annotated[MfaRepository, Depends(get_mfa_repo)],
+    session: Annotated[AsyncSession, Depends(get_session)],
     _rate_limited: Annotated[None, Depends(login_limiter)],
 ) -> TokenResponse | MfaChallengeResponse:
     """Authenticate admin password: JWT immediately, or an MFA challenge
     (exchange at `mfa/verify`) when TOTP is enrolled."""
+    ip = client_ip(
+        request.client.host if request.client else None,
+        request.headers.get("x-forwarded-for"),
+    )
+    failures = await failed_logins_since(
+        session, ip, settings.auth_lockout_window_minutes)
+    if failures >= settings.auth_lockout_max_attempts:
+        await log_auth_event(session, "auth.locked-out", ip,
+                             {"failures": failures})
+        raise AppError(
+            "Account locked",
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed logins; try again later",
+            code="auth:locked-out",
+        )
     if not verify_password(body.password, settings.admin_password):
+        await record_failed_login(session, ip)
+        await log_auth_event(session, "login.failed", ip)
         raise AppError(
             "Invalid credentials",
             status=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect password",
             code="auth:bad-credentials",
         )
+    await log_auth_event(session, "login.success", ip)
     if await mfa_repo.is_enabled():
         pending = create_access_token(
             data={"sub": "admin", "role": "admin", "purpose": "mfa-pending"},
@@ -312,6 +335,12 @@ async def mfa_verify(
     if await repo.consume_backup_code(body.token):
         token = create_access_token(data={"sub": "admin", "role": "admin"})
         return TokenResponse(access_token=token, role="admin")
+    await log_auth_event(
+        repo.session,
+        "mfa.verify_failed",
+        client_ip(request.client.host if request.client else None,
+                  request.headers.get("x-forwarded-for")),
+    )
     raise AppError(
         "Invalid credentials",
         status=status.HTTP_401_UNAUTHORIZED,
