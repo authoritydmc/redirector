@@ -29,7 +29,11 @@ Standards:
   `scripts/export-openapi.py` stamp/`--check` gate, enforced in
   `validate.yml` backend-smoke. Regenerate after any router/schema change
   and on every VERSION bump — the spec carries the app version.)
-- [ ] Generated TS client (`frontend/src/lib/api.ts`) compiles; no hand-written endpoint strings in React.
+- [x] Generated TS client (`frontend/src/lib/api.ts`) compiles; no hand-written endpoint strings in React.
+  (Done: `openapi-typescript` codegen from the committed `docs/openapi.json`
+  via `npm run codegen`; freshness enforced in `frontend.yml` (regenerate +
+  `git diff --exit-code`); `tsc --noEmit` covers the generated file. No
+  hand-written endpoint strings exist yet — the rule bites from here on.)
 - [ ] Legacy endpoints shimmed with `Deprecation: true` header + sunset date, mapped in EPIC-08.
 - [ ] Contract tests (schemathesis / schemathesis-style snapshot) green.
 

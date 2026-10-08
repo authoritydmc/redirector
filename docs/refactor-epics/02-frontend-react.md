@@ -38,7 +38,13 @@ Key decisions:
 - [ ] No Jinja in new code; `app/templates/` frozen (bugfixes only) after cutover.
 
 ## Phased tasks
-- [ ] 1. Scaffold Vite+TS+Tailwind+Router+Query; MSW mocks from OpenAPI examples (unblocks UI before backend done).
+- [x] 1. Scaffold Vite+TS+Tailwind+Router+Query; MSW mocks from OpenAPI examples (unblocks UI before backend done).
+  (Scaffold done on `v3/epic-01-backend-foundation`: `frontend/` with Vite
+  + React 19 + TS strict + Tailwind v4, dev proxy to the v3 API, health
+  shell, generated client, vitest smoke, `frontend.yml` CI
+  (typecheck+test+build, incl. codegen-freshness gate). MSW mocks
+  deliberately skipped — the backend is done, so UI builds against the
+  real API. Router/Query/data-table work lands with tasks 2–4.)
 - [ ] 2. Auth + shell layout (nav, dark mode, toasts).
 - [ ] 3. Shortcuts datatable (server pagination, filters, bulk delete) + create/edit drawers with Zod validation.
 - [ ] 4. Upstream config + live-check SSE view (replaces `check_upstreams_stream.html`).

@@ -1,0 +1,49 @@
+# v3 React SPA gates (EPIC-02): typecheck + unit tests + production build.
+# The generated API client must match the committed OpenAPI snapshot, so
+# backend contract drift breaks here too — regenerate via
+# `npm run codegen` inside frontend/ and commit the result.
+name: Frontend (v3 SPA)
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: ["main", "develop"]
+    paths:
+      - "frontend/**"
+      - "docs/openapi.json"
+      - ".github/workflows/frontend.yml"
+  push:
+    branches: ["main", "develop"]
+    paths:
+      - "frontend/**"
+      - "docs/openapi.json"
+  workflow_dispatch:
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Generated client in sync
+        run: |
+          npm run codegen
+          git diff --exit-code src/lib/api.ts
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm run test
+      - name: Production build
+        run: npm run build
