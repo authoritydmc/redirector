@@ -49,6 +49,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 SessionFactory, redis_settings_from_url(settings.redis_url))
         else:
             app.state.jobs = JobRunner(SessionFactory)
+    app.state.rate_limit_store = {}
     try:
         reaped = await app.state.jobs.reap_stale()
     except OperationalError:

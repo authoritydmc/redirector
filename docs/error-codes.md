@@ -18,6 +18,7 @@ code missing here — document first, then implement.
 | `auth:invalid-name` | 422 | Blank API key name at issuance |
 | `auth:invalid-token` | 401 | Malformed JWT, or a scoped token used as general credentials |
 | `auth:key-not-found` | 404 | No API key with that id |
+| `auth:rate-limited` | 429 | Over the per-route budget (login, MFA verify: 5/min/IP) |
 | `auth:mfa-enrolled` | 409 | Setup/enable while already enrolled |
 | `auth:mfa-not-enrolled` | 400/409 | Verify/regenerate/disable with nothing enrolled |
 | `auth:mfa-setup-required` | 409 | Enable before setup staged a seed |

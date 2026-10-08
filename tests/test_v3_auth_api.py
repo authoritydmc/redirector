@@ -328,3 +328,27 @@ def test_mfa_verify_after_disable(client: TestClient):
                             "token": pyotp.TOTP(secret).now()})
     assert res.status_code == 400
     assert res.json()["code"] == "auth:mfa-not-enrolled"
+
+
+def test_login_rate_limited(client: TestClient):
+    """Five password guesses per minute; the sixth is 429, not 401."""
+    for _ in range(5):
+        assert client.post("/api/v1/auth/login", json={"password": "nope"}).status_code == 401
+    limited = client.post("/api/v1/auth/login", json={"password": "nope"})
+    assert limited.status_code == 429
+    assert limited.json()["code"] == "auth:rate-limited"
+
+
+def test_mfa_verify_rate_limited(client: TestClient):
+    """MFA guessing gets its own 5/min budget, separate from login."""
+    headers = _jwt_headers(client)
+    _enroll(client, headers)
+    pending = _login_challenge(client)
+    for _ in range(5):
+        assert client.post("/api/v1/auth/mfa/verify",
+                           json={"pending_token": pending, "token": "000000"}
+                           ).status_code == 401
+    limited = client.post("/api/v1/auth/mfa/verify",
+                          json={"pending_token": pending, "token": "000000"})
+    assert limited.status_code == 429
+    assert limited.json()["code"] == "auth:rate-limited"

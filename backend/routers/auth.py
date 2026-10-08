@@ -5,13 +5,14 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import settings
 from backend.core.db import get_session
 from backend.core.errors import AppError
+from backend.core.ratelimit import RateLimit
 from backend.core.security import (
     create_access_token,
     decode_access_token,
@@ -44,6 +45,10 @@ from backend.modules.auth.schemas import (
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
+# Brute-force budgets (threat model): per-route buckets, 5/min/IP.
+login_limiter = RateLimit("5/minute")
+verify_limiter = RateLimit("5/minute")
+
 
 class LoginRequest(BaseModel):
     password: str
@@ -62,12 +67,14 @@ class CurrentUserResponse(BaseModel):
 
 @router.post("/login", response_model=TokenResponse | MfaChallengeResponse, summary="Admin login")
 async def login(
-    request: LoginRequest,
+    request: Request,
+    body: LoginRequest,
     mfa_repo: Annotated[MfaRepository, Depends(get_mfa_repo)],
+    _rate_limited: Annotated[None, Depends(login_limiter)],
 ) -> TokenResponse | MfaChallengeResponse:
     """Authenticate admin password: JWT immediately, or an MFA challenge
     (exchange at `mfa/verify`) when TOTP is enrolled."""
-    if not verify_password(request.password, settings.admin_password):
+    if not verify_password(body.password, settings.admin_password):
         raise AppError(
             "Invalid credentials",
             status=status.HTTP_401_UNAUTHORIZED,
@@ -266,8 +273,10 @@ async def mfa_disable(
 
 @router.post("/mfa/verify", response_model=TokenResponse, summary="Complete MFA login")
 async def mfa_verify(
+    request: Request,
     body: MfaVerifyRequest,
     repo: Annotated[MfaRepository, Depends(get_mfa_repo)],
+    _rate_limited: Annotated[None, Depends(verify_limiter)],
 ) -> TokenResponse:
     """Exchange a pending login token + TOTP (or one unused backup code,
     consumed on use) for a full JWT."""

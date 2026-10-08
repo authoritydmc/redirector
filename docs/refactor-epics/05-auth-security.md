@@ -33,7 +33,10 @@
 - [ ] Migration: v2 password + MFA seeds carry over; users not locked out.
 
 ## Tasks
-- [ ] 1. Threat model (1 page): assets, attackers, trust boundaries (add SSO trust boundary: IdP compromise → role mapping).
+- [x] 1. Threat model (1 page): assets, attackers, trust boundaries (add SSO trust boundary: IdP compromise → role mapping).
+  (Done as `docs/threat-model.md`: assets, four attacker profiles with
+  mitigations, trust boundaries incl. proxy `X-Forwarded-For` trust and
+  the v2-JSON legacy boundary, explicit non-goals.)
 - [ ] 2. Hash + JWT + refresh rotation + logout denylist (Redis).
 - [x] 3. RBAC middleware + per-route scopes audit.
   (Backend slice done on `v3/epic-01-backend-foundation`: `RequireScopes`
@@ -67,6 +70,11 @@
 - [ ] 9. `docs/SSO-SETUP.md` (Entra, Okta, Google, Keycloak/Authentik) + `auth doctor` CLI.
 - [ ] 10. Secrets migration CLI (`redirector secrets migrate --from-json`).
 - [ ] 11. Rate limits, lockout, audit log (`auth_events` table, incl. `sso_login`, `scim_provision`, `role_mapped`).
+  (In progress on `v3/epic-01-backend-foundation`: per-route sliding-window
+  rate limiting (`backend/core/ratelimit.py`, per-app state so tests stay
+  isolated; 429 `auth:rate-limited` in the problem envelope) enforced on
+  login + MFA verify at 5/min/IP. Open: account lockout, Redis-backed
+  limits for multi-worker deployments, `auth_events` audit log.)
 
 ## `gh` snippet
 ```bash
