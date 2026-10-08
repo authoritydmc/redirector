@@ -77,3 +77,25 @@ def test_metrics_live_endpoint(client):
     assert "process" in data
     assert "counts" in data
     assert "total_shortcuts" in data["counts"]
+
+
+def test_metrics_live_reports_cache_hit_rate(client):
+    """Resolve traffic moves the lookup-cache counters (relative deltas —
+    the process-wide caches are shared with every other test here)."""
+    before = client.get("/api/v1/metrics/live").json()["cache"]
+
+    client.get("/unknown-pattern-xyz")  # miss
+    client.post("/api/v1/shortcuts", json={
+        "pattern": "cached-probe",
+        "target": "https://x.example/cached",
+        "type": "static",
+        "visibility": "public",
+    })
+    client.get("/cached-probe")  # miss, then stored
+    client.get("/cached-probe")  # memory hit
+
+    after = client.get("/api/v1/metrics/live").json()["cache"]
+    assert after["hits"] - before["hits"] >= 1
+    assert after["misses"] - before["misses"] >= 2
+    assert after["hit_rate"] is not None
+    assert 0.0 <= after["hit_rate"] <= 1.0

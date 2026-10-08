@@ -81,7 +81,14 @@ class LiveCounts(BaseModel):
     total_hits: int
 
 
+class CacheStats(BaseModel):
+    hits: int
+    misses: int
+    hit_rate: float | None = None
+
+
 class LiveResponse(BaseModel):
     status: str
     process: ProcessInfo
     counts: LiveCounts
+    cache: CacheStats

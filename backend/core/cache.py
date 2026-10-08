@@ -10,7 +10,7 @@ import logging
 import time
 import uuid
 from collections.abc import Awaitable, Callable
-from typing import Protocol
+from typing import Any, Protocol
 
 import redis.asyncio as redis_asyncio
 from redis.exceptions import RedisError
@@ -28,6 +28,8 @@ class Cache(Protocol):
     async def set(self, key: str, value: str, ttl: int = 300) -> None: ...
     async def delete(self, key: str) -> None: ...
     async def clear_prefix(self, prefix: str) -> int: ...
+    def cache_stats(self) -> dict[str, int]:
+        """Hit/miss counters (sync: plain attribute reads, no I/O). ..."""
     async def get_or_compute(self, key: str, factory: MissFactory) -> str | None:
         """Singleflight miss coalescing (EPIC-06): concurrent callers share
         one factory run. Stores non-None results; None is shared but not
@@ -40,6 +42,11 @@ class MemoryCache:
     def __init__(self) -> None:
         self._store: dict[str, tuple[str, float | None]] = {}
         self._inflight: dict[str, asyncio.Future[str | None]] = {}
+        self.hits = 0
+        self.misses = 0
+
+    def cache_stats(self) -> dict[str, int]:
+        return {"hits": self.hits, "misses": self.misses}
 
     async def get_or_compute(self, key: str, factory: MissFactory) -> str | None:
         """Coalesce concurrent misses for `key` onto one factory run.
@@ -82,11 +89,14 @@ class MemoryCache:
     async def get(self, key: str) -> str | None:
         entry = self._store.get(key)
         if entry is None:
+            self.misses += 1
             return None
         value, expires = entry
         if expires is not None and expires <= time.monotonic():
             self._store.pop(key, None)
+            self.misses += 1
             return None
+        self.hits += 1
         return value
 
     async def set(self, key: str, value: str, ttl: int = 300) -> None:
@@ -147,16 +157,26 @@ class RedisCache:
         self._lock_ttl_s = lock_ttl_s
         self._follower_timeout_s = follower_timeout_s
         self._poll_interval_s = poll_interval_s
+        self.hits = 0
+        self.misses = 0
 
     async def aclose(self) -> None:
         await self._redis.aclose()
 
+    def cache_stats(self) -> dict[str, int]:
+        return {"hits": self.hits, "misses": self.misses}
+
     async def get(self, key: str) -> str | None:
         try:
             value: str | None = await self._redis.get(key)
+            if value is None:
+                self.misses += 1
+            else:
+                self.hits += 1
             return value
         except RedisError as exc:
             logger.warning("cache get failed, treating as miss: %s", exc)
+            self.misses += 1
             return None
 
     async def set(self, key: str, value: str, ttl: int = 300) -> None:
@@ -250,10 +270,31 @@ class RedisCache:
         return value
 
 
+_CACHE_INSTANCES: list[Cache] = []
+
+
+def _register(cache: Cache) -> Cache:
+    """Track process-wide caches so /metrics can aggregate hit rates."""
+    _CACHE_INSTANCES.append(cache)
+    return cache
+
+
 def build_cache(backend: str, redis_url: str) -> Cache:
     """Select the cache implementation from settings (fail fast on typos)."""
     if backend == "redis":
-        return RedisCache(redis_url)
+        return _register(RedisCache(redis_url))
     if backend == "memory":
-        return MemoryCache()
+        return _register(MemoryCache())
     raise ValueError(f"unknown cache backend: {backend!r} (want 'memory' or 'redis')")
+
+
+def aggregate_cache_stats() -> dict[str, Any]:
+    """Summed hits/misses plus hit_rate (None when nothing has been read)."""
+    hits = sum(cache.cache_stats()["hits"] for cache in _CACHE_INSTANCES)
+    misses = sum(cache.cache_stats()["misses"] for cache in _CACHE_INSTANCES)
+    total = hits + misses
+    return {
+        "hits": hits,
+        "misses": misses,
+        "hit_rate": round(hits / total, 3) if total else None,
+    }

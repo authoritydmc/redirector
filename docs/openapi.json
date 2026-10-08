@@ -471,6 +471,35 @@
         "title": "CacheResyncResult",
         "type": "object"
       },
+      "CacheStats": {
+        "properties": {
+          "hit_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hit Rate"
+          },
+          "hits": {
+            "title": "Hits",
+            "type": "integer"
+          },
+          "misses": {
+            "title": "Misses",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hits",
+          "misses"
+        ],
+        "title": "CacheStats",
+        "type": "object"
+      },
       "CheckLogEntry": {
         "properties": {
           "cached": {
@@ -837,6 +866,9 @@
       },
       "LiveResponse": {
         "properties": {
+          "cache": {
+            "$ref": "#/components/schemas/CacheStats"
+          },
           "counts": {
             "$ref": "#/components/schemas/LiveCounts"
           },
@@ -851,7 +883,8 @@
         "required": [
           "status",
           "process",
-          "counts"
+          "counts",
+          "cache"
         ],
         "title": "LiveResponse",
         "type": "object"

@@ -25,10 +25,25 @@
 - **Config split**: secrets (`admin password hash`, `session/JWT secret`, MFA seeds) → env vars / Docker secrets / optional vault; non-secrets stay in DB-backed settings table with admin UI (replaces `redirect.config.json` as source of truth; JSON kept as import/export only).
 
 ## Acceptance criteria
-- [ ] Fresh boot on SQLite + Postgres from the same Alembic head; v2 sample fixture imports via `import-v2` with row counts verified.
-- [ ] All DB access async; no `db.session` globals in request path.
+- [x] Fresh boot on SQLite + Postgres from the same Alembic head; v2 sample fixture imports via `import-v2` with row counts verified.
+  (Proven by `tests/test_v3_alembic.py` — same head upgrades SQLite and
+  Postgres 16 with an enum/JSON row roundtrip — plus `test_import_v2.py`
+  row-count + idempotency assertions on a synthetic v2 data dir.)
+- [x] All DB access async; no `db.session` globals in request path.
+  (Audited: every request path takes per-request `AsyncSession` via
+  `Depends(get_session)`; the only direct factory uses are background-job
+  task scopes, each opening/closing its own session. No `db.session`,
+  scoped, or global sessions anywhere under `backend/`.)
 - [ ] Cache hit rate visible in `/metrics`; p99 redirect latency meets master target.
-- [ ] `REDIRECTOR_DATA_DIR` + `DATABASE_URL` + `REDIS_URL` documented; JSON config import path tested.
+  (Half done: `MemoryCache`/`RedisCache` count hits/misses and
+  `GET /api/v1/metrics/live` exposes `{hits, misses, hit_rate}` summed
+  across process caches — covered by
+  `test_metrics_live_reports_cache_hit_rate`. The p99 half stays with the
+  master latency gate, still open.)
+- [x] `REDIRECTOR_DATA_DIR` + `DATABASE_URL` + `REDIS_URL` documented; JSON config import path tested.
+  (`backend/README.md` documents all three (as `REDIRECTOR_*`); the v2
+  `redirect.config.json` import path is exercised by `test_import_v2.py`
+  incl. the settings allowlist.)
 
 ## Tasks
 - [x] 1. SQLModel entities (clean v3 schema) + Alembic env (dual-driver `env.py`).

@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.core.cache import aggregate_cache_stats
 from backend.core.config import settings
 from backend.models.entities import (
     Shortcut,
@@ -153,4 +154,5 @@ class MetricsService:
                 "total_shortcuts": sc_count,
                 "total_hits": hits_sum,
             },
+            "cache": aggregate_cache_stats(),
         }
