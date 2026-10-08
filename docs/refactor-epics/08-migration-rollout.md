@@ -34,11 +34,15 @@ M4: Flask removed. Single uvicorn image. v2 compose file deprecated.
   from `docker/nginx.m1.conf`), `docker/Dockerfile.v3` (dev image; prod
   shape later), `docker/README.md`. Verified live in WSL docker 6/6:
   proxy `/healthz`→FastAPI, `/`→Flask HTML, upstreams list, shortcut
-  create + JSON resolve, SSE stream terminating with buffering off.
-  Same data volume, separate v3 DB file (no cross-schema interference);
-  v3 tables via in-container `alembic upgrade`. Local note: verify from
-  the WSL side — port 8080 may be squatted on the Windows host.)
-- [ ] 2. Config importer + golden-file fixtures (`tests/fixtures/data-v1/`, `data-v2/`).
+  create + JSON resolve, terminating SSE stream. Same data volume,
+  separate v3 DB file (no cross-schema interference); v3 tables via
+  in-container `alembic upgrade`. Local note: verify from the WSL side —
+  port 8080 may be squatted on the Windows host.)
+- [x] 2. Config importer + golden-file fixtures (`tests/fixtures/data-v1/`, `data-v2/`).
+  (Done: `tests/fixtures/build_fixtures.py` generates the committed
+  v1 (oldest supported shape) + v2 (full shape) data dirs;
+  `tests/test_import_fixtures.py` pins row counts, normalization,
+  settings allowlist, secret absence, and idempotency against them.)
 - [x] 3. Legacy route inventory → deprecation map (feeds EPIC-03 Sunset headers).
   (Done as `docs/deprecation-map.md`: every machine-consumable legacy
   endpoint mapped to its shipped-or-planned successor, verified against
@@ -46,7 +50,12 @@ M4: Flask removed. Single uvicorn image. v2 compose file deprecated.
   6-month sunset post-GA — needs owner sign-off). Header emission itself
   lands with the M3 cutover, feeding EPIC-03 task 6.)
 - [ ] 4. Auto pre-migration backup + state stamping (`schema_revision`, `app_version` already exist — extend).
-- [ ] 5. `UPGRADE-v3.md` + rollback runbook + `doctor` CLI (`redirector doctor --data-dir`).
+- [x] 5. `UPGRADE-v3.md` + rollback runbook + `doctor` CLI (`redirector doctor --data-dir`).
+  (Done on `v3/epic-01-backend-foundation`: `docs/UPGRADE-v3.md` (doctor
+  gate, M1–M4 path, rollback table) + `backend/cli/doctor.py`
+  (`python -m backend.cli.doctor`, exit 0/1/2, read-only; covered by
+  `tests/test_v3_doctor.py` on healthy/broken/empty installs. Soak
+  (task 6) stays time-based, not effort-based.)
 - [ ] 6. Soak: nightly M-build against seeded Postgres + Redis, k6 smoke.
 
 ## `gh` snippet

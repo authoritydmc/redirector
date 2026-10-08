@@ -1,0 +1,1 @@
+{"auto_redirect_delay": 2, "upstreams": [{"name": "go", "base_url": "http://go/", "fail_status_code": 404}]}
