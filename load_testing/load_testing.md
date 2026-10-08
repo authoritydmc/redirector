@@ -4,6 +4,24 @@ This project includes two Locust scripts:
 - `load_testing/locustfile.py` — legacy v2 Flask routes (`/edit/…`, `/check-upstreams-ui`, `/admin/…`).
 - `load_testing/locustfile_v3.py` — v3 FastAPI backend (`/api/v1/*` + `/{pattern}` hot path).
 
+## Measured redirect p99s (EPIC-04/master p99 gates)
+
+`load_testing/measure-p99.py` drives the hot path directly (2000 cached +
+2000 uncached samples). Measured 2026-10-08:
+
+| Topology | cached p99 (target <10ms) | uncached p99 (target <150ms) |
+|---|---|---|
+| Linux, container-native storage | **7.2ms PASS** | **6.1ms PASS** |
+| Linux via WSL 9P bind mount | 102ms FAIL | 9.3ms PASS |
+| Windows native (NTFS) | 32.6ms FAIL | 33.3ms PASS |
+
+Mechanism: every served redirect commits `access_count` (v2 parity), so
+cached latency ≈ one SQLite commit ≈ one fsync. The dev-topology misses
+are filesystem artifacts (NTFS / 9P-bridge fsync tax), not code: uncached
+reads stay fast everywhere. Known levers if the 7.2ms margin ever thins:
+`PRAGMA synchronous=NORMAL` or deferred counting — both trade durability
+for latency and are deliberately NOT taken here.
+
 ## CI smoke (`load-smoke.sh`, EPIC-06 task 5)
 
 `.github/workflows/load-smoke.yml` runs the locust v3 script headless

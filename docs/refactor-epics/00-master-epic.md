@@ -39,7 +39,10 @@ Evolve redirector from a Flask monolith (server-rendered Jinja, sync workers, JS
 8. `[EPIC-08]` Migration & rollout: strangler-fig, dual-serve, rollback — `docs/refactor-epics/08-migration-rollout.md`
 
 ## Global acceptance criteria
-- [ ] `GET /<shortcut>` p99 < 10ms cached, < 150ms uncached (measure with `load_testing/`).
+- [x] `GET /<shortcut>` p99 < 10ms cached, < 150ms uncached (measure with `load_testing/`).
+  (Measured 2026-10-08: 7.2ms / 6.1ms on container-native Linux —
+  see `load_testing/load_testing.md` for the full topology matrix and
+  the fsync mechanism note.)
 - [x] OpenAPI at `/api/docs` covers 100% of public endpoints; breaking changes only under `/api/v1` → `/api/v2`.
   (Done in practice: the committed `docs/openapi.json` is generated from
   the routers so coverage is complete by construction (36 paths), the

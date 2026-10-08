@@ -34,12 +34,14 @@
   `Depends(get_session)`; the only direct factory uses are background-job
   task scopes, each opening/closing its own session. No `db.session`,
   scoped, or global sessions anywhere under `backend/`.)
-- [ ] Cache hit rate visible in `/metrics`; p99 redirect latency meets master target.
-  (Half done: `MemoryCache`/`RedisCache` count hits/misses and
-  `GET /api/v1/metrics/live` exposes `{hits, misses, hit_rate}` summed
-  across process caches — covered by
-  `test_metrics_live_reports_cache_hit_rate`. The p99 half stays with the
-  master latency gate, still open.)
+- [x] Cache hit rate visible in `/metrics`; p99 redirect latency meets master target.
+  (Hit rate live in `/metrics/live` with regression test; latency measured
+  2026-10-08 via `load_testing/measure-p99.py` (n=2000 each): cached p99
+  7.2ms / uncached 6.1ms on container-native Linux storage — PASS. Same
+  code misses on Windows NTFS (32ms) and WSL 9P bind mounts (102ms):
+  per-redirect `access_count` commits make cached latency ≈ one fsync.
+  Full matrix in `load_testing/load_testing.md`; known levers documented
+  there, deliberately not taken.)
 - [x] `REDIRECTOR_DATA_DIR` + `DATABASE_URL` + `REDIS_URL` documented; JSON config import path tested.
   (`backend/README.md` documents all three (as `REDIRECTOR_*`); the v2
   `redirect.config.json` import path is exercised by `test_import_v2.py`
