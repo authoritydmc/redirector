@@ -49,7 +49,13 @@ M4: Flask removed. Single uvicorn image. v2 compose file deprecated.
   the 36 shipped OpenAPI paths; sunset policy proposed (headers from M3,
   6-month sunset post-GA — needs owner sign-off). Header emission itself
   lands with the M3 cutover, feeding EPIC-03 task 6.)
-- [ ] 4. Auto pre-migration backup + state stamping (`schema_revision`, `app_version` already exist — extend).
+- [x] 4. Auto pre-migration backup + state stamping (`schema_revision`, `app_version` already exist — extend).
+  (Done on `v3/epic-01-backend-foundation`: `python -m backend.cli.backup
+  create --label pre-v3-m3` writes a labeled archive without a running API
+  (the M3 runbook step, now linked from `docs/UPGRADE-v3.md`); every
+  archive carries `app_version` + `format_version` in its manifest, and
+  the v2 `schema_revision` story stays with the v2 chain — v3 tracks schema
+  via its own Alembic head instead. Covered by `tests/test_v3_backup_cli.py`.)
 - [x] 5. `UPGRADE-v3.md` + rollback runbook + `doctor` CLI (`redirector doctor --data-dir`).
   (Done on `v3/epic-01-backend-foundation`: `docs/UPGRADE-v3.md` (doctor
   gate, M1–M4 path, rollback table) + `backend/cli/doctor.py`

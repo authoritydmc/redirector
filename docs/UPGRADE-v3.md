@@ -33,7 +33,12 @@ zero manual data surgery.
 - **M2** — serve the SPA build at `/app`; freeze Flask templates.
 - **M3** — flip `/` (and `/{pattern}`) to FastAPI. Legacy JSON routes start
   emitting `Deprecation: true` + `Sunset` + `Link: <successor>` (see
-  `docs/deprecation-map.md`).
+  `docs/deprecation-map.md`). Take the pre-cutover backup first (no API
+  needed — safe to run during the maintenance window):
+  ```sh
+  python -m backend.cli.backup create --label pre-v3-m3 \
+      --data-dir ./data --database-url sqlite+aiosqlite:///./data/v3.db
+  ```
 - **M4** — remove Flask. Sunset date: 6 months after v3.0 GA (proposed).
 
 ## Rollback runbook
