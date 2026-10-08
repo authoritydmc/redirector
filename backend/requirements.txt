@@ -10,6 +10,9 @@ sqlmodel>=0.0.22
 # but every engine here is async — without it, collection fails in fresh
 # envs with "use the sqlalchemy[asyncio] install target".
 sqlalchemy[asyncio]>=2.0.32
+# Schema migrations (EPIC-04): async env.py works off the same async URLs
+# as the app (aiosqlite/asyncpg) — no sync drivers needed.
+alembic>=1.13
 aiosqlite>=0.20
 asyncpg>=0.29
 httpx>=0.27
