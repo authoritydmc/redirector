@@ -39,7 +39,12 @@ M4: Flask removed. Single uvicorn image. v2 compose file deprecated.
   v3 tables via in-container `alembic upgrade`. Local note: verify from
   the WSL side — port 8080 may be squatted on the Windows host.)
 - [ ] 2. Config importer + golden-file fixtures (`tests/fixtures/data-v1/`, `data-v2/`).
-- [ ] 3. Legacy route inventory → deprecation map (feeds EPIC-03 Sunset headers).
+- [x] 3. Legacy route inventory → deprecation map (feeds EPIC-03 Sunset headers).
+  (Done as `docs/deprecation-map.md`: every machine-consumable legacy
+  endpoint mapped to its shipped-or-planned successor, verified against
+  the 36 shipped OpenAPI paths; sunset policy proposed (headers from M3,
+  6-month sunset post-GA — needs owner sign-off). Header emission itself
+  lands with the M3 cutover, feeding EPIC-03 task 6.)
 - [ ] 4. Auto pre-migration backup + state stamping (`schema_revision`, `app_version` already exist — extend).
 - [ ] 5. `UPGRADE-v3.md` + rollback runbook + `doctor` CLI (`redirector doctor --data-dir`).
 - [ ] 6. Soak: nightly M-build against seeded Postgres + Redis, k6 smoke.

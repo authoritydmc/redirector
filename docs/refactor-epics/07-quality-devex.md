@@ -39,11 +39,23 @@ Toolchain:
 
 ## Tasks
 - [ ] 1. Monorepo move + import path codemod + `Makefile`/`Taskfile`.
-- [ ] 2. Ruff+mypy+pytest-asyncio baselines (fix or `noqa` with tickets, ratchet to zero).
+- [x] 2. Ruff+mypy+pytest-asyncio baselines (fix or `noqa` with tickets, ratchet to zero).
+  (Done on `v3/epic-01-backend-foundation`: `ruff check backend/` clean,
+  `mypy backend/` strict clean with the documented SQLAlchemy carve-outs
+  (`pyproject.toml`) plus two reasoned side-effect-import `noqa`s,
+  pytest green locally and in CI (`validate.yml` gates all three).
+  Async style is anyio + `asyncio.run` + sync TestClient instead of
+  pytest-asyncio — deliberate: it keeps the v2 gevent suite runnable in
+  isolation without plugin conflicts (see `test_backend_smoke.py`).
+  Ratchet stands at zero.)
 - [ ] 3. Vitest+Playwright scaffolding + first 5 critical flows (login, create, redirect, upstream check, backup).
 - [ ] 4. `ci.yml` rewrite + required checks + CODEOWNERS.
 - [ ] 5. Dockerfiles + compose profiles (`dev`, `prod-sqlite`, `prod-postgres`, `scale`).
-- [ ] 6. ADRs + DEVELOPMENT.md + contributor quickstart video/gif (nice-to-have).
+- [x] 6. ADRs + DEVELOPMENT.md + contributor quickstart video/gif (nice-to-have).
+  (Done on `v3/epic-01-backend-foundation`: `docs/adr/0001-0003`
+  (strangler-fig, clean-break schema, snapshot contract) and a v3-first
+  `DEVELOPMENT.md` rewrite (backend/frontend/infra/migrations/M1/load).
+  Video skipped as stated nice-to-have.)
 
 ## `gh` snippet
 ```bash
