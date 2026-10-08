@@ -1,0 +1,99 @@
+# v3 production stack: web (SPA+proxy) → api → worker, sqlite by default.
+#
+#   REDIRECTOR_ADMIN_PASSWORD=... docker compose -f docker/compose.prod.yml up -d --build
+#
+# Secrets are NEVER baked in: REDIRECTOR_ADMIN_PASSWORD is required
+# (compose fails fast without it); REDIRECTOR_JWT_SECRET should also be
+# set in production. Data lives in ./data (bind mount, same contract as v2).
+# Postgres variant: add `-f docker/compose.postgres.yml`.
+# Scale-out: `--scale api=N` needs postgres + redis (see docker/README.md).
+
+name: redirector-v3
+
+services:
+  # One-shot schema migration: owns DDL so api replicas and workers never
+  # race each other (concurrent CREATE TYPE fails on Postgres).
+  migrate:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    volumes:
+      - ${DATA_DIR:-../data}:/app/data
+    environment:
+      - REDIRECTOR_DATA_DIR=/app/data
+    command: ["python", "-m", "alembic", "-c", "backend/alembic.ini", "upgrade", "head"]
+    restart: "no"
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    volumes:
+      - ${DATA_DIR:-../data}:/app/data
+    environment:
+      - REDIRECTOR_DATA_DIR=/app/data
+      - REDIRECTOR_JOB_BACKEND=arq
+      - REDIRECTOR_REDIS_URL=redis://redis:6379/0
+      - REDIRECTOR_ADMIN_PASSWORD=${REDIRECTOR_ADMIN_PASSWORD:?set REDIRECTOR_ADMIN_PASSWORD}
+      - REDIRECTOR_JWT_SECRET=${REDIRECTOR_JWT_SECRET:?set REDIRECTOR_JWT_SECRET}
+      - SKIP_MIGRATIONS=1
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8123/healthz', timeout=3)\" || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    command: ["python", "-m", "arq", "backend.workers.settings.WorkerSettings"]
+    volumes:
+      - ${DATA_DIR:-../data}:/app/data
+    environment:
+      - REDIRECTOR_DATA_DIR=/app/data
+      - REDIRECTOR_REDIS_URL=redis://redis:6379/0
+      - SKIP_MIGRATIONS=1
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    # No HTTP server here (arq worker): disable the image healthcheck that
+    # probes :8123. Liveness is restart-policy + arq's own logging.
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+    driver: local

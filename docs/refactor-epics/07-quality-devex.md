@@ -50,7 +50,17 @@ Toolchain:
   Ratchet stands at zero.)
 - [ ] 3. Vitest+Playwright scaffolding + first 5 critical flows (login, create, redirect, upstream check, backup).
 - [ ] 4. `ci.yml` rewrite + required checks + CODEOWNERS.
-- [ ] 5. Dockerfiles + compose profiles (`dev`, `prod-sqlite`, `prod-postgres`, `scale`).
+- [x] 5. Dockerfiles + compose profiles (`dev`, `prod-sqlite`, `prod-postgres`, `scale`).
+  (Done on `v3/epic-01-backend-foundation`: `docker/Dockerfile.api`
+  (non-root, migrates on boot, healthcheck) + `docker/Dockerfile.web`
+  (nginx + SPA, SSE-safe proxy) + `docker/compose.prod.yml` (api + web +
+  worker + redis, secrets required, single migrator service so concurrent
+  CREATE TYPE can't race) + `docker/compose.postgres.yml` overlay.
+  Verified live in WSL docker 7/7 on BOTH profiles (SPA, login, CRUD,
+  broker-drained backup job, terminating SSE). Dev profile is the M1
+  harness; scale documented (needs postgres + redis; rate limits and
+  in-process singleflight are per-process). CI image builds stay open
+  under task 4.)
 - [x] 6. ADRs + DEVELOPMENT.md + contributor quickstart video/gif (nice-to-have).
   (Done on `v3/epic-01-backend-foundation`: `docs/adr/0001-0003`
   (strangler-fig, clean-break schema, snapshot contract) and a v3-first

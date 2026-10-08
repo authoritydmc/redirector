@@ -1,0 +1,46 @@
+# Postgres overlay for the v3 production stack (EPIC-07 task 5):
+#   docker compose -f docker/compose.prod.yml -f docker/compose.postgres.yml up -d --build
+# Compose merges by service name: the api/worker database URLs switch to
+# Postgres and a managed database appears. Same /app/data bind mount
+# (backups, sqlite fallback) is kept.
+
+services:
+  migrate:
+    environment:
+      - REDIRECTOR_DATABASE_URL=postgresql+asyncpg://redirector:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/redirector
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    environment:
+      - REDIRECTOR_DATABASE_URL=postgresql+asyncpg://redirector:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/redirector
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    environment:
+      - REDIRECTOR_DATABASE_URL=postgresql+asyncpg://redirector:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/redirector
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=redirector
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      - POSTGRES_DB=redirector
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redirector"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+    driver: local

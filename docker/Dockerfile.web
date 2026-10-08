@@ -1,0 +1,14 @@
+# Redirector v3 web image: nginx serving the SPA build + proxying /api.
+# Build context is the repo root AFTER `npm run build` inside frontend/
+# (CI builds it; the COPY fails loudly if dist/ is missing).
+#   docker build -f docker/Dockerfile.web -t redirector-web .
+
+FROM nginx:alpine
+
+COPY frontend/dist /usr/share/nginx/html/app
+COPY docker/nginx.web.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O /dev/null http://127.0.0.1:80/healthz || exit 1
