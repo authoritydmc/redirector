@@ -61,7 +61,14 @@ Key decisions:
 - [ ] 4. Upstream config + live-check SSE view (replaces `check_upstreams_stream.html`).
 - [ ] 5. Admin config, Redis/upstream cache, import/export, backup, metrics-live, version page.
 - [ ] 6. MFA setup/verify (TOTP QR + WebAuthn), setup wizard, 404/500 routes.
-- [ ] 7. Production build served by FastAPI `StaticFiles` (single container) + CDN-friendly hashed assets.
+- [x] 7. Production build served by FastAPI `StaticFiles` (single container) + CDN-friendly hashed assets.
+  (Done on `v3/epic-01-backend-foundation`: `REDIRECTOR_SPA_DIR` build
+  served at `/app` with index.html fallback for client routes
+  (`backend/main.py`, manual serving so unknown paths fall back instead
+  of 404ing like a StaticFiles mount would); traversal-safe, degrades to
+  nothing without a build. Verified live against the real production
+  build; hashed assets + no-store shell mirror the nginx static blocks.
+  Also closes EPIC-08 M2.)
 
 ## `gh` snippet
 ```bash

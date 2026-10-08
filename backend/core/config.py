@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # broker needed) or "arq" (Redis broker + `arq` worker processes).
     # The DB row + SSE surface is identical; only execution moves.
     job_backend: str = "in-process"
+    # React build served at /app (EPIC-02 task 7 / M2). Override for custom
+    # builds; the mount degrades to nothing when index.html is absent.
+    spa_dir: Path = PROJECT_ROOT / "frontend" / "dist"
     # Account lockout (EPIC-05 task 11): failed logins per IP inside the
     # window that trigger a 429 lockout.
     auth_lockout_max_attempts: int = 10

@@ -8,8 +8,10 @@ import logging
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import FileResponse
 from sqlalchemy.exc import OperationalError
 
 from backend.core.config import settings
@@ -118,10 +120,47 @@ def create_app() -> FastAPI:
     app.include_router(shortcuts_router.router)
     app.include_router(upstreams_router.router)
     app.include_router(metrics_router.router)
+    _mount_spa(app)
     # Catch-all /{pattern} lives in resolve_router: register LAST so
-    # /healthz, /docs, /openapi.json and /api/* keep matching first.
+    # /healthz, /docs, /openapi.json, /api/* and /app/* keep matching first.
     app.include_router(resolve_router.router)
     return app
+
+
+def _mount_spa(app: FastAPI) -> None:
+    """Serve the React build at /app when it exists (EPIC-02 task 7 / M2).
+
+    Manual file serving (not a StaticFiles mount, which answers its own
+    404s): unknown /app/* paths fall back to index.html for client-side
+    routing, and the mount degrades to nothing when no build is present
+    (backend CI installs no node).
+    """
+    dist = settings.spa_dir
+    index = dist / "index.html"
+    if not index.is_file():
+        return
+    logger.info("serving SPA from %s at /app", dist)
+
+    async def spa_root() -> FileResponse:
+        return FileResponse(index)
+
+    async def spa_file(path: str) -> FileResponse:
+        candidate = (dist / path).resolve() if path else index
+        if path and candidate.is_file() and _is_within(dist, candidate):
+            return FileResponse(candidate)
+        return FileResponse(index)
+
+    app.get("/app", include_in_schema=False)(spa_root)
+    app.get("/app/{path:path}", include_in_schema=False)(spa_file)
+
+
+def _is_within(root: Path, candidate: Path) -> bool:
+    """True when `candidate` resolves inside `root` (normalizes `..`)."""
+    try:
+        candidate.resolve().relative_to(root.resolve())
+        return True
+    except (ValueError, OSError, RuntimeError):
+        return False
 
 
 app = create_app()

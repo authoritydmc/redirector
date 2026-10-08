@@ -39,7 +39,7 @@ export function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/app">
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>
