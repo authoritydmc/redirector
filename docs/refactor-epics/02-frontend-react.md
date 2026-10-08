@@ -51,7 +51,6 @@ Key decisions:
   (nav, class-based dark mode persisted, sign-out), RTL/jsdom component
   tests (login render/error/success/redirect-guard). Toasts deferred to
   the first feature that needs them — inline form errors cover auth.)
-- [ ] 2. Auth + shell layout (nav, dark mode, toasts).
 - [ ] 3. Shortcuts datatable (server pagination, filters, bulk delete) + create/edit drawers with Zod validation.
 - [ ] 4. Upstream config + live-check SSE view (replaces `check_upstreams_stream.html`).
 - [ ] 5. Admin config, Redis/upstream cache, import/export, backup, metrics-live, version page.
