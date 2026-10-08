@@ -126,6 +126,15 @@ worker and skips cleanly without Redis.
 
 ## Authorization audit (EPIC-05 task 3, scopes enforced on the admin surface)
 
+Transports (EPIC-03 task 5: the full auth scheme): `Authorization: Bearer`
+carries either a JWT (interactive login, 60 min default, scope `*`) or an
+API key (`rk_<prefix>_<secret>`, issued scopes). Short-lived
+purpose-scoped tokens exist too (`mfa-pending`: `mfa/verify` only, rejected
+as general credentials). Auth failures are 401 (`auth:required`,
+`auth:invalid-token`, `auth:invalid-api-key`); authenticated-but-rejected
+is 403 (`auth:forbidden`, `auth:insufficient-scope`) — automation can tell
+"bad credential" from "narrow key" apart.
+
 JWT sessions carry scope `*` (implies everything). API keys (`rk_*`) carry
 the scopes they were issued with; `RequireScopes(...)` denies with 403
 `auth:insufficient-scope`. Key management itself stays JWT-only.

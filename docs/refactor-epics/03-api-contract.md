@@ -38,9 +38,16 @@ Standards:
   (Done: 65 routes + 2 error handlers inventoried with v1 targets; auth
   column best-effort, flagged for contract-test re-verification.)
 - [ ] 2. Write OpenAPI-first YAML for `/api/v1` (review with frontend before coding).
-- [ ] 3. Define error codes catalog (`SHORTCUT_CONFLICT_UPSTREAM`, `MFA_REQUIRED`, …).
+- [x] 3. Define error codes catalog (`SHORTCUT_CONFLICT_UPSTREAM`, `MFA_REQUIRED`, …).
+  (Done as `docs/error-codes.md`: all 30 `domain:reason` codes with HTTP
+  meanings, enforced both directions by `tests/test_v3_error_codes.py` —
+  new codes fail until documented, documented-but-unemitted codes fail
+  until removed.)
 - [ ] 4. Pagination + filtering spec (incl. `q` semantics: prefix vs substring).
-- [ ] 5. Auth scheme for API (Bearer JWT + API keys, scopes) — coordinate EPIC-05.
+- [x] 5. Auth scheme for API (Bearer JWT + API keys, scopes) — coordinate EPIC-05.
+  (Done: transports, `admin:read`/`admin:write` vocabulary, 401-vs-403
+  semantics, and the per-route audit table documented in
+  `backend/README.md` under Authorization audit.)
 - [ ] 6. Deprecation map: old path → new path + Sunset header.
 
 ## `gh` snippet
