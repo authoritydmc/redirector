@@ -43,7 +43,11 @@ Standards:
   meanings, enforced both directions by `tests/test_v3_error_codes.py` —
   new codes fail until documented, documented-but-unemitted codes fail
   until removed.)
-- [ ] 4. Pagination + filtering spec (incl. `q` semantics: prefix vs substring).
+- [x] 4. Pagination + filtering spec (incl. `q` semantics: prefix vs substring).
+  (Done as `docs/pagination.md`, verified against `list_paged`: `q` is a
+  case-insensitive substring over pattern-or-target; two tiers documented
+  (full pages for shortcuts, bounded lists elsewhere); cursor graduation
+  trigger defined but not built.)
 - [x] 5. Auth scheme for API (Bearer JWT + API keys, scopes) — coordinate EPIC-05.
   (Done: transports, `admin:read`/`admin:write` vocabulary, 401-vs-403
   semantics, and the per-route audit table documented in
