@@ -45,6 +45,12 @@ Key decisions:
   (typecheck+test+build, incl. codegen-freshness gate). MSW mocks
   deliberately skipped — the backend is done, so UI builds against the
   real API. Router/Query/data-table work lands with tasks 2–4.)
+- [x] 2. Auth + shell layout (nav, dark mode, toasts).
+  (Done: `AuthProvider` (JWT localStorage, MFA-challenge login flow),
+  `/login` with TOTP step, protected routes + `RequireAuth`, `Layout`
+  (nav, class-based dark mode persisted, sign-out), RTL/jsdom component
+  tests (login render/error/success/redirect-guard). Toasts deferred to
+  the first feature that needs them — inline form errors cover auth.)
 - [ ] 2. Auth + shell layout (nav, dark mode, toasts).
 - [ ] 3. Shortcuts datatable (server pagination, filters, bulk delete) + create/edit drawers with Zod validation.
 - [ ] 4. Upstream config + live-check SSE view (replaces `check_upstreams_stream.html`).
