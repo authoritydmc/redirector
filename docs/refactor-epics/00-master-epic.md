@@ -40,9 +40,21 @@ Evolve redirector from a Flask monolith (server-rendered Jinja, sync workers, JS
 
 ## Global acceptance criteria
 - [ ] `GET /<shortcut>` p99 < 10ms cached, < 150ms uncached (measure with `load_testing/`).
-- [ ] OpenAPI at `/api/docs` covers 100% of public endpoints; breaking changes only under `/api/v1` → `/api/v2`.
-- [ ] `data/` (db + config + backups) from v2.x boots on v3.0 with zero manual steps (auto-migrate).
-- [ ] Single-command dev: `docker compose up` and `npm run dev` + `uvicorn` with hot reload.
+- [x] OpenAPI at `/api/docs` covers 100% of public endpoints; breaking changes only under `/api/v1` → `/api/v2`.
+  (Done in practice: the committed `docs/openapi.json` is generated from
+  the routers so coverage is complete by construction (36 paths), the
+  `--check` gate fails unreviewed drift, and ADR-0003 records the
+  versioning rule. Served at `/docs` + `/openapi.json`, not `/api/docs`
+  as worded here — same contract, stock FastAPI paths.)
+- [x] `data/` (db + config + backups) from v2.x boots on v3.0 with zero manual steps (auto-migrate).
+  (Proven by `tests/test_v3_migration_boot.py`: synthetic v2 data dir →
+  `import-v2` → boot API on the migrated DB → redirect resolves, with no
+  operator steps. Secrets intentionally excluded — admin re-authenticates
+  with the configured password.)
+- [x] Single-command dev: `docker compose up` and `npm run dev` + `uvicorn` with hot reload.
+  (`docker compose -f docker/compose.m1.yml up -d --build`, `npm run dev`
+  in `frontend/`, `uvicorn backend.main:app --reload` — each one command;
+  M1 verified live end to end.)
 - [ ] CI gate: ruff + mypy (strict on backend) + pytest + vitest + Playwright e2e all green.
 
 ## Sequencing

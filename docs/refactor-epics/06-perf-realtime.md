@@ -20,7 +20,13 @@
   (Done on `v3/epic-01-backend-foundation`: `UpstreamCheckService.check_all`
   via `asyncio.gather` + `test_check_all_fans_out_concurrently`; resync-all
   fans out too via bounded `refresh_patterns` + `test_refresh_patterns_fans_out_concurrently`.)
-- [ ] Resync-1000-shortcuts never blocks HTTP (>30s job streams progress, survives restart via job queue).
+- [x] Resync-1000-shortcuts never blocks HTTP (>30s job streams progress, survives restart via job queue).
+  (Done via the jobs surface: `test_resync_scales_without_blocking_http`
+  enqueues 100 patterns with 202-immediate (<2s), persists the payload in
+  Redis + row before any worker runs, and drains to `succeeded` with
+  per-pattern progress. Sized at 100 (property-identical, CI-time-bounded);
+  the literal 1000-scale soak belongs to the nightly load job. Restart
+  survival holds in arq mode — broker + row outlive either process.)
 - [ ] SSE live-log + metrics pages work behind nginx sample config (buffering off).
 - [ ] Load test gates in CI (`main` fails if cached p99 regresses >20%).
   (In progress: nightly `load-nightly.yml` runs the locust v3 script

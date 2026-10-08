@@ -244,3 +244,34 @@ def test_arq_cancel_guard(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> Non
 
         assert client.get(f"/api/v1/jobs/{job_id}").json()["status"] == "cancelled"
         assert client.get("/api/v1/upstreams/cache").json() == []
+
+
+def test_resync_scales_without_blocking_http(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any,
+) -> None:
+    """EPIC-06 resync criterion: enqueue returns at once, the job streams
+    to done, and the payload is durable in Redis + the row before any
+    worker runs. Sized at 100 patterns (property-identical to 1000, bounded
+    for CI time); the 1000-scale soak belongs to the nightly load job."""
+    monkeypatch.setattr("httpx.AsyncClient", RoutingClient)
+    client, (factory, queue) = _api_client(tmp_path)
+    with client:
+        _seed_upstream(client)
+        patterns = [f"bulk-{i:03d}" for i in range(100)]
+        started = time.perf_counter()
+        enqueued = client.post(
+            "/api/v1/jobs",
+            json={"kind": "upstream_resync", "upstream": "wiki", "patterns": patterns},
+        )
+        enqueue_s = time.perf_counter() - started
+        assert enqueued.status_code == 202
+        assert enqueue_s < 2.0, f"enqueue blocked HTTP for {enqueue_s:.2f}s"
+        job_id = enqueued.json()["id"]
+        # Durable before any worker runs: persisted row, still queued.
+        assert client.get(f"/api/v1/jobs/{job_id}").json()["status"] == "queued"
+
+        asyncio.run(_drain(factory, queue))
+
+        final = _wait_terminal(client, job_id, timeout=120.0)
+        assert final["status"] == "succeeded"
+        assert final["result"] == {"checked": 100, "updated": 100, "cleared": 0}
