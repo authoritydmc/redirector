@@ -58,7 +58,12 @@ Key decisions:
   counts, 6 component tests. Forced one real contract fix: `meta` is now
   a typed `ShortcutListMeta` instead of a bare dict. Create/edit drawers
   (+ Zod) land next.)
-- [ ] 4. Upstream config + live-check SSE view (replaces `check_upstreams_stream.html`).
+- [x] 4. Upstream config + live-check SSE view (replaces `check_upstreams_stream.html`).
+  (Done on `v3/epic-01-backend-foundation`: config table (list/create/
+  inline-confirm delete) + live SSE check view over
+  `/api/v1/upstreams/check/stream/{pattern}` (EventSource, progress +
+  terminal events, disconnect handling, stop control), 4 component tests
+  with a scripted EventSource double.)
 - [ ] 5. Admin config, Redis/upstream cache, import/export, backup, metrics-live, version page.
 - [ ] 6. MFA setup/verify (TOTP QR + WebAuthn), setup wizard, 404/500 routes.
 - [x] 7. Production build served by FastAPI `StaticFiles` (single container) + CDN-friendly hashed assets.

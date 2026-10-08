@@ -154,4 +154,66 @@ describe('ShortcutsPage', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument()
     })
   })
+
+  it('validates the form before posting', async () => {
+    const user = userEvent.setup()
+    const calls = mockFetch(() => jsonResponse(200, listBody([], 0)))
+    renderPage()
+    await screen.findByText('No shortcuts found.')
+    await user.click(screen.getByRole('button', { name: /new shortcut/i }))
+    await user.type(screen.getByLabelText('Target URL'), 'not-a-url')
+    await user.click(screen.getByRole('button', { name: /^create$/i }))
+    await waitFor(() => {
+      expect(screen.getByText(/must start with http/i)).toBeInTheDocument()
+    })
+    expect(calls.some((call) => call.method === 'POST')).toBe(false)
+  })
+
+  it('creates a shortcut through the drawer', async () => {
+    const user = userEvent.setup()
+    const calls = mockFetch((call) => {
+      if (call.method === 'POST') {
+        return jsonResponse(201, row('brand-new'))
+      }
+      return jsonResponse(200, listBody([], 0))
+    })
+    renderPage()
+    await screen.findByText('No shortcuts found.')
+    await user.click(screen.getByRole('button', { name: /new shortcut/i }))
+    await user.type(screen.getByLabelText(/^pattern$/i), 'brand-new')
+    await user.type(screen.getByLabelText(/target url/i), 'https://x.example/new')
+    await user.click(screen.getByRole('button', { name: /^create$/i }))
+    await waitFor(() => {
+      const posted = calls.find((call) => call.method === 'POST')
+      expect(posted?.body).toMatchObject({ pattern: 'brand-new', target: 'https://x.example/new' })
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+  })
+
+  it('edits a row with the pattern locked', async () => {
+    const user = userEvent.setup()
+    const calls = mockFetch((call) => {
+      if (call.method === 'PATCH') {
+        return jsonResponse(200, row('docs'))
+      }
+      return jsonResponse(200, listBody(['docs'], 1))
+    })
+    renderPage()
+    await screen.findByText('docs')
+    await user.click(screen.getByRole('button', { name: /^edit$/i }))
+    const patternInput = screen.getByLabelText(/^pattern$/i) as HTMLInputElement
+    expect(patternInput).toBeDisabled()
+    expect(patternInput.value).toBe('docs')
+    const target = screen.getByLabelText(/target url/i)
+    await user.clear(target)
+    await user.type(target, 'https://x.example/changed')
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
+    await waitFor(() => {
+      const patched = calls.find((call) => call.method === 'PATCH')
+      expect(patched?.url).toContain('/docs')
+      expect(patched?.body).toMatchObject({ target: 'https://x.example/changed' })
+    })
+  })
 })

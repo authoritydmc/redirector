@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '../../lib/client'
-import { bulkDeleteShortcuts, deleteShortcut, listShortcuts } from './api'
-import type { Shortcut } from './api'
+import { bulkDeleteShortcuts, createShortcut, deleteShortcut, listShortcuts, updateShortcut } from './api'
+import type { Shortcut, ShortcutInput } from './api'
+import ShortcutForm from './ShortcutForm'
 
 const PAGE_SIZE = 20
 
@@ -25,6 +26,8 @@ export default function ShortcutsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirming, setConfirming] = useState<string | null>(null)
   const [confirmingBulk, setConfirmingBulk] = useState(false)
+  const [drawer, setDrawer] = useState<{ mode: 'create' } | { mode: 'edit'; row: Shortcut } | null>(null)
+  const [drawerError, setDrawerError] = useState<string | null>(null)
 
   const debouncedQuery = useDebounced(query, 300)
 
@@ -113,12 +116,37 @@ export default function ShortcutsPage() {
     }
   }
 
+  async function saveDrawer(input: ShortcutInput) {
+    try {
+      if (drawer?.mode === 'edit') {
+        const { pattern: _ignored, ...patch } = input
+        await updateShortcut(drawer.row.pattern, patch)
+      } else {
+        await createShortcut(input)
+      }
+      setDrawer(null)
+      setDrawerError(null)
+      await reload()
+    } catch (err) {
+      setDrawerError(err instanceof Error ? err.message : 'Save failed')
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const pageSelected = rows.length > 0 && rows.every((row) => selected.has(row.pattern))
 
   return (
     <section>
-      <h2 className="text-xl font-semibold">Shortcuts</h2>
+      <div className="flex items-center gap-3">
+        <h2 className="text-xl font-semibold">Shortcuts</h2>
+        <button
+          type="button"
+          onClick={() => { setDrawer({ mode: 'create' }); setDrawerError(null) }}
+          className="ml-auto rounded bg-blue-600 px-3 py-1.5 text-sm text-white"
+        >
+          New shortcut
+        </button>
+      </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <input
           aria-label="Search shortcuts"
@@ -199,9 +227,18 @@ export default function ShortcutsPage() {
                       </button>
                     </span>
                   ) : (
-                    <button type="button" onClick={() => setConfirming(row.pattern)} className="underline opacity-70">
-                      Delete
-                    </button>
+                    <span className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setDrawer({ mode: 'edit', row }); setDrawerError(null) }}
+                        className="underline opacity-70"
+                      >
+                        Edit
+                      </button>
+                      <button type="button" onClick={() => setConfirming(row.pattern)} className="underline opacity-70">
+                        Delete
+                      </button>
+                    </span>
                   )}
                 </td>
               </tr>
@@ -230,6 +267,32 @@ export default function ShortcutsPage() {
           Next
         </button>
       </div>
+      {drawer !== null && (
+        <div role="dialog" aria-label={drawer.mode === 'create' ? 'New shortcut' : 'Edit shortcut'} className="fixed right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l bg-white p-4 shadow-xl dark:border-white/10 dark:bg-[#0f1221]">
+          <h3 className="text-lg font-semibold">
+            {drawer.mode === 'create' ? 'New shortcut' : `Edit ${drawer.row.pattern}`}
+          </h3>
+          <div className="mt-3">
+            {drawer.mode === 'create' ? (
+              <ShortcutForm
+                submitLabel="Create"
+                serverError={drawerError}
+                onSubmit={saveDrawer}
+                onCancel={() => setDrawer(null)}
+              />
+            ) : (
+              <ShortcutForm
+                initial={drawer.row}
+                fixedPattern
+                submitLabel="Save"
+                serverError={drawerError}
+                onSubmit={saveDrawer}
+                onCancel={() => setDrawer(null)}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </section>
   )
 }

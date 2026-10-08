@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './lib/auth'
 import Login from './routes/Login'
 import Placeholder from './routes/Placeholder'
 import ShortcutsPage from './features/shortcuts/ShortcutsPage'
+import UpstreamsPage from './features/upstreams/UpstreamsPage'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { token } = useAuth()
@@ -28,7 +29,7 @@ export function AppRoutes() {
         }
       >
         <Route index element={<ShortcutsPage />} />
-        <Route path="upstreams" element={<Placeholder name="Upstreams" />} />
+        <Route path="upstreams" element={<UpstreamsPage />} />
         <Route path="jobs" element={<Placeholder name="Jobs" />} />
         <Route path="admin" element={<Placeholder name="Admin" />} />
         <Route path="*" element={<Navigate to="/" replace />} />

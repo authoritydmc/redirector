@@ -4,6 +4,8 @@ import type { components } from '../../lib/api'
 export type Shortcut = components['schemas']['ShortcutRead']
 export type ShortcutList = components['schemas']['ShortcutListResponse']
 export type BulkDeleteResult = components['schemas']['BulkDeleteResponse']
+export type ShortcutType = components['schemas']['ShortcutType']
+export type Visibility = components['schemas']['Visibility']
 
 export interface ListParams {
   page: number
@@ -30,5 +32,29 @@ export function bulkDeleteShortcuts(patterns: string[]): Promise<BulkDeleteResul
   return api<BulkDeleteResult>('/api/v1/shortcuts/bulk-delete', {
     method: 'POST',
     body: { patterns },
+  })
+}
+
+export interface ShortcutInput {
+  pattern: string
+  target: string
+  type: ShortcutType
+  visibility: Visibility
+  tags: string[]
+  expires_at?: string | null
+  owner_email?: string | null
+}
+
+export function createShortcut(input: ShortcutInput): Promise<Shortcut> {
+  return api<Shortcut>('/api/v1/shortcuts', { method: 'POST', body: input })
+}
+
+export function updateShortcut(
+  pattern: string,
+  patch: Partial<Omit<ShortcutInput, 'pattern'>>,
+): Promise<Shortcut> {
+  return api<Shortcut>(`/api/v1/shortcuts/${encodeURIComponent(pattern)}`, {
+    method: 'PATCH',
+    body: patch,
   })
 }
