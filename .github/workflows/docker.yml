@@ -16,10 +16,20 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Build SPA (web image needs frontend/dist)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: |
+          cd frontend
+          npm ci
+          npm run build
       - name: Prod stack smoke (local build)
         run: |
           mkdir -p /tmp/smoke-data && chmod 777 /tmp/smoke-data
-          REDIRECTOR_ADMIN_PASSWORD=ci-smoke REDIRECTOR_JWT_SECRET=ci-smoke-secret \
+          REDIRECTOR_ADMIN_PASSWORD=$(openssl rand -hex 16) REDIRECTOR_JWT_SECRET=$(openssl rand -hex 32) \
             DATA_DIR=/tmp/smoke-data docker compose -f docker/compose.prod.yml up -d --build
           for _ in $(seq 1 30); do
             curl -sf http://localhost:80/healthz && break || sleep 4
