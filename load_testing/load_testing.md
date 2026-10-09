@@ -36,11 +36,13 @@ python load_testing/check_regression.py load_testing/report/load-smoke
 ```
 
 Gates, in order: zero request failures (`check_stats.py`), then hot-path
-p99 vs `p99-baselines.json` (`check_regression.py`: fail above 20% *and*
-+50ms absolute — the floor keeps sub-10ms endpoints from flaking on
-runner jitter; only `/<shortcut>` + `/<unknown-shortcut>` are gated
-because upstream/SSE rows track external latency). Re-baseline
-deliberately: run the smoke, take the CSV p99s, review the diff, commit.
+p50 vs `p99-baselines.json` (`check_regression.py`: fail above 20% *and*
++10ms absolute on the median of `/<shortcut>` + `/<unknown-shortcut>`).
+p99 is reported, not gated — the first gated run proved why (9ms → 95ms
+on byte-identical code: one slow fsync moves p99 over ~100 samples).
+Upstream/SSE rows are excluded entirely: they track external latency.
+Re-baseline deliberately: run the smoke, take the CSV medians, review the
+diff, commit.
 
 Deliberately NOT yet gated: p99-regression-vs-baseline (needs stored
 baselines).

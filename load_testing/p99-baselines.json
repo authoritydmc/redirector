@@ -3,7 +3,7 @@
   "measured": "2026-10-09",
   "topology": "ubuntu-latest CI, scratch SQLite, 10 VUs x 60s",
   "endpoints": {
-    "/<shortcut>": { "p99_ms": 9 },
-    "/<unknown-shortcut>": { "p99_ms": 91 }
+    "/<shortcut>": { "p50_ms": 4, "p99_ms": 9 },
+    "/<unknown-shortcut>": { "p50_ms": 6, "p99_ms": 91 }
   }
 }
