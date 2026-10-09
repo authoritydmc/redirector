@@ -170,6 +170,14 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
+# Frontend (Vite + TS, EPIC-02)
+node_modules/
+frontend/dist/
+frontend/coverage/
+# ...but not the frontend source lib (the `lib/` packaging rule above
+# would otherwise swallow frontend/src/lib/)
+!frontend/src/lib/
+
 # PyPI configuration file
 .pypirc
 

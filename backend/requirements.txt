@@ -1,0 +1,26 @@
+fastapi>=0.115
+# uvloop (in uvicorn[standard]) ships no Windows wheels; Windows dev keeps
+# h11+httptools while Linux/Docker/CI get the full standard stack.
+uvicorn[standard]>=0.30; sys_platform != "win32"
+uvicorn>=0.30; sys_platform == "win32"
+pydantic>=2.8
+pydantic-settings>=2.5
+sqlmodel>=0.0.22
+# asyncio extra (greenlet): SQLAlchemy 2.1+ no longer pulls it by default,
+# but every engine here is async — without it, collection fails in fresh
+# envs with "use the sqlalchemy[asyncio] install target".
+sqlalchemy[asyncio]>=2.0.32
+# Schema migrations (EPIC-04): async env.py works off the same async URLs
+# as the app (aiosqlite/asyncpg) — no sync drivers needed.
+alembic>=1.13
+aiosqlite>=0.20
+asyncpg>=0.29
+httpx>=0.27
+# Shared infra deps (imported by backend/ code): Redis broker for arq workers
+# (EPIC-06), MFA/TOTP + JWT auth (EPIC-05), Redis-backed cache (EPIC-04).
+redis>=5.0
+pyjwt>=2.9
+psutil>=5.9
+qrcode[pil]>=8.0
+pyotp>=2.9
+arq>=0.26

@@ -1,0 +1,3870 @@
+{
+  "components": {
+    "schemas": {
+      "ApiKeyCreate": {
+        "properties": {
+          "name": {
+            "description": "Human label, e.g. 'nightly import cron'",
+            "title": "Name",
+            "type": "string"
+          },
+          "scopes": {
+            "description": "Recorded now, enforced by the RBAC audit (EPIC-05 task 3)",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Scopes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ApiKeyCreate",
+        "type": "object"
+      },
+      "ApiKeyIssued": {
+        "description": "Issuance response \u2014 carries the plaintext key exactly once.",
+        "properties": {
+          "api_key": {
+            "title": "Api Key",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "prefix": {
+            "title": "Prefix",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "scopes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "prefix",
+          "name",
+          "created_at",
+          "api_key"
+        ],
+        "title": "ApiKeyIssued",
+        "type": "object"
+      },
+      "ApiKeyRead": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "prefix": {
+            "title": "Prefix",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "scopes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "prefix",
+          "name",
+          "created_at"
+        ],
+        "title": "ApiKeyRead",
+        "type": "object"
+      },
+      "BackupCreate": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional filename tag, [a-z0-9-] max 32 chars",
+            "title": "Label"
+          }
+        },
+        "title": "BackupCreate",
+        "type": "object"
+      },
+      "BackupDeleteResponse": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "name"
+        ],
+        "title": "BackupDeleteResponse",
+        "type": "object"
+      },
+      "BackupEnqueue": {
+        "properties": {
+          "kind": {
+            "const": "backup_create",
+            "description": "Job kind to run",
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional filename tag",
+            "title": "Label"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "BackupEnqueue",
+        "type": "object"
+      },
+      "BackupRead": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "tables": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Tables",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "size_bytes",
+          "created_at",
+          "tables"
+        ],
+        "title": "BackupRead",
+        "type": "object"
+      },
+      "BackupRestoreEnqueue": {
+        "properties": {
+          "kind": {
+            "const": "backup_restore",
+            "description": "Job kind to run",
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "description": "Archive name to restore",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "BackupRestoreEnqueue",
+        "type": "object"
+      },
+      "BulkDeleteRequest": {
+        "properties": {
+          "patterns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Patterns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "patterns"
+        ],
+        "title": "BulkDeleteRequest",
+        "type": "object"
+      },
+      "BulkDeleteResponse": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "deleted": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Deleted",
+            "type": "array"
+          },
+          "not_found": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Not Found",
+            "type": "array"
+          }
+        },
+        "required": [
+          "deleted",
+          "not_found",
+          "count"
+        ],
+        "title": "BulkDeleteResponse",
+        "type": "object"
+      },
+      "ByType": {
+        "properties": {
+          "hits": {
+            "title": "Hits",
+            "type": "integer"
+          },
+          "shortcuts": {
+            "title": "Shortcuts",
+            "type": "integer"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "shortcuts",
+          "hits"
+        ],
+        "title": "ByType",
+        "type": "object"
+      },
+      "ByVisibility": {
+        "properties": {
+          "shortcuts": {
+            "title": "Shortcuts",
+            "type": "integer"
+          },
+          "visibility": {
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "visibility",
+          "shortcuts"
+        ],
+        "title": "ByVisibility",
+        "type": "object"
+      },
+      "CachePurgeResult": {
+        "properties": {
+          "purged": {
+            "title": "Purged",
+            "type": "integer"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "purged"
+        ],
+        "title": "CachePurgeResult",
+        "type": "object"
+      },
+      "CacheResyncRequest": {
+        "properties": {
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Single pattern to refresh; omit to re-check all cached patterns",
+            "title": "Pattern"
+          },
+          "upstream": {
+            "description": "Upstream name to resync against",
+            "title": "Upstream",
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream"
+        ],
+        "title": "CacheResyncRequest",
+        "type": "object"
+      },
+      "CacheResyncResponse": {
+        "properties": {
+          "checked": {
+            "title": "Checked",
+            "type": "integer"
+          },
+          "cleared": {
+            "title": "Cleared",
+            "type": "integer"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/CacheResyncResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          },
+          "updated": {
+            "title": "Updated",
+            "type": "integer"
+          },
+          "upstream": {
+            "title": "Upstream",
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "upstream",
+          "checked",
+          "updated",
+          "cleared",
+          "results"
+        ],
+        "title": "CacheResyncResponse",
+        "type": "object"
+      },
+      "CacheResyncResult": {
+        "properties": {
+          "message": {
+            "default": "",
+            "title": "Message",
+            "type": "string"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
+          "resolved_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Url"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pattern",
+          "success",
+          "status"
+        ],
+        "title": "CacheResyncResult",
+        "type": "object"
+      },
+      "CacheStats": {
+        "properties": {
+          "hit_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hit Rate"
+          },
+          "hits": {
+            "title": "Hits",
+            "type": "integer"
+          },
+          "misses": {
+            "title": "Misses",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hits",
+          "misses"
+        ],
+        "title": "CacheStats",
+        "type": "object"
+      },
+      "CheckLogEntry": {
+        "properties": {
+          "cached": {
+            "default": false,
+            "title": "Cached",
+            "type": "boolean"
+          },
+          "check_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Url"
+          },
+          "count": {
+            "default": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "tried_at": {
+            "title": "Tried At",
+            "type": "string"
+          },
+          "upstream_name": {
+            "title": "Upstream Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern",
+          "upstream_name",
+          "tried_at"
+        ],
+        "title": "CheckLogEntry",
+        "type": "object"
+      },
+      "ConfigUpdate": {
+        "properties": {
+          "settings": {
+            "additionalProperties": true,
+            "title": "Settings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "settings"
+        ],
+        "title": "ConfigUpdate",
+        "type": "object"
+      },
+      "CurrentUserResponse": {
+        "properties": {
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "sub": {
+            "title": "Sub",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "sub"
+        ],
+        "title": "CurrentUserResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Health": {
+        "properties": {
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "Health",
+        "type": "object"
+      },
+      "HitBucket": {
+        "properties": {
+          "bucket": {
+            "title": "Bucket",
+            "type": "string"
+          },
+          "shortcuts": {
+            "title": "Shortcuts",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "bucket",
+          "shortcuts"
+        ],
+        "title": "HitBucket",
+        "type": "object"
+      },
+      "JobRead": {
+        "properties": {
+          "done": {
+            "default": 0,
+            "title": "Done",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "items": {},
+                      "type": "array"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status"
+        ],
+        "title": "JobRead",
+        "type": "object"
+      },
+      "KpiBreakdowns": {
+        "properties": {
+          "by_type": {
+            "items": {
+              "$ref": "#/components/schemas/ByType"
+            },
+            "title": "By Type",
+            "type": "array"
+          },
+          "by_visibility": {
+            "items": {
+              "$ref": "#/components/schemas/ByVisibility"
+            },
+            "title": "By Visibility",
+            "type": "array"
+          },
+          "hit_buckets": {
+            "items": {
+              "$ref": "#/components/schemas/HitBucket"
+            },
+            "title": "Hit Buckets",
+            "type": "array"
+          },
+          "top_tags": {
+            "items": {
+              "$ref": "#/components/schemas/TopTag"
+            },
+            "title": "Top Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "by_type",
+          "by_visibility",
+          "top_tags",
+          "hit_buckets"
+        ],
+        "title": "KpiBreakdowns",
+        "type": "object"
+      },
+      "KpiOverview": {
+        "properties": {
+          "avg_hits": {
+            "title": "Avg Hits",
+            "type": "number"
+          },
+          "created_30d": {
+            "title": "Created 30D",
+            "type": "integer"
+          },
+          "created_7d": {
+            "title": "Created 7D",
+            "type": "integer"
+          },
+          "most_popular": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MostPopular"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_hits": {
+            "title": "Total Hits",
+            "type": "integer"
+          },
+          "total_shortcuts": {
+            "title": "Total Shortcuts",
+            "type": "integer"
+          },
+          "zero_hit_count": {
+            "title": "Zero Hit Count",
+            "type": "integer"
+          },
+          "zero_hit_pct": {
+            "title": "Zero Hit Pct",
+            "type": "number"
+          }
+        },
+        "required": [
+          "total_shortcuts",
+          "total_hits",
+          "avg_hits",
+          "zero_hit_count",
+          "zero_hit_pct",
+          "created_7d",
+          "created_30d"
+        ],
+        "title": "KpiOverview",
+        "type": "object"
+      },
+      "KpiResponse": {
+        "properties": {
+          "breakdowns": {
+            "$ref": "#/components/schemas/KpiBreakdowns"
+          },
+          "overview": {
+            "$ref": "#/components/schemas/KpiOverview"
+          },
+          "upstreams": {
+            "$ref": "#/components/schemas/UpstreamStats"
+          }
+        },
+        "required": [
+          "overview",
+          "breakdowns",
+          "upstreams"
+        ],
+        "title": "KpiResponse",
+        "type": "object"
+      },
+      "LiveCounts": {
+        "properties": {
+          "total_hits": {
+            "title": "Total Hits",
+            "type": "integer"
+          },
+          "total_shortcuts": {
+            "title": "Total Shortcuts",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_shortcuts",
+          "total_hits"
+        ],
+        "title": "LiveCounts",
+        "type": "object"
+      },
+      "LiveResponse": {
+        "properties": {
+          "cache": {
+            "$ref": "#/components/schemas/CacheStats"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/LiveCounts"
+          },
+          "process": {
+            "$ref": "#/components/schemas/ProcessInfo"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "process",
+          "counts",
+          "cache"
+        ],
+        "title": "LiveResponse",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "MfaChallengeResponse": {
+        "description": "Challenged login: no JWT yet \u2014 exchange `pending_token` + TOTP at\n`POST /api/v1/auth/mfa/verify`.",
+        "properties": {
+          "mfa_required": {
+            "default": true,
+            "title": "Mfa Required",
+            "type": "boolean"
+          },
+          "pending_token": {
+            "title": "Pending Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pending_token"
+        ],
+        "title": "MfaChallengeResponse",
+        "type": "object"
+      },
+      "MfaDisableRequest": {
+        "properties": {
+          "token": {
+            "description": "Current TOTP confirming the disable",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "MfaDisableRequest",
+        "type": "object"
+      },
+      "MfaEnableRequest": {
+        "properties": {
+          "token": {
+            "description": "Current 6-digit TOTP from the new seed",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "MfaEnableRequest",
+        "type": "object"
+      },
+      "MfaEnableResponse": {
+        "properties": {
+          "backup_codes": {
+            "description": "Single-use codes, plaintext exactly once \u2014 store them now",
+            "items": {
+              "type": "string"
+            },
+            "title": "Backup Codes",
+            "type": "array"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "backup_codes"
+        ],
+        "title": "MfaEnableResponse",
+        "type": "object"
+      },
+      "MfaRegenerateRequest": {
+        "properties": {
+          "token": {
+            "description": "Current TOTP proving possession",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "MfaRegenerateRequest",
+        "type": "object"
+      },
+      "MfaSetupResponse": {
+        "description": "Fresh TOTP seed: render `otpauth_url` as QR, keep `secret` for manual\nentry. Nothing is enabled until a token verifies (see enable).",
+        "properties": {
+          "otpauth_url": {
+            "title": "Otpauth Url",
+            "type": "string"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "otpauth_url",
+          "secret"
+        ],
+        "title": "MfaSetupResponse",
+        "type": "object"
+      },
+      "MfaStatusResponse": {
+        "properties": {
+          "backup_codes_remaining": {
+            "title": "Backup Codes Remaining",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "backup_codes_remaining"
+        ],
+        "title": "MfaStatusResponse",
+        "type": "object"
+      },
+      "MfaVerifyRequest": {
+        "properties": {
+          "pending_token": {
+            "description": "Short-lived login token from a challenged login",
+            "title": "Pending Token",
+            "type": "string"
+          },
+          "token": {
+            "description": "Current TOTP or one unused backup code",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pending_token",
+          "token"
+        ],
+        "title": "MfaVerifyRequest",
+        "type": "object"
+      },
+      "MostPopular": {
+        "properties": {
+          "hits": {
+            "title": "Hits",
+            "type": "integer"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern",
+          "target",
+          "hits"
+        ],
+        "title": "MostPopular",
+        "type": "object"
+      },
+      "ProcessInfo": {
+        "properties": {
+          "cpu_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpu Percent"
+          },
+          "memory_mb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Mb"
+          },
+          "platform": {
+            "title": "Platform",
+            "type": "string"
+          },
+          "python": {
+            "title": "Python",
+            "type": "string"
+          },
+          "timestamp": {
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "uptime_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptime Seconds"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "python",
+          "platform",
+          "timestamp"
+        ],
+        "title": "ProcessInfo",
+        "type": "object"
+      },
+      "QRCodeResponse": {
+        "properties": {
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
+          "qr_base64": {
+            "title": "Qr Base64",
+            "type": "string"
+          },
+          "target_url": {
+            "title": "Target Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern",
+          "target_url",
+          "qr_base64"
+        ],
+        "title": "QRCodeResponse",
+        "type": "object"
+      },
+      "Readiness": {
+        "properties": {
+          "data_dir_writable": {
+            "title": "Data Dir Writable",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "version",
+          "data_dir_writable"
+        ],
+        "title": "Readiness",
+        "type": "object"
+      },
+      "ShortcutCreate": {
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "owner_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Email"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ShortcutType",
+            "default": "static"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/Visibility",
+            "default": "public"
+          }
+        },
+        "required": [
+          "pattern",
+          "target"
+        ],
+        "title": "ShortcutCreate",
+        "type": "object"
+      },
+      "ShortcutListMeta": {
+        "properties": {
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "title": "ShortcutListMeta",
+        "type": "object"
+      },
+      "ShortcutListResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ShortcutRead"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ShortcutListMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ShortcutListResponse",
+        "type": "object"
+      },
+      "ShortcutRead": {
+        "properties": {
+          "access_count": {
+            "default": 0,
+            "title": "Access Count",
+            "type": "integer"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "owner_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Email"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ShortcutType"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/Visibility",
+            "default": "public"
+          }
+        },
+        "required": [
+          "pattern",
+          "type",
+          "target"
+        ],
+        "title": "ShortcutRead",
+        "type": "object"
+      },
+      "ShortcutType": {
+        "enum": [
+          "static",
+          "dynamic",
+          "user-dynamic"
+        ],
+        "title": "ShortcutType",
+        "type": "string"
+      },
+      "ShortcutUpdate": {
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "owner_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Email"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShortcutType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Visibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "ShortcutUpdate",
+        "type": "object"
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "role"
+        ],
+        "title": "TokenResponse",
+        "type": "object"
+      },
+      "TopTag": {
+        "properties": {
+          "shortcuts": {
+            "title": "Shortcuts",
+            "type": "integer"
+          },
+          "tag": {
+            "title": "Tag",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "shortcuts"
+        ],
+        "title": "TopTag",
+        "type": "object"
+      },
+      "UpstreamCacheEntry": {
+        "properties": {
+          "checked_at": {
+            "title": "Checked At",
+            "type": "string"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
+          "resolved_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Url"
+          },
+          "upstream_name": {
+            "title": "Upstream Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern",
+          "upstream_name",
+          "checked_at"
+        ],
+        "title": "UpstreamCacheEntry",
+        "type": "object"
+      },
+      "UpstreamCreate": {
+        "properties": {
+          "base_url": {
+            "description": "Target base URL, e.g. https://go.dev",
+            "title": "Base Url",
+            "type": "string"
+          },
+          "fail_status_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Status code indicating missing shortcut",
+            "title": "Fail Status Code"
+          },
+          "fail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL returned by upstream on 404",
+            "title": "Fail Url"
+          },
+          "name": {
+            "description": "Unique label for the upstream",
+            "title": "Name",
+            "type": "string"
+          },
+          "skip_sso_cache": {
+            "default": false,
+            "description": "Never cache SSO target matches",
+            "title": "Skip Sso Cache",
+            "type": "boolean"
+          },
+          "verify_ssl": {
+            "default": true,
+            "description": "Verify SSL certs",
+            "title": "Verify Ssl",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "base_url"
+        ],
+        "title": "UpstreamCreate",
+        "type": "object"
+      },
+      "UpstreamRead": {
+        "properties": {
+          "base_url": {
+            "description": "Target base URL, e.g. https://go.dev",
+            "title": "Base Url",
+            "type": "string"
+          },
+          "fail_status_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Status code indicating missing shortcut",
+            "title": "Fail Status Code"
+          },
+          "fail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL returned by upstream on 404",
+            "title": "Fail Url"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "description": "Unique label for the upstream",
+            "title": "Name",
+            "type": "string"
+          },
+          "skip_sso_cache": {
+            "default": false,
+            "description": "Never cache SSO target matches",
+            "title": "Skip Sso Cache",
+            "type": "boolean"
+          },
+          "verify_ssl": {
+            "default": true,
+            "description": "Verify SSL certs",
+            "title": "Verify Ssl",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "base_url"
+        ],
+        "title": "UpstreamRead",
+        "type": "object"
+      },
+      "UpstreamResyncEnqueue": {
+        "properties": {
+          "kind": {
+            "const": "upstream_resync",
+            "description": "Job kind to run",
+            "title": "Kind",
+            "type": "string"
+          },
+          "patterns": {
+            "description": "Patterns to re-check",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Patterns",
+            "type": "array"
+          },
+          "upstream": {
+            "description": "Upstream name to resync against",
+            "title": "Upstream",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "upstream",
+          "patterns"
+        ],
+        "title": "UpstreamResyncEnqueue",
+        "type": "object"
+      },
+      "UpstreamStats": {
+        "properties": {
+          "cached_entries": {
+            "title": "Cached Entries",
+            "type": "integer"
+          },
+          "configured": {
+            "title": "Configured",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "configured",
+          "cached_entries"
+        ],
+        "title": "UpstreamStats",
+        "type": "object"
+      },
+      "UpstreamUpdate": {
+        "properties": {
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "fail_status_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fail Status Code"
+          },
+          "fail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fail Url"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "skip_sso_cache": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Sso Cache"
+          },
+          "verify_ssl": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verify Ssl"
+          }
+        },
+        "title": "UpstreamUpdate",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "Visibility": {
+        "enum": [
+          "public",
+          "unlisted",
+          "private",
+          "team"
+        ],
+        "title": "Visibility",
+        "type": "string"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Async FastAPI backend for Redirector (EPIC-01). Shortcuts, upstreams, resolve hot path, auth, metrics, QR.",
+    "title": "Redirector API",
+    "version": "3.2.1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/admin/backup": {
+      "get": {
+        "operationId": "list_backup_archives_api_v1_admin_backup_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BackupRead"
+                  },
+                  "title": "Response List Backup Archives Api V1 Admin Backup Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List backups",
+        "tags": [
+          "admin-backup"
+        ]
+      },
+      "post": {
+        "operationId": "create_backup_job_api_v1_admin_backup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Enqueue a backup job",
+        "tags": [
+          "admin-backup"
+        ]
+      }
+    },
+    "/api/v1/admin/backup/{name}": {
+      "delete": {
+        "operationId": "delete_backup_api_v1_admin_backup__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete a backup",
+        "tags": [
+          "admin-backup"
+        ]
+      },
+      "get": {
+        "operationId": "download_backup_api_v1_admin_backup__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download a backup archive",
+        "tags": [
+          "admin-backup"
+        ]
+      }
+    },
+    "/api/v1/admin/backup/{name}:restore": {
+      "post": {
+        "operationId": "restore_backup_job_api_v1_admin_backup__name__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Enqueue a restore job",
+        "tags": [
+          "admin-backup"
+        ]
+      }
+    },
+    "/api/v1/admin/config": {
+      "get": {
+        "description": "Return active system configuration and stored settings.",
+        "operationId": "get_config_api_v1_admin_config_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Config Api V1 Admin Config Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get system configuration",
+        "tags": [
+          "admin-config"
+        ]
+      },
+      "patch": {
+        "description": "Update settings entries in the database.",
+        "operationId": "update_config_api_v1_admin_config_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Update Config Api V1 Admin Config Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update system settings",
+        "tags": [
+          "admin-config"
+        ]
+      }
+    },
+    "/api/v1/auth/api-keys": {
+      "get": {
+        "description": "List keys (never secret material \u2014 only prefixes).",
+        "operationId": "list_api_keys_api_v1_auth_api_keys_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ApiKeyRead"
+                  },
+                  "title": "Response List Api Keys Api V1 Auth Api Keys Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List API keys",
+        "tags": [
+          "auth"
+        ]
+      },
+      "post": {
+        "description": "Mint a key for automation. The plaintext is returned exactly once.",
+        "operationId": "issue_api_key_api_v1_auth_api_keys_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyIssued"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Issue an API key",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/api-keys/{key_id}": {
+      "delete": {
+        "operationId": "revoke_api_key_api_v1_auth_api_keys__key_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "title": "Key Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke an API key",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "description": "Authenticate admin password: JWT immediately, or an MFA challenge\n(exchange at `mfa/verify`) when TOTP is enrolled.",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TokenResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MfaChallengeResponse"
+                    }
+                  ],
+                  "title": "Response Login Api V1 Auth Login Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "description": "Return currently authenticated identity.",
+        "operationId": "get_me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentUserResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Current admin",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/backup-codes:regenerate": {
+      "post": {
+        "description": "Mint a fresh backup-code set (old codes die) with TOTP possession proof.",
+        "operationId": "mfa_regenerate_codes_api_v1_auth_mfa_backup_codes_regenerate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaRegenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnableResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Regenerate backup codes",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/disable": {
+      "post": {
+        "description": "Disable MFA with TOTP proof of possession; clears seed and codes.",
+        "operationId": "mfa_disable_api_v1_auth_mfa_disable_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaDisableRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Disable MFA",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/enable": {
+      "post": {
+        "description": "Verify a token from the staged seed: enables MFA and mints single-use\nbackup codes (plaintext exactly once \u2014 store them now).",
+        "operationId": "mfa_enable_api_v1_auth_mfa_enable_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaEnableRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnableResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Enable TOTP",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/setup": {
+      "post": {
+        "description": "Stage a fresh seed (render the URL as QR). Nothing is enabled until\na token from the new seed verifies at `mfa/enable`.",
+        "operationId": "mfa_setup_api_v1_auth_mfa_setup_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaSetupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Start TOTP enrollment",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/status": {
+      "get": {
+        "operationId": "mfa_status_api_v1_auth_mfa_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "MFA enrollment status",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/verify": {
+      "post": {
+        "description": "Exchange a pending login token + TOTP (or one unused backup code,\nconsumed on use) for a full JWT.",
+        "operationId": "mfa_verify_api_v1_auth_mfa_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete MFA login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/jobs": {
+      "get": {
+        "operationId": "list_jobs_api_v1_jobs_get",
+        "parameters": [
+          {
+            "description": "Max jobs, newest first",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Max jobs, newest first",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/JobRead"
+                  },
+                  "title": "Response List Jobs Api V1 Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List recent jobs",
+        "tags": [
+          "jobs"
+        ]
+      },
+      "post": {
+        "operationId": "enqueue_job_api_v1_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/UpstreamResyncEnqueue"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BackupEnqueue"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BackupRestoreEnqueue"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enqueue a background job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{job_id}": {
+      "delete": {
+        "operationId": "cancel_job_api_v1_jobs__job_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel a queued/running job",
+        "tags": [
+          "jobs"
+        ]
+      },
+      "get": {
+        "operationId": "get_job_api_v1_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get job status",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{job_id}/events": {
+      "get": {
+        "operationId": "stream_job_events_api_v1_jobs__job_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream job progress via SSE",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/metrics/kpi": {
+      "get": {
+        "description": "Return aggregated KPI metrics (totals, breakdowns, top tags, popularity).",
+        "operationId": "get_kpi_metrics_api_v1_metrics_kpi_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KpiResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Aggregated KPI metrics",
+        "tags": [
+          "metrics"
+        ]
+      }
+    },
+    "/api/v1/metrics/live": {
+      "get": {
+        "description": "Return process runtime telemetry and live counter snapshots.",
+        "operationId": "get_live_metrics_api_v1_metrics_live_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Live process telemetry",
+        "tags": [
+          "metrics"
+        ]
+      }
+    },
+    "/api/v1/qr": {
+      "get": {
+        "description": "Return base64-encoded PNG and URL metadata.",
+        "operationId": "get_qr_json_api_v1_qr_get",
+        "parameters": [
+          {
+            "description": "Shortcut pattern",
+            "in": "query",
+            "name": "pattern",
+            "required": true,
+            "schema": {
+              "description": "Shortcut pattern",
+              "title": "Pattern",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QRCodeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate QR code as JSON base64",
+        "tags": [
+          "qr"
+        ]
+      }
+    },
+    "/api/v1/resolve": {
+      "get": {
+        "operationId": "api_resolve_api_v1_resolve_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pattern",
+            "required": true,
+            "schema": {
+              "title": "Pattern",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve a subpath (debug)"
+      }
+    },
+    "/api/v1/shortcuts": {
+      "get": {
+        "operationId": "list_shortcuts_api_v1_shortcuts_get",
+        "parameters": [
+          {
+            "description": "Page number",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "Page number",
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Items per page",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Items per page",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Search term across pattern and target",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Search term across pattern and target",
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by tag",
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Filter by tag",
+              "title": "Tag",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "updated_at",
+              "pattern": "^(updated_at|created_at|popular)$",
+              "title": "Sort",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortcutListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List shortcuts",
+        "tags": [
+          "shortcuts"
+        ]
+      },
+      "post": {
+        "operationId": "create_shortcut_api_v1_shortcuts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortcutCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortcutRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create shortcut",
+        "tags": [
+          "shortcuts"
+        ]
+      }
+    },
+    "/api/v1/shortcuts/bulk-delete": {
+      "post": {
+        "operationId": "bulk_delete_shortcuts_api_v1_shortcuts_bulk_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bulk delete shortcuts",
+        "tags": [
+          "shortcuts"
+        ]
+      }
+    },
+    "/api/v1/shortcuts/{pattern}": {
+      "delete": {
+        "operationId": "delete_shortcut_api_v1_shortcuts__pattern__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pattern",
+            "required": true,
+            "schema": {
+              "title": "Pattern",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete shortcut",
+        "tags": [
+          "shortcuts"
+        ]
+      },
+      "get": {
+        "operationId": "get_shortcut_api_v1_shortcuts__pattern__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pattern",
+            "required": true,
+            "schema": {
+              "title": "Pattern",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortcutRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get shortcut details",
+        "tags": [
+          "shortcuts"
+        ]
+      },
+      "patch": {
+        "operationId": "update_shortcut_api_v1_shortcuts__pattern__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pattern",
+            "required": true,
+            "schema": {
+              "title": "Pattern",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortcutUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortcutRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update shortcut",
+        "tags": [
+          "shortcuts"
+        ]
+      }
+    },
+    "/api/v1/upstreams": {
+      "get": {
+        "operationId": "list_upstreams_api_v1_upstreams_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UpstreamRead"
+                  },
+                  "title": "Response List Upstreams Api V1 Upstreams Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List all upstreams",
+        "tags": [
+          "upstreams"
+        ]
+      },
+      "post": {
+        "operationId": "create_upstream_api_v1_upstreams_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpstreamCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpstreamRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create an upstream",
+        "tags": [
+          "upstreams"
+        ]
+      }
+    },
+    "/api/v1/upstreams/cache": {
+      "delete": {
+        "operationId": "purge_upstream_cache_api_v1_upstreams_cache_delete",
+        "parameters": [
+          {
+            "description": "Purge specific upstream only, or all if omitted",
+            "in": "query",
+            "name": "upstream",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Purge specific upstream only, or all if omitted",
+              "title": "Upstream"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CachePurgeResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Purge upstream shortcut cache",
+        "tags": [
+          "upstreams"
+        ]
+      },
+      "get": {
+        "operationId": "list_upstream_cache_api_v1_upstreams_cache_get",
+        "parameters": [
+          {
+            "description": "Filter by upstream name",
+            "in": "query",
+            "name": "upstream",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by upstream name",
+              "title": "Upstream"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UpstreamCacheEntry"
+                  },
+                  "title": "Response List Upstream Cache Api V1 Upstreams Cache Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List cached upstream shortcuts",
+        "tags": [
+          "upstreams"
+        ]
+      }
+    },
+    "/api/v1/upstreams/cache/resync": {
+      "post": {
+        "description": "Re-check one pattern (or all cached ones) and reconcile cache rows.\n\nSynchronous by design at this scale; graduate to arq workers (EPIC-04/06)\nif resync-all outgrows the 3 s-per-check request budget.",
+        "operationId": "resync_upstream_cache_api_v1_upstreams_cache_resync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CacheResyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CacheResyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resync upstream cache",
+        "tags": [
+          "upstreams"
+        ]
+      }
+    },
+    "/api/v1/upstreams/cache/{upstream}/{pattern}": {
+      "delete": {
+        "operationId": "purge_cache_entry_api_v1_upstreams_cache__upstream___pattern__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upstream",
+            "required": true,
+            "schema": {
+              "title": "Upstream",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pattern",
+            "required": true,
+            "schema": {
+              "title": "Pattern",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CachePurgeResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Purge one cached upstream entry",
+        "tags": [
+          "upstreams"
+        ]
+      }
+    },
+    "/api/v1/upstreams/check-logs": {
+      "delete": {
+        "operationId": "clear_check_logs_api_v1_upstreams_check_logs_delete",
+        "parameters": [
+          {
+            "description": "Clear one upstream only, or all if omitted",
+            "in": "query",
+            "name": "upstream",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clear one upstream only, or all if omitted",
+              "title": "Upstream"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CachePurgeResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Clear upstream check logs",
+        "tags": [
+          "upstreams"
+        ]
+      },
+      "get": {
+        "operationId": "list_check_logs_api_v1_upstreams_check_logs_get",
+        "parameters": [
+          {
+            "description": "Filter by upstream name",
+            "in": "query",
+            "name": "upstream",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by upstream name",
+              "title": "Upstream"
+            }
+          },
+          {
+            "description": "Max entries, newest first",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Max entries, newest first",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CheckLogEntry"
+                  },
+                  "title": "Response List Check Logs Api V1 Upstreams Check Logs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List upstream check logs",
+        "tags": [
+          "upstreams"
+        ]
+      }
+    },
+    "/api/v1/upstreams/check/stream/{pattern}": {
+      "get": {
+        "operationId": "stream_upstream_check_api_v1_upstreams_check_stream__pattern__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pattern",
+            "required": true,
+            "schema": {
+              "title": "Pattern",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream real-time upstream resolution check via SSE",
+        "tags": [
+          "upstreams"
+        ]
+      }
+    },
+    "/api/v1/upstreams/{upstream_id}": {
+      "delete": {
+        "operationId": "delete_upstream_api_v1_upstreams__upstream_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upstream_id",
+            "required": true,
+            "schema": {
+              "title": "Upstream Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete an upstream",
+        "tags": [
+          "upstreams"
+        ]
+      },
+      "patch": {
+        "operationId": "update_upstream_api_v1_upstreams__upstream_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upstream_id",
+            "required": true,
+            "schema": {
+              "title": "Upstream Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpstreamUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpstreamRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update an upstream",
+        "tags": [
+          "upstreams"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "healthz_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Liveness probe (alias)",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/healthz": {
+      "get": {
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Liveness probe",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/qr/{pattern}": {
+      "get": {
+        "description": "Return raw PNG binary for the shortcut QR code.",
+        "operationId": "get_qr_image_qr__pattern__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pattern",
+            "required": true,
+            "schema": {
+              "title": "Pattern",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate QR code PNG image",
+        "tags": [
+          "qr"
+        ]
+      }
+    },
+    "/readyz": {
+      "get": {
+        "operationId": "readyz_readyz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Readiness probe",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/{pattern}": {
+      "get": {
+        "operationId": "redirect_shortcut__pattern__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pattern",
+            "required": true,
+            "schema": {
+              "title": "Pattern",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve and redirect a shortcut"
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Liveness / readiness probes",
+      "name": "ops"
+    },
+    {
+      "description": "Shortcut CRUD + bulk operations",
+      "name": "shortcuts"
+    },
+    {
+      "description": "Upstream CRUD, cache, live checks",
+      "name": "upstreams"
+    },
+    {
+      "description": "KPI aggregates + process telemetry",
+      "name": "metrics"
+    },
+    {
+      "description": "DB-backed settings (admin only)",
+      "name": "admin-config"
+    },
+    {
+      "description": "Backup archives (admin only)",
+      "name": "admin-backup"
+    },
+    {
+      "description": "Login + current admin",
+      "name": "auth"
+    },
+    {
+      "description": "Background jobs + progress streams",
+      "name": "jobs"
+    },
+    {
+      "description": "QR code generation",
+      "name": "qr"
+    },
+    {
+      "description": "Redirect hot path + debug",
+      "name": "resolve"
+    }
+  ]
+}

@@ -31,7 +31,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        python -m pip install -r backend/requirements.txt
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
@@ -47,10 +47,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Run Docker smoke test (borrowed from Tax_Scripts)
+      - name: Build SPA (web image needs frontend/dist)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: |
+          cd frontend
+          npm ci
+          npm run build
+      - name: Prod stack smoke (api + web, scratch data)
         run: |
-          chmod +x test_docker.sh
-          ./test_docker.sh
+          mkdir -p /tmp/smoke-data && chmod 777 /tmp/smoke-data
+          export REDIRECTOR_ADMIN_PASSWORD=$(openssl rand -hex 16)
+          export REDIRECTOR_JWT_SECRET=$(openssl rand -hex 32)
+          export DATA_DIR=/tmp/smoke-data
+          docker compose -f docker/compose.prod.yml up -d --build
+          for _ in $(seq 1 30); do
+            curl -sf http://localhost:80/healthz && break || sleep 4
+          done
+          curl -sf http://localhost:80/healthz
+          DATA_DIR=/tmp/smoke-data docker compose -f docker/compose.prod.yml down
 
   landing-page:
     runs-on: ubuntu-latest
@@ -58,3 +76,58 @@ jobs:
       - uses: actions/checkout@v5
       - name: Landing page version must match VERSION file
         run: python3 scripts/sync-landing-version.py --check
+
+  backend-smoke:
+    # v3 FastAPI scaffold. Runs in its OWN job with live redis/postgres
+    # services (the plain pytest job above has none, so broker-backed tests
+    # skip there and run here).
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+      postgres:
+        image: postgres:16-alpine
+        env:
+          # Trust auth: CI databases hold no real data, so no password
+          # literals live in this file (secret scanners).
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    env:
+      TEST_POSTGRES_URL: postgresql+asyncpg://postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install v3 backend deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest -r backend/requirements.txt
+          pip install ruff mypy
+      - name: "Backend v3 lint + types (EPIC-01 gate: ruff + mypy strict)"
+        run: |
+          export PYTHONPATH=$(pwd)
+          ruff check backend/
+          mypy backend/
+      - name: Backend v3 tests (isolated process)
+        run: |
+          export PYTHONPATH=$(pwd)
+          # Glob keeps pace with new test_v3_* files automatically.
+          pytest tests/test_v3_*.py tests/test_backend_smoke.py tests/test_import_v2.py -v
+      - name: OpenAPI snapshot in sync (EPIC-03 contract gate)
+        run: |
+          python scripts/export-openapi.py --check

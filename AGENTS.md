@@ -1,10 +1,10 @@
 # AGENTS.md — instructions for AI coding agents working in this repo
 
 ## Stack at a glance
-- Backend: Flask 3 + SQLAlchemy + Alembic (`app/`, `model/`, `migrations/`). Gunicorn + gevent in Docker.
+- Stack: FastAPI + SQLAlchemy (async) + Alembic (`backend/`, `backend/alembic/`), React SPA (`frontend/`). Uvicorn + arq in Docker (`docker/compose.prod.yml`).
 - Landing page: root `index.html` (deployed to GitHub Pages via `.github/workflows/static.yml`).
 - Version source of truth: `VERSION` file at repo root. Never hardcode versions elsewhere.
-- Tests: `python -m pytest tests/ -v`. Lint: `flake8 app/`.
+- Tests: `python -m pytest tests/ -v` (single process). Backend gates: `ruff check backend/`, `mypy backend/`. Lint: `flake8 backend/ tests/`.
 - Windows dev machine, but CI/Docker are Linux — keep scripts POSIX-compatible (`scripts/`).
 
 ## RULE: landing page stays in sync with the release cycle (always)

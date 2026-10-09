@@ -1,4 +1,9 @@
-# Upgrade Guide — Redirector
+# Upgrade Guide — Redirector (v2 track, archived)
+
+> **Archived at M4:** the Flask app this guide covers was removed. New
+> installs and upgrades use the FastAPI stack — see
+> [`docs/UPGRADE-v3.md`](UPGRADE-v3.md). Kept here for installs still
+> retreating to the last v2 image tag.
 
 Every command below is given for **Linux/macOS (sh)**, **Windows (PowerShell)**,
 **Docker** and **bare-metal Python**. Copy the block that matches your setup.
