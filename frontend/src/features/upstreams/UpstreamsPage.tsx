@@ -105,7 +105,7 @@ export default function UpstreamsPage() {
             aria-label="Upstream name"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="mt-1 rounded border px-3 py-1.5 text-sm dark:bg-white/10"
+            className="mt-1 rounded border border-rd-line bg-rd-input px-3 py-1.5 text-sm text-rd-text"
           />
         </label>
         <label className="flex flex-col text-sm">
@@ -115,15 +115,15 @@ export default function UpstreamsPage() {
             value={baseUrl}
             onChange={(event) => setBaseUrl(event.target.value)}
             placeholder="https://go.example"
-            className="mt-1 rounded border px-3 py-1.5 text-sm dark:bg-white/10"
+            className="mt-1 rounded border border-rd-line bg-rd-input px-3 py-1.5 text-sm text-rd-text"
           />
         </label>
-        <button type="submit" className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white">
+        <button type="submit" className="rounded bg-rd-accent px-3 py-1.5 text-sm text-rd-accent-ink">
           Add upstream
         </button>
       </form>
 
-      {error !== null && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
+      {error !== null && <p role="alert" className="mt-3 text-sm text-rd-danger">{error}</p>}
 
       {loading ? (
         <p className="mt-4 text-sm opacity-70">Loading…</p>
@@ -132,7 +132,7 @@ export default function UpstreamsPage() {
       ) : (
         <table className="mt-3 w-full text-left text-sm">
           <thead>
-            <tr className="border-b dark:border-white/10">
+            <tr className="border-b border-rd-line">
               <th className="py-1 pr-2">Name</th>
               <th className="py-1 pr-2">Base URL</th>
               <th className="py-1">Actions</th>
@@ -140,13 +140,13 @@ export default function UpstreamsPage() {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id ?? row.name} className="border-b dark:border-white/10">
+              <tr key={row.id ?? row.name} className="border-b border-rd-line">
                 <td className="py-1 pr-2 font-mono">{row.name}</td>
                 <td className="max-w-xs truncate py-1 pr-2 opacity-80">{row.base_url}</td>
                 <td className="py-1">
                   {row.id !== null && row.id !== undefined && confirming === row.id ? (
                     <span className="flex gap-2">
-                      <button type="button" onClick={() => void remove(row.id as number)} className="text-red-600 underline">
+                      <button type="button" onClick={() => void remove(row.id as number)} className="text-rd-danger underline">
                         Confirm
                       </button>
                       <button type="button" onClick={() => setConfirming(null)} className="underline opacity-70">
@@ -178,11 +178,11 @@ export default function UpstreamsPage() {
             aria-label="Pattern to check"
             value={probe}
             onChange={(event) => setProbe(event.target.value)}
-            className="mt-1 rounded border px-3 py-1.5 text-sm font-mono dark:bg-white/10"
+            className="mt-1 rounded border border-rd-line bg-rd-input px-3 py-1.5 font-mono text-sm text-rd-text"
           />
         </label>
         {streaming ? (
-          <button type="button" onClick={stopProbe} className="rounded border px-3 py-1.5 text-sm">
+          <button type="button" onClick={stopProbe} className="rounded border border-rd-line px-3 py-1.5 text-sm">
             Stop
           </button>
         ) : (
@@ -190,7 +190,7 @@ export default function UpstreamsPage() {
             type="button"
             onClick={startProbe}
             disabled={probe.trim() === ''}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-50"
+            className="rounded bg-rd-accent px-3 py-1.5 text-sm text-rd-accent-ink disabled:opacity-50"
           >
             Check
           </button>
@@ -198,7 +198,7 @@ export default function UpstreamsPage() {
       </div>
       <ul aria-label="Check events" className="mt-3 flex flex-col gap-1 text-sm">
         {events.map((event, index) => (
-          <li key={index} className="rounded border px-2 py-1 font-mono text-xs dark:border-white/10">
+          <li key={index} className="rounded border border-rd-line px-2 py-1 font-mono text-xs">
             {event.done === true
               ? 'done'
               : event.message ?? `${event.upstream_name ?? '?'}: ${event.status ?? '…'}`}

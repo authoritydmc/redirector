@@ -1,13 +1,16 @@
 """API key persistence + crypto (EPIC-05 task 4).
 
 Key format: `rk_<prefix>_<secret>` (12 + 43 urlsafe chars — fixed widths so
-parsing never depends on alphabet separators). Only sha256(secret) is
-stored; verification is constant-time. Revocation is a timestamp, so
-`last_used_at` history survives.
+parsing never depends on alphabet separators). Secrets are stored as
+PBKDF2-SHA256 (stdlib, 210k iterations) — plain SHA-256 was rejected: it is
+fine for the 256-bit API secrets but brute-forceable for the 32-bit backup
+codes, so one KDF covers both. Verification is constant-time. Revocation is
+a timestamp, so `last_used_at` history survives.
 """
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import secrets
 from datetime import UTC, datetime
@@ -42,8 +45,44 @@ def parse_api_key(token: str) -> tuple[str, str] | None:
     return body[:_PREFIX_LEN], body[_PREFIX_LEN + 1:]
 
 
+_PBKDF2_ITERATIONS = 210_000
+_SALT_BYTES = 16
+
+
 def hash_secret(secret: str) -> str:
-    return hashlib.sha256(secret.encode()).hexdigest()
+    """Hash a fresh secret for storage.
+
+    PBKDF2-SHA256 with a random 16-byte salt; ~120 ms per hash on reference
+    hardware. Stored form carries its parameters so iterations can rise
+    later without invalidating rows:
+    `pbkdf2-sha256$<iterations>$<urlsafe-b64 salt>$<urlsafe-b64 hash>`.
+    """
+    salt = secrets.token_bytes(_SALT_BYTES)
+    digest = hashlib.pbkdf2_hmac("sha256", secret.encode(), salt, _PBKDF2_ITERATIONS)
+    return (
+        f"pbkdf2-sha256${_PBKDF2_ITERATIONS}"
+        f"${base64.urlsafe_b64encode(salt).decode()}"
+        f"${base64.urlsafe_b64encode(digest).decode()}"
+    )
+
+
+def verify_secret(secret: str, stored: str) -> bool:
+    """Constant-time check against a `hash_secret` value. Anything else —
+    including the pre-4.0 plain-SHA256 rows, which are invalidated by this
+    change (v3 never shipped, so nothing real to migrate) — fails closed."""
+    try:
+        algo, iterations, salt_b64, hash_b64 = stored.split("$")
+        if algo != "pbkdf2-sha256":
+            return False
+        digest = hashlib.pbkdf2_hmac(
+            "sha256",
+            secret.encode(),
+            base64.urlsafe_b64decode(salt_b64.encode()),
+            int(iterations),
+        )
+    except (ValueError, TypeError, base64.binascii.Error):
+        return False
+    return secrets.compare_digest(base64.urlsafe_b64encode(digest).decode(), hash_b64)
 
 
 def new_totp_seed() -> tuple[str, str]:
@@ -66,7 +105,7 @@ def verify_totp(secret: str, token: str) -> bool:
 
 
 def new_backup_codes(count: int = 10) -> tuple[list[str], list[str]]:
-    """Fresh single-use codes; returns (plaintext, sha256 hashes)."""
+    """Fresh single-use codes; returns (plaintext, KDF hashes)."""
     plaintext = [secrets.token_hex(4) for _ in range(count)]
     return plaintext, [hash_secret(code) for code in plaintext]
 
@@ -110,7 +149,7 @@ class ApiKeyRepository:
         row = await self.get_by_prefix(prefix)
         if row is None or row.revoked_at is not None:
             return None
-        if not secrets.compare_digest(row.secret_hash, hash_secret(secret)):
+        if not verify_secret(secret, row.secret_hash):
             return None
         row.last_used_at = datetime.now(UTC)
         await self.session.commit()
@@ -122,7 +161,7 @@ class MfaRepository:
 
     Keys live under `mfa.*` (dotted convention, cf. import-v2). The TOTP
     seed sits here as an interim measure — secrets-vault migration (task 10)
-    moves it out; backup codes are sha256 from day one. WebAuthn is a
+    moves it out; backup codes are KDF-hashed from day one. WebAuthn is a
     separate slice and has no storage yet.
     """
 
@@ -178,10 +217,9 @@ class MfaRepository:
         codes = await self._get(self.CODES_KEY)
         if not isinstance(codes, list):
             return False
-        digest = hash_secret(code.strip())
+        candidate = code.strip()
         remaining = [c for c in codes
-                     if not (isinstance(c, str)
-                             and secrets.compare_digest(c, digest))]
+                     if not (isinstance(c, str) and verify_secret(candidate, c))]
         if len(remaining) == len(codes):
             return False
         await self._set(self.CODES_KEY, remaining)

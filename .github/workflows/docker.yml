@@ -16,10 +16,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Run Docker smoke test (local build)
+      - name: Prod stack smoke (local build)
         run: |
-          chmod +x test_docker.sh
-          ./test_docker.sh
+          mkdir -p /tmp/smoke-data && chmod 777 /tmp/smoke-data
+          REDIRECTOR_ADMIN_PASSWORD=ci-smoke REDIRECTOR_JWT_SECRET=ci-smoke-secret \
+            DATA_DIR=/tmp/smoke-data docker compose -f docker/compose.prod.yml up -d --build
+          for _ in $(seq 1 30); do
+            curl -sf http://localhost:80/healthz && break || sleep 4
+          done
+          curl -sf http://localhost:80/healthz
+          DATA_DIR=/tmp/smoke-data docker compose -f docker/compose.prod.yml down
       - name: Test public image (if available)
         if: always()
         run: |
@@ -40,8 +46,8 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v5
-      - name: Verify image can be built for release tag
+      - name: Verify images build for release tag
         run: |
-          chmod +x test_docker.sh
-          ./test_docker.sh
-          echo "Image ready for release ${{ github.ref_name }}"
+          docker build -f docker/Dockerfile.api -t redirector-api:test .
+          docker build -f docker/Dockerfile.web -t redirector-web:test .
+          echo "Images ready for release ${{ github.ref_name }}"

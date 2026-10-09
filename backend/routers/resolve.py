@@ -1,10 +1,7 @@
 """Resolve router: JSON debug endpoint + the redirect hot path.
 
 GET /api/v1/resolve  — resolver debug (always 200, `outcome` field).
-GET /{pattern}        — permanent home of the redirect hot path (unversioned).
-  Dual-serve note (EPIC-08 M1–M2): while Flask still serves HTML, the proxy
-  keeps THIS route shadowed and only /api/v1/* reaches FastAPI. At M3 the
-  proxy flips and this becomes the live redirect path — no code change.
+GET /{pattern}        — the live redirect path (catch-all, registered last).
 
 Response mapping: redirect → 302 (or minimal countdown page when the
 auto-redirect delay is > 0); need_params → 422 problem (React renders the

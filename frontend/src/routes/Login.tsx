@@ -48,7 +48,7 @@ export default function Login() {
   }
 
   return (
-    <main className="mx-auto max-w-sm p-8 font-sans dark:bg-[#0f1221] dark:text-white min-h-screen">
+    <main className="mx-auto min-h-screen max-w-sm bg-rd-bg p-8 font-sans text-rd-text">
       <h1 className="text-2xl font-bold">Redirector v3</h1>
       {pendingToken === null ? (
         <form onSubmit={submitPassword} className="mt-6 flex flex-col gap-3">
@@ -59,14 +59,14 @@ export default function Login() {
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="mt-1 w-full rounded border px-3 py-2 text-sm dark:bg-white/10"
+              className="mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-2 text-sm text-rd-text"
             />
           </label>
-          {error !== null && <p role="alert" className="text-sm text-red-600">{error}</p>}
+          {error !== null && <p role="alert" className="text-sm text-rd-danger">{error}</p>}
           <button
             type="submit"
             disabled={busy || password.length === 0}
-            className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-50"
+            className="rounded bg-rd-accent px-3 py-2 text-sm text-rd-accent-ink disabled:opacity-50"
           >
             Sign in
           </button>
@@ -84,14 +84,14 @@ export default function Login() {
               onChange={(event) => setTotp(event.target.value)}
               inputMode="numeric"
               autoComplete="one-time-code"
-              className="mt-1 w-full rounded border px-3 py-2 text-sm font-mono dark:bg-white/10"
+              className="mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-2 font-mono text-sm text-rd-text"
             />
           </label>
-          {error !== null && <p role="alert" className="text-sm text-red-600">{error}</p>}
+          {error !== null && <p role="alert" className="text-sm text-rd-danger">{error}</p>}
           <button
             type="submit"
             disabled={busy || totp.length === 0}
-            className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-50"
+            className="rounded bg-rd-accent px-3 py-2 text-sm text-rd-accent-ink disabled:opacity-50"
           >
             Verify
           </button>

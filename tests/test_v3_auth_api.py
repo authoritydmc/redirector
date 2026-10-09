@@ -58,6 +58,22 @@ def test_auth_login_success_and_me(client: TestClient):
     assert me_resp.json()["role"] == "admin"
 
 
+def test_secret_kdf_roundtrip_and_rejects():
+    """PBKDF2 storage (CodeQL py/weak-password-hash): roundtrip passes,
+    wrong secrets fail, and legacy plain-SHA256 rows fail closed."""
+    import hashlib
+
+    from backend.modules.auth.repository import hash_secret, verify_secret
+
+    stored = hash_secret("correct horse")
+    assert stored.startswith("pbkdf2-sha256$")
+    assert verify_secret("correct horse", stored)
+    assert not verify_secret("wrong horse", stored)
+    assert not verify_secret("x", hashlib.sha256(b"x").hexdigest())
+    assert not verify_secret("x", "garbage")
+    assert not verify_secret("x", "")
+
+
 def test_admin_config_protected(client: TestClient):
     # Without token -> 401
     unauth = client.get("/api/v1/admin/config")

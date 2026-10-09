@@ -142,7 +142,7 @@ export default function ShortcutsPage() {
         <button
           type="button"
           onClick={() => { setDrawer({ mode: 'create' }); setDrawerError(null) }}
-          className="ml-auto rounded bg-blue-600 px-3 py-1.5 text-sm text-white"
+          className="ml-auto rounded bg-rd-accent px-3 py-1.5 text-sm text-rd-accent-ink"
         >
           New shortcut
         </button>
@@ -153,13 +153,13 @@ export default function ShortcutsPage() {
           placeholder="Search pattern or target…"
           value={query}
           onChange={(event) => onSearch(event.target.value)}
-          className="rounded border px-3 py-1.5 text-sm dark:bg-white/10"
+          className="rounded border border-rd-line bg-rd-input px-3 py-1.5 text-sm text-rd-text"
         />
         <select
           aria-label="Sort shortcuts"
           value={sort}
           onChange={(event) => onSort(event.target.value)}
-          className="rounded border px-2 py-1.5 text-sm dark:bg-white/10"
+          className="rounded border border-rd-line bg-rd-input px-2 py-1.5 text-sm text-rd-text"
         >
           <option value="updated_at">Recently updated</option>
           <option value="created_at">Recently created</option>
@@ -168,21 +168,21 @@ export default function ShortcutsPage() {
         {selected.size > 0 && (
           confirmingBulk ? (
             <span className="flex gap-2">
-              <button type="button" onClick={removeSelected} className="rounded bg-red-600 px-3 py-1.5 text-sm text-white">
+              <button type="button" onClick={removeSelected} className="rounded bg-rd-danger px-3 py-1.5 text-sm text-rd-danger-ink">
                 Confirm delete {selected.size}
               </button>
-              <button type="button" onClick={() => setConfirmingBulk(false)} className="rounded border px-3 py-1.5 text-sm">
+              <button type="button" onClick={() => setConfirmingBulk(false)} className="rounded border border-rd-line px-3 py-1.5 text-sm">
                 Cancel
               </button>
             </span>
           ) : (
-            <button type="button" onClick={() => setConfirmingBulk(true)} className="rounded border border-red-600 px-3 py-1.5 text-sm text-red-600">
+            <button type="button" onClick={() => setConfirmingBulk(true)} className="rounded border border-rd-danger px-3 py-1.5 text-sm text-rd-danger">
               Delete selected ({selected.size})
             </button>
           )
         )}
       </div>
-      {error !== null && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
+      {error !== null && <p role="alert" className="mt-3 text-sm text-rd-danger">{error}</p>}
       {loading ? (
         <p className="mt-4 text-sm opacity-70">Loading…</p>
       ) : rows.length === 0 ? (
@@ -190,7 +190,7 @@ export default function ShortcutsPage() {
       ) : (
         <table className="mt-3 w-full text-left text-sm">
           <thead>
-            <tr className="border-b dark:border-white/10">
+            <tr className="border-b border-rd-line">
               <th className="py-1 pr-2">
                 <input type="checkbox" aria-label="Select page" checked={pageSelected} onChange={togglePage} />
               </th>
@@ -203,7 +203,7 @@ export default function ShortcutsPage() {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.pattern} className="border-b dark:border-white/10">
+              <tr key={row.pattern} className="border-b border-rd-line">
                 <td className="py-1 pr-2">
                   <input
                     type="checkbox"
@@ -219,7 +219,7 @@ export default function ShortcutsPage() {
                 <td className="py-1">
                   {confirming === row.pattern ? (
                     <span className="flex gap-2">
-                      <button type="button" onClick={() => void removeOne(row.pattern)} className="text-red-600 underline">
+                      <button type="button" onClick={() => void removeOne(row.pattern)} className="text-rd-danger underline">
                         Confirm
                       </button>
                       <button type="button" onClick={() => setConfirming(null)} className="underline opacity-70">
@@ -251,7 +251,7 @@ export default function ShortcutsPage() {
           type="button"
           disabled={page <= 1}
           onClick={() => setPage((p) => Math.max(1, p - 1))}
-          className="rounded border px-3 py-1 disabled:opacity-40"
+          className="rounded border border-rd-line px-3 py-1 disabled:opacity-40"
         >
           Previous
         </button>
@@ -262,13 +262,13 @@ export default function ShortcutsPage() {
           type="button"
           disabled={page >= totalPages}
           onClick={() => setPage((p) => p + 1)}
-          className="rounded border px-3 py-1 disabled:opacity-40"
+          className="rounded border border-rd-line px-3 py-1 disabled:opacity-40"
         >
           Next
         </button>
       </div>
       {drawer !== null && (
-        <div role="dialog" aria-label={drawer.mode === 'create' ? 'New shortcut' : 'Edit shortcut'} className="fixed right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l bg-white p-4 shadow-xl dark:border-white/10 dark:bg-[#0f1221]">
+        <div role="dialog" aria-label={drawer.mode === 'create' ? 'New shortcut' : 'Edit shortcut'} className="fixed right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-rd-line bg-rd-surface p-4 text-rd-text shadow-xl">
           <h3 className="text-lg font-semibold">
             {drawer.mode === 'create' ? 'New shortcut' : `Edit ${drawer.row.pattern}`}
           </h3>

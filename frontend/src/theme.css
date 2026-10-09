@@ -1,0 +1,225 @@
+/* Redirector theme engine.
+ *
+ * One `[data-theme="<id>"]` block per theme in `src/lib/themes.ts` (same
+ * values — `themes.test.ts` asserts every registered id has a block).
+ * Components consume tokens via `rd-*` utilities bound below with
+ * `@theme inline`, so theme switches never touch component code.
+ * `:root` carries the light fallback for first paint before React hydrates.
+ */
+
+@theme inline {
+  --color-rd-bg: var(--rd-bg);
+  --color-rd-surface: var(--rd-surface);
+  --color-rd-text: var(--rd-text);
+  --color-rd-muted: var(--rd-muted);
+  --color-rd-line: var(--rd-line);
+  --color-rd-input: var(--rd-input);
+  --color-rd-accent: var(--rd-accent);
+  --color-rd-accent-ink: var(--rd-accent-ink);
+  --color-rd-danger: var(--rd-danger);
+  --color-rd-danger-ink: var(--rd-danger-ink);
+}
+
+:root {
+  color-scheme: light;
+  --rd-bg: #ffffff;
+  --rd-surface: #f6f8fa;
+  --rd-text: #1f2328;
+  --rd-muted: #59636e;
+  --rd-line: #d1d9e0;
+  --rd-input: #ffffff;
+  --rd-accent: #0969da;
+  --rd-accent-ink: #ffffff;
+  --rd-danger: #cf222e;
+  --rd-danger-ink: #ffffff;
+}
+
+/* Light gets its own block (same values as :root) so minifiers never merge
+   the fallback away from the explicit theme selector. */
+[data-theme='light'] {
+  color-scheme: light;
+  --rd-bg: #ffffff;
+  --rd-surface: #f6f8fa;
+  --rd-text: #1f2328;
+  --rd-muted: #59636e;
+  --rd-line: #d1d9e0;
+  --rd-input: #ffffff;
+  --rd-accent: #0969da;
+  --rd-accent-ink: #ffffff;
+  --rd-danger: #cf222e;
+  --rd-danger-ink: #ffffff;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --rd-bg: #0f1221;
+  --rd-surface: #171b30;
+  --rd-text: #ffffff;
+  --rd-muted: #b9bdd1;
+  --rd-line: #2a2f45;
+  --rd-input: #1a1f36;
+  --rd-accent: #6e9fff;
+    --rd-accent-ink: #0f1221;
+    --rd-danger: #f87171;
+    --rd-danger-ink: #0f1221;
+}
+
+[data-theme='github-light'] {
+  color-scheme: light;
+  --rd-bg: #ffffff;
+  --rd-surface: #f6f8fa;
+  --rd-text: #1f2328;
+  --rd-muted: #59636e;
+  --rd-line: #d1d9e0;
+  --rd-input: #ffffff;
+  --rd-accent: #0969da;
+  --rd-accent-ink: #ffffff;
+    --rd-danger: #cf222e;
+    --rd-danger-ink: #ffffff;
+}
+
+[data-theme='github-dark'] {
+  color-scheme: dark;
+  --rd-bg: #0d1117;
+  --rd-surface: #161b22;
+  --rd-text: #e6edf3;
+  --rd-muted: #9198a1;
+  --rd-line: #3d444d;
+  --rd-input: #0d1117;
+  --rd-accent: #4493f8;
+  --rd-accent-ink: #06233f;
+    --rd-danger: #ff7b72;
+    --rd-danger-ink: #0d1117;
+}
+
+[data-theme='one-dark-pro'] {
+  color-scheme: dark;
+  --rd-bg: #282c34;
+  --rd-surface: #21252b;
+  --rd-text: #b8bec9;
+  --rd-muted: #9da5b4;
+  --rd-line: #3e4451;
+  --rd-input: #21252b;
+  --rd-accent: #61afef;
+  --rd-accent-ink: #0b1c2c;
+  --rd-danger: #e5828a;
+  --rd-danger-ink: #282c34;
+}
+
+[data-theme='dracula'] {
+  color-scheme: dark;
+  --rd-bg: #282a36;
+  --rd-surface: #21222c;
+  --rd-text: #f8f8f2;
+  --rd-muted: #c5c8d3;
+  --rd-line: #44475a;
+  --rd-input: #21222c;
+  --rd-accent: #bd93f9;
+  --rd-accent-ink: #25173f;
+    --rd-danger: #ff5555;
+    --rd-danger-ink: #282a36;
+}
+
+[data-theme='nord'] {
+  color-scheme: dark;
+  --rd-bg: #2e3440;
+  --rd-surface: #3b4252;
+  --rd-text: #eceff4;
+  --rd-muted: #b6bfd2;
+  --rd-line: #4c566a;
+  --rd-input: #434c5e;
+  --rd-accent: #88c0d0;
+  --rd-accent-ink: #1d2b33;
+    --rd-danger: #d29097;
+    --rd-danger-ink: #2e3440;
+}
+
+[data-theme='monokai'] {
+  color-scheme: dark;
+  --rd-bg: #272822;
+  --rd-surface: #1e1f1c;
+  --rd-text: #f8f8f2;
+  --rd-muted: #c4c4b4;
+  --rd-line: #49483e;
+  --rd-input: #1e1f1c;
+  --rd-accent: #66d9ef;
+  --rd-accent-ink: #12333b;
+    --rd-danger: #ff6188;
+    --rd-danger-ink: #272822;
+}
+
+[data-theme='solarized-light'] {
+  color-scheme: light;
+  --rd-bg: #fdf6e3;
+  --rd-surface: #eee8d5;
+  --rd-text: #43575e;
+  --rd-muted: #56696f;
+  --rd-line: #d3c69f;
+  --rd-input: #fffdf5;
+  --rd-accent: #268bd2;
+  --rd-accent-ink: #041e2e;
+  --rd-danger: #bb2a28;
+  --rd-danger-ink: #ffffff;
+}
+
+[data-theme='solarized-dark'] {
+  color-scheme: dark;
+  --rd-bg: #002b36;
+  --rd-surface: #073642;
+  --rd-text: #aeb8b8;
+  --rd-muted: #839496;
+  --rd-line: #1e5a6b;
+  --rd-input: #073642;
+  --rd-accent: #4aa3df;
+  --rd-accent-ink: #002b36;
+  --rd-danger: #ff7b72;
+  --rd-danger-ink: #002b36;
+}
+
+[data-theme='tokyo-night'] {
+  color-scheme: dark;
+  --rd-bg: #1a1b26;
+  --rd-surface: #16161e;
+  --rd-text: #c0caf5;
+  --rd-muted: #a9b1d6;
+  --rd-line: #2f334d;
+  --rd-input: #16161e;
+  --rd-accent: #7aa2f7;
+  --rd-accent-ink: #0d1330;
+    --rd-danger: #f7768e;
+    --rd-danger-ink: #1a1b26;
+}
+
+[data-theme='forest'] {
+  color-scheme: dark;
+  --rd-bg: #0d1f16;
+  --rd-surface: #12291d;
+  --rd-text: #e9f2ea;
+  --rd-muted: #a9c0ab;
+  --rd-line: #1e3d2a;
+  --rd-input: #0a1811;
+  --rd-accent: #4ade80;
+    --rd-accent-ink: #06281a;
+    --rd-danger: #f87171;
+    --rd-danger-ink: #0d1f16;
+}
+
+[data-theme='sand-dunes'] {
+  color-scheme: light;
+  --rd-bg: #faf6ef;
+  --rd-surface: #f1e9d7;
+  --rd-text: #4a3f2f;
+  --rd-muted: #776549;
+  --rd-line: #ddd0b8;
+  --rd-input: #fffdf8;
+  --rd-accent: #92400a;
+  --rd-accent-ink: #ffffff;
+    --rd-danger: #b91c1c;
+    --rd-danger-ink: #ffffff;
+}
+
+/* Visible keyboard focus everywhere (accent ring, theme-aware). */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--rd-accent, #0969da);
+  outline-offset: 2px;
+}

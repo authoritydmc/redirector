@@ -1,0 +1,74 @@
+# v3 nightly soak (EPIC-08 task 6): the production-shaped storage path.
+# Postgres + Redis job services, alembic-migrated, seeded with the committed
+# v2 golden fixture via import-v2 (so the migration path itself is exercised
+# nightly), then the locust v3 script headless with a zero-failures gate.
+# k6 was the epic's original sketch; locust is reused instead — one harness,
+# same CSV gate as the sqlite smoke, no new tool to maintain.
+name: Soak (v3, Postgres + Redis)
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    # 04:30 UTC — half an hour after the sqlite load smoke, spreads runner load.
+    - cron: "30 4 * * *"
+  workflow_dispatch:
+  pull_request:
+    branches: ["main", "develop"]
+    paths:
+      - "backend/migrations/**"
+      - "backend/alembic/**"
+      - "backend/core/**"
+      - "load_testing/soak-pg.sh"
+      - "load_testing/locustfile_v3.py"
+      - "load_testing/check_stats.py"
+      - "tests/fixtures/**"
+      - ".github/workflows/soak-pg.yml"
+
+jobs:
+  soak-pg:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: redirector
+          POSTGRES_PASSWORD: redirector
+          POSTGRES_DB: redirector
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U redirector"
+          --health-interval=10s
+          --health-timeout=3s
+          --health-retries=5
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=3s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend + locust + sync PG driver
+        run: |
+          python -m pip install --upgrade pip
+          # psycopg2-binary is import-v2-only (it maps +asyncpg to +psycopg2);
+          # the app and alembic stay on async drivers (aiosqlite/asyncpg).
+          pip install -r backend/requirements.txt locust psycopg2-binary
+      - name: Run PG+Redis soak
+        run: sh load_testing/soak-pg.sh
+      - name: Upload CSV report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: soak-pg-report
+          path: load_testing/report/

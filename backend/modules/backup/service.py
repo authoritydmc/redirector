@@ -8,7 +8,7 @@ Archive layout (`redirector-backup-<UTC>-<label?>.zip`):
 
 Covered tables are domain state only: operational rows (check logs, jobs)
 are ephemeral by design and excluded. Secrets hygiene: the only
-secret-bearing table is `api_keys`, stored as sha256 (restorable, never
+secret-bearing table is `api_keys`, stored as PBKDF2-SHA256 (restorable, never
 plaintext); env-owned secrets (admin password, JWT secret) are the
 operator's to back up and are named — never valued — in the manifest.
 """

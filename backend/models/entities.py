@@ -177,8 +177,8 @@ class Job(SQLModel, table=True):
 class ApiKey(SQLModel, table=True):
     """API key for automation without a browser session (EPIC-05 task 4).
 
-    Only the sha256 of the secret is stored — the plaintext is shown once
-    at issuance. `prefix` identifies the row (and masks logs); revocation
+    Only the PBKDF2-SHA256 hash of the secret is stored — the plaintext is
+    shown once at issuance. `prefix` identifies the row (and masks logs); revocation
     is a timestamp, so `last_used_at` history survives. Scopes are
     recorded now and enforced by the RBAC audit (EPIC-05 task 3).
     """

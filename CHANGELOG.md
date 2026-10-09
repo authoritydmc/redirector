@@ -6,6 +6,16 @@ We follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic
 
 ---
 
+## [Unreleased]
+
+### Security
+- **API-key/MFA secrets now PBKDF2-SHA256** (210k iterations, random salt) instead of plain SHA-256 — plain hashes brute-force too fast for the short backup codes. Pre-release SHA-256 rows fail closed (v3 never shipped, so nothing real to migrate).
+
+### Removed
+- **M4: legacy Flask app removed** — `app/`, `model/`, v2 `migrations/`, gunicorn/gevent entrypoints and the M1/M3 dual-serve harnesses are gone. The stack is FastAPI + React SPA + arq workers (`docker/compose.prod.yml`). Migrate v2 data with the one-shot importer: `docs/UPGRADE-v3.md`. Secrets never migrate — set a fresh admin password and re-enroll MFA at cutover.
+
+---
+
 ## [3.2.1] — 2026-09-30
 
 ### Fixed

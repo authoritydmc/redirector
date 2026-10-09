@@ -6,12 +6,13 @@ with Flask at M4. Successor status was verified against `docs/openapi.json`
 (36 shipped paths); anything else is **planned** and carries no sunset
 clock until it ships.
 
-## Sunset policy (proposed — needs owner sign-off)
+## Sunset policy (decided 2026-10-09)
 
-- From M3, every legacy JSON response carries
-  `Deprecation: true`, `Sunset: <date>`, and
+- From M3 (`REDIRECTOR_FF_HOT_PATH=1`), every shipped-successor legacy JSON
+  response carries `Deprecation: true`, `Sunset: <date>`, and
   `Link: <<successor>>; rel="successor"`.
-- Sunset date: 6 months after v3.0 GA, uniform across endpoints.
+- Sunset date: **2027-06-30**, uniform across endpoints (6-month window from
+  the M3 cutover season; override per deployment with `REDIRECTOR_SUNSET_DATE`).
 - Removal happens at M4 (Flask gone); clients must migrate by Sunset.
 
 ## Shipped successors (clock can start at M3)

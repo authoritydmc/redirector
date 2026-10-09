@@ -1,27 +1,32 @@
-# URL Shortener/Redirector
+# Redirector
 
-A modern, self-hostable URL shortener and redirector with a beautiful UI, Docker support, Redis in-memory cache, and robust config management. Easily create, manage, and share custom short URLs for your team or company.
+A modern, self-hostable URL shortener and redirector: **FastAPI** backend,
+**React** SPA, background workers over Redis, SQLite by default with a
+Postgres path for scale. Docker-first, one data directory, zero manual
+migration steps.
+
+> **Coming from v2?** The legacy Flask app was removed in M4. Your data
+> migrates untouched: [`docs/UPGRADE-v3.md`](docs/UPGRADE-v3.md) (doctor
+> gate, one-shot `import-v2`, rollback runbook). Secrets never migrate —
+> set a fresh admin password and re-enroll MFA at cutover.
 
 ---
 
 ## Table of Contents
+
 - [Features](#features)
 - [Quick Start](#quick-start)
-  - [Docker (Prebuilt Image, Recommended)](#docker-prebuilt-image-recommended)
-  - [Docker Compose](#docker-compose)
-  - [Manual (Python)](#manual-python)
+  - [Docker Compose (Recommended)](#docker-compose-recommended)
+  - [Postgres Variant](#postgres-variant)
+  - [Local Dev (Backend + SPA)](#local-dev-backend--spa)
 - [Configuration](#configuration)
-- [Database URI Construction Guide](#database-uri-construction-guide)
-- [Data Persistence](#data-persistence)
-- [Reverse Proxy Example (Nginx)](#reverse-proxy-example-nginx)
-- [Upstream Shortcut Checking & Integration](#upstream-shortcut-checking--integration)
-- [Admin Config & UI Improvements](#admin-config--ui-improvements)
-- [Production Deployment](#production-deployment)
+- [Hostname Setup for r/ Shortcuts](#hostname-setup-for-r-shortcuts)
+- [Company-Wide Installation & Team Usage](#company-wide-installation--team-usage)
+- [Data & Backups](#data--backups)
+- [Reverse Proxy Notes](#reverse-proxy-notes)
+- [API Reference](#api-reference)
 - [Development & Testing](#development--testing)
 - [Project Structure](#project-structure)
-- [Company-Wide Installation & Team Usage](#company-wide-installation--team-usage)
-- [Performance & Optimization](#performance--optimization)
-- [Import/Export & Upstream Cache Management](#importexport--upstream-cache-management)
 - [Version & Credits](#version--credits)
 - [License](#license)
 
@@ -29,244 +34,87 @@ A modern, self-hostable URL shortener and redirector with a beautiful UI, Docker
 
 ## Features
 
-- **Production-ready Docker image**: [`rajlabs/redirector`](https://hub.docker.com/r/rajlabs/redirector) for instant deployment.
-- **Redis in-memory cache**: Ultra-fast shortcut and upstream cache lookups for low-latency redirects.
-- **Upstream shortcut caching**: Successful upstream lookups are cached in both SQLite and Redis (if enabled) for instant future redirects.
-- **Configurable upstream cache**: Enable/disable via `redirect.config.json` (`"upstream_cache": { "enabled": true }`), default enabled.
-- **Modern admin UI**: View, resync, and purge upstream cache entries with a beautiful, responsive, and dark-mode-ready interface.
-- **Resync All** and **Purge All** actions for upstream cache, with robust error handling and double confirmation for purging.
-- **Consistent redirect logic**: Upstream cache hits use the same redirect/delay logic as local shortcuts, including countdown and stats.
-- **Audit & Stats**: Tracks access count, creation/update times, and IPs for each shortcut.
-- **Dynamic Shortcuts**: Supports static and dynamic (parameterized) redirects.
-- **Version Info**: `/version` page shows live version, commit info, and all accessible URLs (with copy/open buttons).
+- **FastAPI + async SQLAlchemy**: typed routers, OpenAPI at `/docs`, RFC 7807 errors.
+- **React SPA** served at `/app` (typechecked, unit + Playwright tested).
+- **Redirect hot path** with static / dynamic / user-dynamic shortcuts, countdown or instant 302, access counting.
+- **Upstream shortcut fan-out** with cache, resync/purge, SSE check streams and background jobs (in-process or arq/Redis).
+- **Auth**: admin password + JWT, TOTP MFA with backup codes, API keys (`rk_*`), IP lockout, audit events.
+- **Backups**: labeled `.zip` archives (SQLite online snapshot + manifest) via UI or CLI, staged restores.
+- **Migrate-on-boot**: Alembic upgrade runs in a dedicated `migrate` service before the API starts.
+- **Nightly soak**: Postgres + Redis smoke with zero-failure gate (see `load_testing/`).
 
 ---
 
 ## Quick Start
 
-### Docker (Prebuilt Image, Recommended)
-
-#### With Redis (Best Performance)
-
-Start Redis (if you don't have it running):
+### Docker Compose (Recommended)
 
 ```sh
-docker run -d --name redis --restart unless-stopped -p 6379:6379 redis:7.2-alpine
+REDIRECTOR_ADMIN_PASSWORD=... REDIRECTOR_JWT_SECRET=... \
+  docker compose -f docker/compose.prod.yml up -d --build
 ```
 
-Then run the app, linking to Redis:
+- Stack: `web` (SPA + proxy, `:80`) → `api` (uvicorn) + `worker` (arq) + `redis`.
+- Data lives in `./data` (bind mount — never change where it points; see
+  [`docs/DATA-PERSISTENCE.md`](docs/DATA-PERSISTENCE.md)).
+- Compose fails fast without both secrets. Visit `http://localhost/app`,
+  docs at `http://localhost:80/docs` (proxied), health at `/healthz`.
+
+### Postgres Variant
 
 ```sh
-docker run -d --name redirector --restart unless-stopped -p 80:80 -v $PWD/data:/app/data -e REDIS_HOST=redis -e REDIS_PORT=6379 --link redis:redis rajlabs/redirector
+REDIRECTOR_ADMIN_PASSWORD=... REDIRECTOR_JWT_SECRET=... POSTGRES_PASSWORD=... \
+  docker compose -f docker/compose.prod.yml -f docker/compose.postgres.yml up -d --build
 ```
 
-- Data is stored in the `data/` folder on your host and mounted into the app container.
-- The app will connect to Redis at `redis:6379`.
-- The config file is `data/redirect.config.json`.
+Same services, database on managed Postgres. Required for `--scale api=N`
+(rate limits and in-process caches are per-process; JWTs and job rows are
+already shared-safe).
 
-#### Without Redis (slower, but works)
+### Local Dev (Backend + SPA)
 
 ```sh
-docker run -d --name redirector --restart unless-stopped -p 80:80 -v $PWD/data:/app/data rajlabs/redirector
+python -m venv .venv
+.venv/Scripts/Activate.ps1            # Windows; `source .venv/bin/activate` on POSIX
+pip install -r backend/requirements.txt
+export REDIRECTOR_DATABASE_URL="sqlite+aiosqlite:///./data/v3.db"
+export REDIRECTOR_AUTO_REDIRECT_DELAY=0   # instant 302s
+uvicorn backend.main:app --reload --port 8123   # docs: 127.0.0.1:8123/docs
 ```
-
-#### With a Host Directory (custom location)
 
 ```sh
-docker run -d --name redirector --restart unless-stopped -p 80:80 -v /absolute/path/to/your/data:/app/data -e REDIS_HOST=redis -e REDIS_PORT=6379 --link redis:redis rajlabs/redirector
+cd frontend && npm install && npm run dev   # http://localhost:5173, /api proxied to :8123
+npm run typecheck && npm test && npm run build
 ```
 
-Replace `/absolute/path/to/your/data` with your desired directory.
-
-#### Optional: With a Named Volume
-
-```sh
-# Create a persistent named volume (only once)
-docker volume create redirector_data
-
-# Run the app with Redis (best performance)
-docker run -d --name redirector --restart unless-stopped -p 80:80 -v redirector_data:/app/data -e REDIS_HOST=redis -e REDIS_PORT=6379 --link redis:redis rajlabs/redirector
-```
-
-> **Read this before switching an existing install.** A named volume is a
-> *different* location from `./data`. Pointing `/app/data` at an empty volume
-> makes the app start with a fresh database and a new admin password, which looks
-> exactly like an upgrade destroying your data — it hasn't, it's still in
-> `./data`. If you already have shortcuts, use the bind mount above, or follow
-> the copy-across procedure in
-> [`docs/DATA-PERSISTENCE.md`](docs/DATA-PERSISTENCE.md) first.
->
-> `docker-compose.volumes.yml` is provided for people who want the named volume
-> on a **fresh** install. `docker-compose.yml` uses a bind mount, because that is
-> what every existing install already has and it is the only option where
-> `git pull && docker compose up -d` cannot change where your data lives.
-
----
-
-### Docker Compose
-
-A `docker-compose.yml` is provided for easy setup with Redis:
-
-```sh
-docker compose up --build
-```
-
-- This will build and start two containers:
-  - `app`: Gunicorn + Flask URL shortener/redirector (port 80)
-  - `redis`: Redis server (port 6379)
-- Data is stored in the `data/` folder on your host and mounted into the app container.
-- The app will connect to Redis at `redis:6379` (service name in Docker Compose).
-- The config file is `data/redirect.config.json`.
-
-#### Updating
-
-To update, pull the latest code and run:
-
-```sh
-docker compose up --build -d
-```
-
-#### Stopping
-
-```sh
-docker compose down
-```
-
----
-
-### Manual (Python)
-
-- Requires Python 3.8+
-- Install dependencies:
-
-```sh
-pip install -r requirements.txt
-```
-
-- Run:
-
-```sh
-python app.py
-```
-
-- Visit: [http://localhost:80](http://localhost:80)
+Full dev guide (env knobs, workers, WSL docker): [`DEVELOPMENT.md`](DEVELOPMENT.md),
+[`backend/README.md`](backend/README.md).
 
 ---
 
 ## Configuration
 
-All configuration is managed in the `data/redirect.config.json` file (auto-created if missing). Here is a breakdown of each option:
+Everything is env-first (`REDIRECTOR_*`, see
+[`backend/README.md`](backend/README.md) for the full table). The knobs most
+deployments touch:
 
-```json
-{
-  "port": 80, // Port the app listens on (default: 80)
-  "auto_redirect_delay": 1, // Delay (in seconds) before auto-redirect (0 = instant, default: 1)
-  "admin_password": "...", // Admin password (randomly generated on first run)
-  "delete_requires_password": true, // Require password to delete shortcuts (recommended: true)
-  "upstreams": [ // List of upstream redirectors to check for existing shortcuts
-    {
-      "name": "bitly", // Name/label for the upstream
-      "base_url": "https://go.dev", // Base URL for upstream shortcut checks
-      "fail_url": "", // URL returned by upstream when shortcut does not exist (leave blank if not used)
-      "fail_status_code": 200 // HTTP status code indicating a failed lookup (e.g., 404 for not found)
-    }
-  ],
-  "redis": {
-    "enabled": true, // Enable Redis for in-memory caching (recommended for performance)
-    "host": "localhost", // Redis server hostname (use 'redis' for Docker Compose)
-    "port": 6379 // Redis server port
-  },
-  "upstream_cache": {
-    "enabled": true // Enable upstream shortcut caching (recommended)
-  },
-  "database": "sqlite:///redirect.db"  // URI for database (default: SQLite file in the data directory)
-}
-```
-
-**Key fields:**
-- `port`: The port the app will listen on. Change if you want to run on a different port.
-- `auto_redirect_delay`: Number of seconds to wait before redirecting. Set to 0 for instant redirect.
-- `admin_password`: The admin password for the web UI. Auto-generated if not set.
-- `delete_requires_password`: If true, deleting a shortcut requires the admin password.
-- `upstreams`: List of upstream redirectors (e.g., Bitly, go/). Each must have a `name`, `base_url`, and optionally `fail_url` and `fail_status_code` to detect non-existent shortcuts.
-- `redis`: Redis config. Set `enabled` to true for best performance. Use `host: redis` in Docker Compose, or `localhost` for local testing.
-- `upstream_cache`: Set `enabled` to true to cache successful upstream lookups for fast future redirects.
-- `database` : Set `database` uri , read more [here](#database-uri-construction-guide)
-
-You can edit this file directly or use the admin UI for most settings. Changes take effect immediately after saving the file or restarting the app/container.
-
----
-
-# **Database URI Construction Guide**
-
-This guide explains how to format database connection URIs dynamically for **SQLite, PostgreSQL, and MySQL**.
-
----
-
-## **1️⃣ Understanding Database URI Format**
-A database connection URI follows this general structure:
-
-```
-dialect+driver://username:password@host:port/database
-```
-
-### **Key Components**
-- **dialect** → Type of database (`sqlite`, `postgresql`, `mysql`)
-- **driver** → Connection adapter (`pymysql`, `psycopg2`, etc.)
-- **username/password** → Authentication credentials
-- **host** → Database server location (`localhost`, IP, or domain)
-- **port** → Connection port (`5432` for PostgreSQL, `3306` for MySQL)
-- **database** → Name or file path (for SQLite)
-
----
-
-## **2️⃣ Example Database URIs for Different Databases**
-
-### **🔹 SQLite (Local File-Based Database)**
-SQLite doesn’t require authentication:
-```sh
-sqlite:///redirect.db   # the default: a file named redirect.db in the data directory
-```
-A **bare filename** is resolved against the data directory, not the process
-working directory, so it keeps working when the install moves between machines
-or platforms. To point somewhere else, give a full path:
-```sh
-sqlite:////var/lib/redirector/redirect.db   # absolute, outside the data directory
-```
-
-> **Why not a full absolute path?** SQLAlchemy resolves a relative SQLite path
-> against the *current working directory*. A config holding an absolute path from
-> another checkout, container or user account therefore starts up pointing at
-> nothing — and SQLite responds by creating a brand new, empty database, which
-> looks like total data loss. Storing the portable form and resolving it at
-> startup is what makes moving `data/` safe. See
-> [`docs/DATA-PERSISTENCE.md`](docs/DATA-PERSISTENCE.md) §5.
-
-### **🔹 PostgreSQL (Production-Grade Database)**
-Use PostgreSQL with credentials:
-```sh
-postgresql+psycopg2://user:password@localhost:5432/mydatabase
-```
-For a remote PostgreSQL server:
-```sh
-postgresql+psycopg2://user:password@db.example.com:5432/mydatabase
-```
-
-### **🔹 MySQL (Popular Web Database)**
-Use MySQL with authentication:
-```sh
-mysql+pymysql://user:password@localhost:3306/mydatabase
-```
-For a remote MySQL instance:
-```sh
-mysql+pymysql://user:password@db.example.com:3306/mydatabase
-```
+| Variable | Default | Notes |
+|---|---|---|
+| `REDIRECTOR_ADMIN_PASSWORD` | `admin` | **Required in compose; change it** |
+| `REDIRECTOR_JWT_SECRET` | insecure dev default | **Required in compose; change it** |
+| `REDIRECTOR_DATABASE_URL` | `sqlite+aiosqlite:///./data/redirect.db` | `postgresql+asyncpg://…` for Postgres |
+| `REDIRECTOR_REDIS_URL` | `redis://localhost:6379/0` | Broker + shared cache |
+| `REDIRECTOR_CACHE_BACKEND` | `memory` | Or `redis` (shared across replicas) |
+| `REDIRECTOR_JOB_BACKEND` | `in-process` | Or `arq` (needs the worker) |
+| `REDIRECTOR_AUTO_REDIRECT_DELAY` | `1` | Seconds; `0` = instant 302 |
+| `REDIRECTOR_DATA_DIR` | `./data` (`/app/data` in Docker) | The one directory that matters |
 
 ---
 
 ## Hostname Setup for r/ Shortcuts
 
 ### Quick Hostname Setup (Recommended)
+
 To use URLs like `http://r/google` on your local machine, add `r` to your hosts file. Use the provided script for your OS (no need for full autostart or Docker restart):
 
 - **Windows:**
@@ -288,6 +136,7 @@ To use URLs like `http://r/google` on your local machine, add `r` to your hosts 
 Each script will attempt to add `127.0.0.1   r` to your hosts file if you have the necessary privileges, or print instructions if not.
 
 ### Manual Hostname Setup
+
 If you prefer to edit your hosts file manually:
 
 - **Windows:**
@@ -314,248 +163,13 @@ If you prefer to edit your hosts file manually:
 
 ---
 
-## Data Persistence
-
-Everything that matters is in **one directory** — the data directory:
-
-```
-data/
-├── redirect.db               # shortcuts, upstreams, counters
-├── redirect.config.json      # settings, admin password, MFA seeds, session secret
-├── .redirector-state.json    # installed version + schema revision
-└── backups/                  # .zip snapshots from /admin/backup
-```
-
-- Inside Docker this directory is mounted at `/app/data`. **Keep that mount on
-  every start** — it is the only thing an upgrade cannot recreate.
-- Outside Docker, set `REDIRECTOR_DATA_DIR` to wherever you want it.
-- The database path stored in the config is relative (`sqlite:///redirect.db`)
-  so the directory can be copied to another machine or another OS. A stale
-  absolute path from a previous location is re-anchored automatically at startup
-  rather than silently creating a new empty database.
-- Upgrades are covered in [`docs/UPGRADE.md`](docs/UPGRADE.md) — per-platform
-  commands, verification and rollback. Storage and migration details are in
-  [`docs/DATA-PERSISTENCE.md`](docs/DATA-PERSISTENCE.md).
-
-### Backups
-
-`/admin/backup` (Admin → Backup & Restore) writes a single `.zip` containing the
-database, the configuration and the install state. It is safe to run while the
-app is serving traffic. The same thing from a terminal:
-
-```sh
-# Docker
-docker compose exec app python -m app.utils.backup create --label "before upgrade"
-docker compose exec app python -m app.utils.backup list
-
-# Bare metal
-python -m app.utils.backup create --label "before upgrade"
-python -m app.utils.backup list
-```
-
-Restores are staged and applied on the next start, because a running process
-cannot safely replace the database it is serving from. Archives from a newer
-schema are refused rather than guessed at.
-
-### Never do these
-
-```sh
-docker compose down -v      # -v deletes named volumes
-docker volume rm redirector_data
-rm -rf data/                # rm -rf data\ on Windows
-```
-
-Copy at least one archive off the host. An archive in the same directory as the
-data protects you from a bad upgrade, not from a lost disk.
-
----
-
-## Reverse Proxy Example (Nginx)
-
-```
-server {
-    listen 80;
-    server_name your.domain.com;
-
-    location / {
-        proxy_pass http://localhost:8080; # or whatever port you mapped
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
----
-
-## Upstream Shortcut Checking & Integration
-
-This app supports checking for existing shortcuts in external upstreams (like Bitly, go/, etc.) before allowing creation or editing of a shortcut. This helps prevent conflicts and ensures you don't create a shortcut that already exists in your organization's or a public shortener's namespace.
-
-### How Upstream Checking Works
-- When you attempt to create or edit a shortcut, the app checks all configured upstreams to see if the shortcut already exists.
-- If any upstream returns a result (i.e., the shortcut exists), you are shown a log of the check and are not allowed to create or edit the shortcut.
-- If all upstreams fail (i.e., the shortcut does not exist in any upstream), you are allowed to proceed.
-- The check is performed in real time, and a log of each upstream's response (including status code and verdict) is shown in the UI.
-- If a shortcut is found in an upstream, you are automatically redirected to that upstream's URL after a short delay.
-
-### Upstream Configuration
-- Upstreams are configured in the `data/redirect.config.json` file under the `upstreams` key.
-- Each upstream requires:
-  - `name`: A label for the upstream (e.g., "bitly", "go")
-  - `base_url`: The base URL to check (e.g., `https://bit.ly/`)
-  - `fail_url`: The URL that is returned when a shortcut does not exist (used to detect non-existence)
-  - `fail_status_code`: The HTTP status code that indicates a failed lookup (e.g., `404`)
-- Example config:
-
-```json
-"upstreams": [
-  {
-    "name": "bitly",
-    "base_url": "https://bit.ly/",
-    "fail_url": "https://bitly.com/404",
-    "fail_status_code": 404
-  },
-  {
-    "name": "go",
-    "base_url": "http://go/",
-    "fail_url": "http://go/404",
-    "fail_status_code": 404
-  }
-]
-```
-
-### Managing Upstreams in the UI
-- Go to **Upstream Config** in the navigation bar (or visit `/admin/upstreams` after logging in as admin).
-- You can add, edit, or delete upstreams using a simple table form.
-- Changes are saved to the config file and take effect immediately.
-
-### Real-Time Upstream Check UI
-- When you try to create or edit a shortcut, you are first shown a real-time log of upstream checks.
-- Each upstream is checked in sequence, and the log updates as results come in.
-- If a shortcut is found in any upstream, you are redirected to that URL; otherwise, you are allowed to proceed with creation.
-
----
-
-## Admin Config & UI Improvements
-
-Redirector includes an integrated administrative control suite accessible under `/admin/config` (or Admin Tools in the top navigation):
-
-- **Live Configuration**: Tune application port, auto-redirect countdown delay, logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`), and toggle delete confirmation password requirements.
-- **Dynamic Database Switching**: Switch between SQLite, PostgreSQL (`postgresql+psycopg2://...`), and MySQL (`mysql+pymysql://...`) dynamically with modal test and validation.
-- **Cache Management**: Inspect and invalidate Redis key-value records (`/admin/redis-cache`) and upstream cache entries (`/admin/upstream-cache/<name>`).
-- **Two-Factor Authentication (MFA)**: Setup TOTP authenticator app tokens and WebAuthn hardware passkeys under `/admin/mfa/setup`.
-- **Signed Import/Export**: Export JSON backups with SHA-256 integrity and HMAC authentication signatures (`/admin/import-export`).
-
----
-
-## Production Deployment
-
-For production, always use a production-grade WSGI server instead of Flask's built-in server.
-
-### Docker (Recommended)
-
-The official Docker image runs with Gunicorn and gevent asynchronous workers:
-
-```sh
-docker compose up -d
-```
-
-### Manual (Python)
-
-- **Development mode:**
-  ```sh
-  python app.py --debug
-  ```
-- **Production mode:**
-  - Gunicorn (Linux/macOS):
-    ```sh
-    gunicorn -c gunicorn.conf.py wsgi:app
-    ```
-  - Waitress (Windows):
-    ```sh
-    pip install waitress
-    waitress-serve --port=80 wsgi:app
-    ```
-
----
-
-## Development & Testing
-
-To run unit and integration tests from the project root:
-
-```sh
-python -m pytest tests/ -v
-```
-
-To run lint checks:
-
-```sh
-flake8 app/
-```
-
----
-
-## Project Structure
-
-```
-redirector/
-├── app/
-│   ├── __init__.py          # Flask factory, extensions & security headers
-│   ├── config.py            # App configuration manager & schema defaults
-│   ├── CONSTANTS.py         # Application constants & version helpers
-│   ├── routes/              # Modular blueprints
-│   │   ├── routes.py        # Dashboard, admin login, QR, export/import
-│   │   ├── redirection_routes.py # Core shortcut resolution & CRUD
-│   │   ├── upstream_routes.py    # Upstream checks, logs & cache management
-│   │   ├── mfa_routes.py         # TOTP & passkey MFA routes
-│   │   ├── version_routes.py     # System diagnostics & telemetry
-│   │   └── error_routes.py       # Custom 404 & 500 handlers
-│   ├── utils/               # Service helpers & startup banners
-│   ├── templates/           # Tailwind CSS Jinja2 templates
-│   └── static/              # Favicons, icons, and audio assets
-├── model/                   # SQLAlchemy database models
-├── migrations/              # Alembic database migrations
-├── tests/                   # Pytest test suite
-├── Dockerfile               # Production container image
-├── docker-compose.yml       # Production Compose with Redis & healthchecks
-└── requirements.txt         # Pinned Python dependencies
-```
-
----
-
-## API Endpoints Reference
-
-| Endpoint | Method | Description | Auth Required |
-|---|---|---|---|
-| `/<subpath>` | `GET` | Resolves and redirects shortcut | Public |
-| `/health` | `GET` | Container liveness probe | Public |
-| `/ready` | `GET` | Database connectivity readiness probe | Public |
-| `/api/metrics` | `GET` | Prometheus telemetry metrics | Public |
-| `/api/latest-version` | `GET` | Returns latest release from GitHub | Public |
-| `/api/changelog` | `GET` | Returns parsed markdown changelog | Public |
-| `/qr/<pattern>` | `GET` | Generates PNG QR code for shortcut | Public |
-| `/api/qr/<pattern>` | `GET` | Returns Base64-encoded QR code JSON | Public |
-| `/api/r-status` | `GET` | Tests local `r` hostname resolution | Public |
-| `/dashboard-shortcuts` | `GET` | Returns paginated/filtered shortcuts JSON | Public |
-| `/api/delete-shortcut/<pattern>` | `POST` | Deletes shortcut directly via API | Admin |
-
-- Reference static assets in templates using:
-  ```html
-  <img src="{{ url_for('static', filename='assets/logo.png') }}" alt="Logo">
-  ```
-- Place all images and static files in `app/static/assets/` for Flask to serve them correctly.
-
----
-
 ## Company-Wide Installation & Team Usage
 
 To make `r/` shortcuts available to your entire team or company:
 
 1. **Deploy the app on a central server** (on-prem or cloud VM/container).
    - Use a static IP or DNS name (e.g., `r.company.com`).
-   - Run behind a reverse proxy (see Nginx example above) for clean URLs.
+   - The `web` service already terminates on `:80`; put your TLS proxy in front for `:443`.
 2. **Configure DNS:**
    - Set up an internal DNS record so `r` (or `r.company.com`) points to the server's IP.
    - Your IT team can add a DNS A record for `r` in your internal DNS system.
@@ -563,59 +177,120 @@ To make `r/` shortcuts available to your entire team or company:
 3. **(Optional) Use hosts file for small teams:**
    - Each user can add the server's IP and `r` to their hosts file as above.
 4. **Secure the admin interface:**
-   - Use a strong admin password (auto-generated by default).
+   - Use a strong admin password and JWT secret (compose requires both).
    - Optionally, restrict admin access by IP or VPN.
 5. **Share the base URL:**
    - Tell your team to use `http://r/shortcut` for all shared links.
 
 This setup allows everyone in your organization to use simple, memorable shortcuts like `r/google` or `r/docs` from any device on the network.
 
----
-
-## Performance & Optimization
-
-- **Efficient Session Management:**
-  The app uses Flask-SQLAlchemy for automatic session handling. For custom scripts or background jobs, ensure sessions are closed after use to prevent leaks.
-
-- **Bulk Operations:**
-  For admin actions like cache resync or log purging, the backend uses SQLAlchemy's bulk methods for efficient database writes.
-
-- **Query Optimization:**
-  Frequently queried fields (like `pattern` and `upstream_name`) are indexed for fast lookups. Only necessary columns are fetched in large queries to reduce memory usage.
-
-- **Connection Pooling:**
-  When using PostgreSQL or MySQL, SQLAlchemy's connection pooling is enabled for high concurrency. You can tune pool size and timeout in your database URI if needed.
-
-- **Redis Caching:**
-  If enabled, Redis is used for ultra-fast shortcut and upstream cache lookups. The app uses specific cache keys and sets expiration to avoid stale data.
-
-- **Robust Error Handling:**
-  All database and cache operations are wrapped in try/except blocks with detailed logging for easy troubleshooting.
-
-- **Template Rendering:**
-  Only required fields are passed to templates, improving rendering speed and reducing memory footprint.
-
-- **Testing:**
-  The test suite uses isolated transactions to keep test data separate from production.
-
-**Recommended for Production:**
-- Use Docker or Gunicorn for serving the app.
-- Enable Redis for best performance.
-- Use PostgreSQL or MySQL for large-scale/team deployments.
-- Regularly backup your `data/` directory (contains config and DB).
+> **Full walkthrough:** [`docs/COMPANY-DNS-SETUP.md`](docs/COMPANY-DNS-SETUP.md) covers both layers step by step —
+> public Cloud DNS records (`r.company.com` on Cloudflare / Route 53 / Azure DNS / Google Cloud DNS / GoDaddy),
+> office router / Pi-hole / AD DNS overrides so bare `http://r/` resolves LAN-wide with no per-laptop hosts edits,
+> the `company.com` search-domain trick, HTTPS notes (`https://r/` needs a private CA; use `https://r.company.com/` publicly), and a troubleshooting table.
 
 ---
 
-## Import/Export & Upstream Cache Management
+## Data & Backups
 
-- **Import/Export:** Importing redirects from JSON will NOT delete your existing redirects. Instead, it will upsert (insert or update) each redirect by pattern, and only update if the imported `updated_at` is newer than the existing one.
-- **Upstream Cache:** You can now purge (delete) individual upstream cache entries directly from the UI, as well as purge all entries for an upstream. This helps keep your cache clean and up-to-date.
+Everything that matters is in **one directory** (`./data` locally, `/app/data`
+in Docker): the database, `backups/*.zip`, and install state. Keep the bind
+mount on every start. Full reference (moves, named volumes, what-not-to-touch):
+[`docs/DATA-PERSISTENCE.md`](docs/DATA-PERSISTENCE.md). Upgrade + rollback:
+[`docs/UPGRADE-v3.md`](docs/UPGRADE-v3.md).
+
+```sh
+# Labeled backup (safe on a live database)
+docker compose -f docker/compose.prod.yml exec api \
+  python -m backend.cli.backup create --label "before change"
+```
+
+---
+
+## Reverse Proxy Notes
+
+`web` (nginx) already proxies `/api/*`, probes, the hot path and SSE (with
+buffering off) to `api`, and serves the SPA. If you terminate TLS upstream
+(Caddy, Traefik, cloud LB), forward to `web:80` and set
+`X-Forwarded-Proto`. Sample configs: [`deploy/examples/`](deploy/examples/).
+
+---
+
+## API Reference
+
+Interactive docs at `/docs`; snapshot at [`docs/openapi.json`](docs/openapi.json)
+(checked by CI — regenerate via `python scripts/export-openapi.py` after
+router changes).
+
+| Router | Prefix | Notes |
+|---|---|---|
+| `health` | `/healthz`, `/health`, `/readyz` | No auth, no DB |
+| `shortcuts` | `/api/v1/shortcuts` | CRUD + `POST /bulk-delete`, `GET /{pattern}` details |
+| `upstreams` | `/api/v1/upstreams` | CRUD, `/cache`, `/check-logs`, `/check/stream` (SSE) |
+| `resolve` | `/api/v1/resolve`, `/{pattern}` | Debug API + hot path (catch-all, registered last) |
+| `jobs` | `/api/v1/jobs` | Enqueue/list/status/cancel + `/events` SSE |
+| `auth` | `/api/v1/auth` | `POST /login`, `GET /me`, `/api-keys`, `/mfa/*` |
+| `config` | `/api/v1/admin/config` | Admin JWT, DB-backed settings |
+| `backup` | `/api/v1/admin/backup` | Enqueue/list/download/delete/restore |
+| `metrics` | `/api/v1/metrics` | `/kpi`, `/live` |
+| `qr` | `/qr/{pattern}`, `/api/v1/qr` | PNG or base64 JSON |
+
+Auth: `Authorization: Bearer` with a JWT (login) or `rk_*` API key; failures
+are 401, scope denials 403 with stable `code`s (see
+[`docs/error-codes.md`](docs/error-codes.md)).
+
+---
+
+## Development & Testing
+
+```sh
+python -m pytest tests/ -v            # full suite (single process post-M4)
+python -m ruff check backend/ && python -m mypy backend/   # strict gates
+flake8 backend/ tests/ --select=E9,F63,F7,F82
+cd frontend && npm run typecheck && npm test
+```
+
+Load testing (`load_testing/`): locust v3 script + headless smoke
+(`load-smoke.sh`, zero-failure CSV gate) + nightly Postgres/Redis soak
+(`soak-pg.sh`). See [`load_testing/load_testing.md`](load_testing/load_testing.md).
+
+---
+
+## Project Structure
+
+```
+redirector/
+├── backend/
+│   ├── main.py              # create_app(), lifespan, routers, SPA mount
+│   ├── core/                # config (REDIRECTOR_*), security/JWT, async DB, cache, errors
+│   ├── models/entities.py   # SQLModel tables
+│   ├── modules/             # repository + service + schemas per domain
+│   ├── routers/             # thin HTTP layer (/api/v1/*, /{pattern} last)
+│   ├── workers/             # arq broker tasks
+│   ├── migrations/import_v2.py  # one-shot v2 data importer
+│   ├── alembic/             # v3 schema history (env-first URLs)
+│   ├── cli/                 # backup + doctor CLIs
+│   └── requirements.txt
+├── frontend/                # React SPA (served at /app)
+├── docker/
+│   ├── Dockerfile.api       # non-root uvicorn, migrates on boot
+│   ├── Dockerfile.web       # nginx: SPA + proxy
+│   ├── compose.prod.yml     # web → api + worker + redis (sqlite)
+│   └── compose.postgres.yml # overlay: managed Postgres
+├── deploy/examples/         # Caddy + nginx samples
+├── docs/                    # persistence, upgrades, DNS setup, API inventory
+├── load_testing/            # locust scripts, smoke + soak harnesses
+├── scripts/                 # r-hostname setup, release tag, version sync, openapi export
+├── tests/                   # pytest suite (fixtures, import, API, resolve, migration)
+└── VERSION                  # version source of truth (never hardcoded elsewhere)
+```
 
 ---
 
 ## Version & Credits
 
-- See `/version` in the app for live version, commit info, and accessible URLs.
+- The build version lives in [`VERSION`](VERSION) and is served by the API
+  (`/api/v1/metrics/live`, `version` field).
 - Created by [@authoritydmc](https://github.com/authoritydmc) and contributors.
 
 ---
@@ -629,6 +304,7 @@ MIT License. See [LICENSE](LICENSE) for details.
 > **For local development, setup, and migration instructions, see [`DEVELOPMENT.md`](DEVELOPMENT.md).**
 
 ---
+
 ## Automated Release Tagging (Windows)
 
 To automate the process of tagging a new release and triggering the GitHub Actions release workflow, use the provided PowerShell script:
@@ -654,4 +330,3 @@ pwsh scripts/create-release-tag.ps1 -Version v1.2.3
 > **Note:** Tagging is required for the GitHub release workflow to succeed. See [VERSIONING.md](VERSIONING.md) for versioning details.
 
 ---
-

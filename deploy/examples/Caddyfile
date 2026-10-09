@@ -19,13 +19,11 @@ redirector.example.com {
 	}
 
 	# --- Everything else (API, probes, docs, QR, /{pattern} hot path) ---
-	# Pre-M3 (EPIC-08 M1/M2): route `/` (but not /api/*) to Flask :5000
-	# with a second handle block; M3 flips it back here.
 	handle {
 		reverse_proxy 127.0.0.1:8123
 	}
 
-	# Future SPA static (EPIC-02):
+	# SPA static (served from the `web` image in Docker; replicate for bare metal):
 	# handle /app/* {
 	# 	root * /srv/redirector-spa
 	# 	file_server

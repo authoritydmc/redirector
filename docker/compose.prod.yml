@@ -21,6 +21,11 @@ services:
       - ${DATA_DIR:-../data}:/app/data
     environment:
       - REDIRECTOR_DATA_DIR=/app/data
+      # v3 uses its OWN file: booting on the legacy v2 redirect.db fails
+      # loudly on the foreign alembic_version (by design — import v2 data
+      # with backend.migrations.import_v2 instead). The postgres overlay
+      # replaces this URL wholesale.
+      - REDIRECTOR_DATABASE_URL=${REDIRECTOR_DATABASE_URL:-sqlite+aiosqlite:///./data/v3.db}
     command: ["python", "-m", "alembic", "-c", "backend/alembic.ini", "upgrade", "head"]
     restart: "no"
 
@@ -32,6 +37,7 @@ services:
       - ${DATA_DIR:-../data}:/app/data
     environment:
       - REDIRECTOR_DATA_DIR=/app/data
+      - REDIRECTOR_DATABASE_URL=${REDIRECTOR_DATABASE_URL:-sqlite+aiosqlite:///./data/v3.db}
       - REDIRECTOR_JOB_BACKEND=arq
       - REDIRECTOR_REDIS_URL=redis://redis:6379/0
       - REDIRECTOR_ADMIN_PASSWORD=${REDIRECTOR_ADMIN_PASSWORD:?set REDIRECTOR_ADMIN_PASSWORD}
@@ -59,6 +65,7 @@ services:
       - ${DATA_DIR:-../data}:/app/data
     environment:
       - REDIRECTOR_DATA_DIR=/app/data
+      - REDIRECTOR_DATABASE_URL=${REDIRECTOR_DATABASE_URL:-sqlite+aiosqlite:///./data/v3.db}
       - REDIRECTOR_REDIS_URL=redis://redis:6379/0
       - SKIP_MIGRATIONS=1
     depends_on:

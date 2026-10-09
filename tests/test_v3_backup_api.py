@@ -9,7 +9,6 @@ uses (broker transport already covered in test_v3_jobs_arq.py).
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import io
 import json
 import time
@@ -29,6 +28,7 @@ from backend.core.config import settings as app_settings  # noqa: E402
 from backend.core.db import get_session  # noqa: E402
 from backend.main import create_app  # noqa: E402
 from backend.models.entities import ApiKey, Setting, Shortcut, Upstream  # noqa: E402
+from backend.modules.auth.repository import hash_secret  # noqa: E402
 from backend.modules.jobs.runner import JobRunner  # noqa: E402
 
 PLAINTEXT_CANARY = "fixture-backup-key-material"
@@ -75,7 +75,7 @@ def _seeded_client(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> TestClient
             session.add(Setting(key="welcome_message", value="hi"))
             session.add(ApiKey(
                 prefix="fixturepk01",
-                secret_hash=hashlib.sha256(PLAINTEXT_CANARY.encode()).hexdigest(),
+                secret_hash=hash_secret(PLAINTEXT_CANARY),
                 name="backup-test",
             ))
             await session.commit()

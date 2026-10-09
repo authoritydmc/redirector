@@ -1,8 +1,6 @@
 # Load Testing with Locust
 
-This project includes two Locust scripts:
-- `load_testing/locustfile.py` — legacy v2 Flask routes (`/edit/…`, `/check-upstreams-ui`, `/admin/…`).
-- `load_testing/locustfile_v3.py` — v3 FastAPI backend (`/api/v1/*` + `/{pattern}` hot path).
+- `load_testing/locustfile_v3.py` — FastAPI backend (`/api/v1/*` + `/{pattern}` hot path).
 
 ## Measured redirect p99s (EPIC-04/master p99 gates)
 
@@ -39,6 +37,30 @@ python load_testing/check_stats.py load_testing/report/load-smoke
 Deliberately NOT yet gated: p99-regression-vs-baseline (needs stored
 baselines).
 
+## Nightly soak on Postgres + Redis (`soak-pg.sh`, EPIC-08 task 6)
+
+`.github/workflows/soak-pg.yml` boots the same API against
+production-shaped storage: Postgres (alembic `upgrade head`), seeded with
+the committed v2 golden fixture via `import-v2` (so the migration path is
+exercised nightly too), with `REDIRECTOR_CACHE_BACKEND=redis`. Then the same
+locust v3 script + `check_stats.py` zero-failures gate. Runs nightly
+(04:30 UTC), on manual dispatch, and on PRs touching the migration/load
+paths. CSVs land as the `soak-pg-report` artifact.
+
+```sh
+# needs reachable Postgres + Redis; import-v2 needs a sync PG driver:
+pip install psycopg2-binary
+SOAK_PG_URL="postgresql+asyncpg://redirector:secret@127.0.0.1:5432/redirector" \
+SOAK_REDIS_URL="redis://127.0.0.1:6379/0" \
+  sh load_testing/soak-pg.sh
+```
+
+Notes:
+- Each run targets a fresh database (CI services are ephemeral), so the
+  uuid-suffixed rows the script accumulates never carry over.
+- k6 was the epic's original sketch; locust is reused instead — one harness
+  and the same CSV gate as the sqlite smoke, no new tool to maintain.
+
 ## v3 script (`locustfile_v3.py`)
 
 Covers shortcuts CRUD + bulk-delete, the resolve hot path (static, dynamic,
@@ -73,60 +95,3 @@ Notes:
   that is one HTML response server-side (the wait happens client-side).
 - Resolve tasks never follow redirects, so external targets see zero load
   traffic and their status codes can't pollute the results.
-
-## v2 script (`locustfile.py`)
-
-## Features Covered
-- Static, dynamic, and user-dynamic shortcut creation and redirection
-- Upstream check UI and unknown shortcut access
-- Upstream cache resync, purge, and logs
-- Google and random shortcut flows
-
-## How to Run Load Tests
-
-1. **Install Locust:**
-   ```sh
-   pip install locust
-   ```
-
-2. **Start your Flask app:**
-   Make sure your app is running locally (default: http://localhost).
-
-3. **Run Locust:**
-   ```sh
-   locust -f load_testing/locustfile.py --host=http://localhost
-   ```
-
-4. **Open the Locust web UI:**
-   Go to [http://localhost:8089](http://localhost:8089) in your browser.
-
-5. **Configure and start the test:**
-   - Set the number of users and spawn rate.
-   - Click "Start swarming".
-
-## What Gets Tested
-- **/edit/<shortcut>**: Create static, dynamic, and user-dynamic shortcuts
-- **/<shortcut>**: Redirect to static, dynamic, and user-dynamic targets
-- **/check-upstreams-ui/<pattern>**: Upstream check UI
-- **/admin/upstream-cache/resync/<upstream>/<pattern>**: Resync cache
-- **/admin/upstream-cache/purge/<upstream>**: Purge cache
-- **/admin/upstream-logs**: View logs
-- **/admin/upstreams**: Add/delete upstreams (if you add tasks)
-
-## Customizing the Test
-- Edit `locustfile.py` to add/remove tasks or change request parameters.
-- You can simulate more users, different shortcut patterns, or more admin flows as needed.
-
-## Tips
-- For best results, run with a clean database or in a test environment.
-- Monitor your server's CPU, memory, and response times during the test.
-- Use the Locust UI charts to spot bottlenecks or failures.
-
----
-
-**Example Locust command:**
-```sh
-locust -f load_testing/locustfile.py --host=http://localhost
-```
-
-See `locustfile.py` for all simulated user flows.

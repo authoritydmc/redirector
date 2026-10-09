@@ -48,7 +48,7 @@ interface Props {
   onCancel: () => void
 }
 
-const inputClass = 'mt-1 w-full rounded border px-3 py-1.5 text-sm dark:bg-white/10'
+const inputClass = 'mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-1.5 text-sm text-rd-text'
 const labelClass = 'flex flex-col text-sm'
 
 export default function ShortcutForm({ initial, fixedPattern, submitLabel, serverError, onSubmit, onCancel }: Props) {
@@ -93,7 +93,7 @@ export default function ShortcutForm({ initial, fixedPattern, submitLabel, serve
 
   function fieldError(key: keyof FormState) {
     return errors[key] !== undefined ? (
-      <span role="alert" className="text-xs text-red-600">{errors[key]}</span>
+      <span role="alert" className="text-xs text-rd-danger">{errors[key]}</span>
     ) : null
   }
 
@@ -170,12 +170,12 @@ export default function ShortcutForm({ initial, fixedPattern, submitLabel, serve
           />
         </label>
       </div>
-      {serverError !== null && <p role="alert" className="text-sm text-red-600">{serverError}</p>}
+      {serverError !== null && <p role="alert" className="text-sm text-rd-danger">{serverError}</p>}
       <div className="flex gap-2">
-        <button type="submit" disabled={busy} className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-50">
+        <button type="submit" disabled={busy} className="rounded bg-rd-accent px-3 py-1.5 text-sm text-rd-accent-ink disabled:opacity-50">
           {submitLabel}
         </button>
-        <button type="button" onClick={onCancel} className="rounded border px-3 py-1.5 text-sm">
+        <button type="button" onClick={onCancel} className="rounded border border-rd-line px-3 py-1.5 text-sm">
           Cancel
         </button>
       </div>

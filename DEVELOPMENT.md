@@ -1,8 +1,7 @@
-# Development Guide (v3 track)
+# Development Guide
 
 Windows dev machine, Linux CI/Docker — keep scripts POSIX-compatible.
-The v2 Flask app still ships; this guide is for the v3 FastAPI + React track
-(`v3/epic-01-backend-foundation`, PR #114). Decisions: `docs/adr/`.
+FastAPI + React stack (`backend/`, `frontend/`); decisions: `docs/adr/`.
 
 ## Backend (FastAPI)
 
@@ -30,8 +29,7 @@ Gates (same as CI `validate.yml` → backend-smoke):
 .venv/Scripts/python scripts/export-openapi.py --check   # after router/schema edits
 ```
 
-Notes: v3 tests run isolated from the v2 gevent suite (never mix in one
-run); Redis-backed tests skip cleanly without a broker; PG legs need
+Notes: single-process suite; Redis-backed tests skip cleanly without a broker; PG legs need
 `TEST_POSTGRES_URL`.
 
 ## Frontend (React SPA)
@@ -59,11 +57,12 @@ alembic -c backend/alembic.ini -x url=<URL> upgrade head
 # Never upgrade a v2-stamped database file — import v2 data instead.
 ```
 
-## M1 dual-serve harness
+## Production stack
 
 ```sh
-docker compose -f docker/compose.m1.yml up -d --build   # :8080, scratch DATA_DIR=... recommended
-# Verify from the WSL side (Windows :8080 may be squatted); see docker/README.md.
+REDIRECTOR_ADMIN_PASSWORD=... REDIRECTOR_JWT_SECRET=... \
+  docker compose -f docker/compose.prod.yml up -d --build   # :80
+# Verify from the WSL side (Windows :80 may be squatted); see docker/README.md.
 ```
 
 ## Load smoke
@@ -72,11 +71,8 @@ docker compose -f docker/compose.m1.yml up -d --build   # :8080, scratch DATA_DI
 sh load_testing/load-smoke.sh   # LOAD_VUS / LOAD_RATE / LOAD_TIME / LOAD_PORT overrides
 ```
 
-## Legacy v2 (Flask) track
+## Coming from v2
 
-```sh
-pip install -r requirements.txt
-python app.py                 # or gunicorn via entrypoint.sh / docker-compose.yml
-pytest                        # full suite incl. v2 (separate process from v3 runs)
-flask db upgrade              # v2 migrations in migrations/
-```
+The Flask app was removed in M4. Migrate data with the one-shot importer
+(see [`docs/UPGRADE-v3.md`](docs/UPGRADE-v3.md)), then run the stack above.
+The full test suite is v3-only now: `python -m pytest tests/ -v`.

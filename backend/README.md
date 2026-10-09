@@ -1,8 +1,4 @@
-# Redirector v3 Backend (FastAPI)
-
-Async-first replacement for the Flask app (`app/`), built under
-`docs/refactor-epics/01-backend-fastapi.md` (EPIC-01).
-Branch: `v3/epic-01-backend-foundation`.
+# Redirector Backend (FastAPI)
 
 ## Layout
 
@@ -76,8 +72,8 @@ export REDIRECTOR_AUTO_REDIRECT_DELAY=0   # instant 302s; default 1 = countdown 
 ## Tests & gates
 
 ```sh
-# v3 suite (isolated from the v2 Flask/gevent suite — never mix in one run)
-pytest tests/test_v3_*.py tests/test_backend_smoke.py tests/test_import_v2.py -v
+# full suite, one process
+pytest tests/ -v
 ruff check backend/
 mypy backend/          # strict; narrow carve-outs only for SQLAlchemy expr typing
 flake8 backend/ --select=E9,F63,F7,F82
@@ -122,9 +118,9 @@ worker and skips cleanly without Redis.
 
 ## Status / non-goals
 
-- `GET /{pattern}` is shadowed by the Flask proxy until EPIC-08 M3 flips it.
-- Dockerfile/compose uvicorn switch lands with EPIC-04/06/08 — the Dockerfile
-  still boots gunicorn/gevent for v2.
+- `GET /{pattern}` is served by FastAPI (cut over at M3; Flask removed at M4).
+- Multi-arch publish (`rajlabs/redirector-api`, `redirector-web`) rides the
+  deploy workflows.
 
 ## Authorization audit (EPIC-05 task 3, scopes enforced on the admin surface)
 
@@ -149,9 +145,10 @@ the scopes they were issued with; `RequireScopes(...)` denies with 403
 
 ## Schema migrations (Alembic, EPIC-04 task 1)
 
-v3 has its own history in `backend/alembic/` (v2's `migrations/` is Flask-bound;
-v2 data arrives via `import-v2`, never via upgrade). Async env works off the
-same async URLs as the app — no sync drivers needed.
+v3 has its own history in `backend/alembic/`. Legacy v2 data arrives via
+`import-v2`, never via upgrade — v2 files carry a foreign `alembic_version`
+that fails loudly by design. Async env works off the same async URLs as the
+app — no sync drivers needed.
 
 ```sh
 alembic -c backend/alembic.ini upgrade head                       # migrate
