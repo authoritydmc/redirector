@@ -60,8 +60,10 @@ jobs:
       - name: Prod stack smoke (api + web, scratch data)
         run: |
           mkdir -p /tmp/smoke-data && chmod 777 /tmp/smoke-data
-          REDIRECTOR_ADMIN_PASSWORD=$(openssl rand -hex 16) REDIRECTOR_JWT_SECRET=$(openssl rand -hex 32) \
-            DATA_DIR=/tmp/smoke-data docker compose -f docker/compose.prod.yml up -d --build
+          export REDIRECTOR_ADMIN_PASSWORD=$(openssl rand -hex 16)
+          export REDIRECTOR_JWT_SECRET=$(openssl rand -hex 32)
+          export DATA_DIR=/tmp/smoke-data
+          docker compose -f docker/compose.prod.yml up -d --build
           for _ in $(seq 1 30); do
             curl -sf http://localhost:80/healthz && break || sleep 4
           done
