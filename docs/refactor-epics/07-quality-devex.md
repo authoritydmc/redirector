@@ -34,11 +34,18 @@ Toolchain:
 ## Acceptance criteria
 - [ ] `make dev / lint / test / e2e` (or `task`) works on Win+Linux+macOS for a fresh clone.
 - [ ] CI green is required for merge; flaky-test quarantine policy documented.
+  (Half done: merge is ruleset-blocked without PR + required checks —
+  proven when a direct `main` push was rejected. Quarantine policy now
+  documented in `DEVELOPMENT.md` (quarantine dir + `[flake]` issue + nightly
+  runs, no silent deletes).)
 - [ ] Images published `rajlabs/redirector-api:v3`, `rajlabs/redirector-web:v3` + compat `rajlabs/redirector:v3` (all-in-one).
 - [ ] Coverage + type gates enforced (no `--no-verify` culture).
 
 ## Tasks
-- [ ] 1. Monorepo move + import path codemod + `Makefile`/`Taskfile`.
+- [x] 1. Monorepo move + import path codemod + `Makefile`/`Taskfile`.
+  (Done at M4: `backend/` + `frontend/` + `docker/` + `docs/` separation with
+  v2 root files removed; `Makefile` added (`dev/lint/test/e2e/build/smoke`,
+  POSIX sh, Git Bash on Windows, LF-pinned via `.gitattributes`).)
 - [x] 2. Ruff+mypy+pytest-asyncio baselines (fix or `noqa` with tickets, ratchet to zero).
   (Done on `v3/epic-01-backend-foundation`: `ruff check backend/` clean,
   `mypy backend/` strict clean with the documented SQLAlchemy carve-outs
@@ -50,6 +57,9 @@ Toolchain:
   Ratchet stands at zero.)
 - [ ] 3. Vitest+Playwright scaffolding + first 5 critical flows (login, create, redirect, upstream check, backup).
 - [ ] 4. `ci.yml` rewrite + required checks + CODEOWNERS.
+  (Partial: required checks enforced by the `mainProtect` ruleset — direct
+  pushes rejected, PR + checks mandatory; `.github/CODEOWNERS` added. A
+  single-`ci.yml` consolidation never happened; per-workflow files remain.)
 - [x] 5. Dockerfiles + compose profiles (`dev`, `prod-sqlite`, `prod-postgres`, `scale`).
   (Done on `v3/epic-01-backend-foundation`: `docker/Dockerfile.api`
   (non-root, migrates on boot, healthcheck) + `docker/Dockerfile.web`

@@ -1,6 +1,7 @@
 * text=auto
 *.sh text eol=lf
 *.py text eol=lf
+Makefile text eol=lf
 entrypoint.sh text eol=lf
 Dockerfile text eol=lf
 *.ps1 text eol=crlf

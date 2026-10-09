@@ -76,3 +76,18 @@ sh load_testing/load-smoke.sh   # LOAD_VUS / LOAD_RATE / LOAD_TIME / LOAD_PORT o
 The Flask app was removed in M4. Migrate data with the one-shot importer
 (see [`docs/UPGRADE-v3.md`](docs/UPGRADE-v3.md)), then run the stack above.
 The full test suite is v3-only now: `python -m pytest tests/ -v`.
+
+## Task runner
+
+`make dev / lint / test / e2e / build / smoke` (POSIX sh; on Windows run
+inside Git Bash). `test` = pytest + vitest; `e2e` = full prod-stack smoke
+with ephemeral credentials.
+
+## Flaky-test quarantine policy
+
+A test that fails intermittently on `main` while passing in isolation is
+quarantined, not deleted: move it to `tests/quarantine/` (same name), open
+an issue named `[flake] <test-id>`, and reference it in a comment above the
+test. Quarantined tests run on a nightly schedule (not per-PR) until the
+flake is fixed and the test moves back. Deleting a flaky test without a
+tracking issue is not allowed.

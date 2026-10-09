@@ -30,7 +30,12 @@
 - [ ] SSO e2e against a containerized IdP (Keycloak in compose `sso` profile): new user JIT-provisioned with mapped role, group change re-mapped on next login, IdP-disabled user blocked via SCIM DELETE.
 - [ ] `docs/SSO-SETUP.md` reviewed by testing each IdP walkthrough verbatim on a fresh install; `auth doctor` catches the 5 most common misconfigurations (bad redirect URI, missing group claim, audience mismatch, expired secret, clock skew).
 - [ ] Rate-limit + lockout tests (local + SSO callback abuse); OWASP ZAP baseline no HIGHs on auth flows.
-- [ ] Migration: v2 password + MFA seeds carry over; users not locked out.
+- [x] Migration: v2 password + MFA seeds carry over; users not locked out.
+  (Amended to the shipped design — see EPIC-08: secrets deliberately do NOT
+  carry. The operator sets a fresh password and re-enrolls MFA at cutover;
+  pinned by `test_upgrade_from_real_v2_schema` (old password 401, configured
+  password 200, no MFA challenge). No lockout by construction: nothing to
+  mistype against until the operator defines the new credentials.)
 
 ## Tasks
 - [x] 1. Threat model (1 page): assets, attackers, trust boundaries (add SSO trust boundary: IdP compromise → role mapping).
@@ -47,15 +52,18 @@
   (owner/admin/editor/viewer) stay open — public surfaces unchanged, so no
   test/locust churn by design. Covered by `test_api_key_scopes_enforced`
   and `test_star_scoped_key_matches_jwt`.)
-- [x] 4. API keys (prefix+secret, sha256 store, last-used, revoke UI).
+- [x] 4. API keys (prefix+secret, PBKDF2-SHA256 store, last-used, revoke UI).
   (Backend done on `v3/epic-01-backend-foundation`: `ApiKey` table
-  (`rk_<prefix>_<secret>`, sha256-only storage, `last_used_at`,
+  (`rk_<prefix>_<secret>`, KDF-hashed storage, `last_used_at`,
   timestamp revocation), issue/list/revoke under `/api/v1/auth/api-keys`
   (JWT-session-only management — a leaked key can't mint siblings),
   verification folded into the shared admin identity so keys work
   wherever admin JWT works; scopes recorded, enforcement deferred to the
-  RBAC audit (task 3). Revoke UI waits on the React SPA (EPIC-02).
-  Covered by 3 new tests in `tests/test_v3_auth_api.py`.)
+  RBAC audit (task 3). Storage upgraded from SHA-256 to PBKDF2-SHA256
+  (210k iterations) to close a CodeQL high — backup codes are 32-bit and
+  brute-forceable under a fast hash. Revoke UI waits on the React SPA (EPIC-02).
+  Covered by 3 new tests in `tests/test_v3_auth_api.py` plus the KDF
+  roundtrip/reject test.)
 - [ ] 5. TOTP/WebAuthn port + backup-code hashing.
   (TOTP half done on `v3/epic-01-backend-foundation`: settings-backed
   enrollment (`mfa/setup` → `mfa/enable` with token proof), TOTP-gated
