@@ -34,6 +34,8 @@ jobs:
           pip install -r backend/requirements.txt locust
       - name: Run load smoke
         run: sh load_testing/load-smoke.sh
+      - name: p99 regression gate (hot path vs baselines)
+        run: python load_testing/check_regression.py load_testing/report/load-smoke
       - name: Upload CSV report
         if: always()
         uses: actions/upload-artifact@v4
