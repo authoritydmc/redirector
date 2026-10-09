@@ -48,9 +48,13 @@ export default function Login() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-sm bg-rd-bg p-8 font-sans text-rd-text">
-      <h1 className="text-2xl font-bold">Redirector v3</h1>
-      {pendingToken === null ? (
+    <main className="flex min-h-screen items-center justify-center bg-rd-bg p-4 font-sans text-rd-text">
+      <div className="w-full max-w-sm rounded-2xl border border-rd-line bg-rd-surface p-6 shadow-xl">
+        <h1 className="text-2xl font-bold">Redirector</h1>
+        <p className="mt-1 text-sm text-rd-muted">
+          {pendingToken === null ? 'Sign in with your admin password.' : 'Check your authenticator app.'}
+        </p>
+        {pendingToken === null ? (
         <form onSubmit={submitPassword} className="mt-6 flex flex-col gap-3">
           <label className="text-sm">
             Admin password
@@ -73,7 +77,7 @@ export default function Login() {
         </form>
       ) : (
         <form onSubmit={submitTotp} className="mt-6 flex flex-col gap-3">
-          <p className="text-sm opacity-80">
+          <p className="text-sm text-rd-muted">
             Two-factor required — enter a code from your authenticator
             (or one unused backup code).
           </p>
@@ -97,6 +101,7 @@ export default function Login() {
           </button>
         </form>
       )}
+      </div>
     </main>
   )
 }

@@ -1,4 +1,4 @@
-import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { THEMES, useTheme } from '../lib/theme'
 
@@ -12,17 +12,18 @@ export default function Layout() {
     navigate('/login', { replace: true })
   }
 
-  const link = 'rounded px-2 py-1 text-sm hover:bg-rd-surface'
+  const link = ({ isActive }: { isActive: boolean }) =>
+    `rounded px-2 py-1 text-sm hover:bg-rd-surface${isActive ? ' bg-rd-surface font-semibold' : ''}`
   const control = 'rounded border border-rd-line bg-rd-input px-2 py-1 text-sm text-rd-text'
   return (
     <div className="min-h-screen bg-rd-bg font-sans text-rd-text">
-      <header className="flex items-center gap-2 border-b border-rd-line px-4 py-2">
+      <header className="flex flex-wrap items-center gap-2 border-b border-rd-line px-4 py-2">
         <span className="font-bold">Redirector</span>
-        <nav className="ml-4 flex gap-1">
-          <Link className={link} to="/">Shortcuts</Link>
-          <Link className={link} to="/upstreams">Upstreams</Link>
-          <Link className={link} to="/jobs">Jobs</Link>
-          <Link className={link} to="/admin">Admin</Link>
+        <nav className="ml-4 flex flex-wrap gap-1" aria-label="Primary">
+          <NavLink className={link} to="/" end>Shortcuts</NavLink>
+          <NavLink className={link} to="/upstreams">Upstreams</NavLink>
+          <NavLink className={link} to="/jobs">Jobs</NavLink>
+          <NavLink className={link} to="/admin">Admin</NavLink>
         </nav>
         <span className="ml-auto flex gap-2">
           <select
@@ -37,7 +38,7 @@ export default function Layout() {
               </option>
             ))}
           </select>
-          <button type="button" onClick={signOut} className={link}>
+          <button type="button" onClick={signOut} className="rounded px-2 py-1 text-sm hover:bg-rd-surface">
             Sign out
           </button>
         </span>

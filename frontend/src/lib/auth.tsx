@@ -21,7 +21,16 @@ async function postJson<T>(path: string, body: unknown): Promise<{ status: numbe
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  return { status: res.status, data: (await res.json()) as T }
+  // Read as text first: proxies and 500 pages are rarely JSON, and a bare
+  // res.json() would surface a confusing SyntaxError instead of the status.
+  const text = await res.text()
+  let data: T
+  try {
+    data = JSON.parse(text) as T
+  } catch {
+    throw new Error(`Request failed (HTTP ${res.status})`)
+  }
+  return { status: res.status, data }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

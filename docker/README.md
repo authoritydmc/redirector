@@ -21,3 +21,8 @@ Secrets are never baked in: compose fails fast without both password
 variables. Scale-out (`--scale api=N`) requires postgres + redis (rate
 limits and in-process singleflight are per-process; JWTs and job rows
 are already shared-safe).
+
+`DATA_DIR` must be persistent and writable by the container user: `/tmp`
+is wiped on reboot (and docker recreates it root-owned, which the
+non-root api image cannot write — every DB call then 500s). Use `./data`
+(the default) or a directory under your home.

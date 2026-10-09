@@ -126,11 +126,12 @@ export default function UpstreamsPage() {
       {error !== null && <p role="alert" className="mt-3 text-sm text-rd-danger">{error}</p>}
 
       {loading ? (
-        <p className="mt-4 text-sm opacity-70">Loading…</p>
+        <p className="mt-4 text-sm text-rd-muted">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="mt-4 text-sm opacity-70">No upstreams configured.</p>
+        <p className="mt-4 text-sm text-rd-muted">No upstreams configured.</p>
       ) : (
-        <table className="mt-3 w-full text-left text-sm">
+        <div className="mt-3 overflow-x-auto">
+        <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-rd-line">
               <th className="py-1 pr-2">Name</th>
@@ -142,14 +143,14 @@ export default function UpstreamsPage() {
             {rows.map((row) => (
               <tr key={row.id ?? row.name} className="border-b border-rd-line">
                 <td className="py-1 pr-2 font-mono">{row.name}</td>
-                <td className="max-w-xs truncate py-1 pr-2 opacity-80">{row.base_url}</td>
+                <td className="max-w-xs truncate py-1 pr-2">{row.base_url}</td>
                 <td className="py-1">
                   {row.id !== null && row.id !== undefined && confirming === row.id ? (
                     <span className="flex gap-2">
                       <button type="button" onClick={() => void remove(row.id as number)} className="text-rd-danger underline">
                         Confirm
                       </button>
-                      <button type="button" onClick={() => setConfirming(null)} className="underline opacity-70">
+                      <button type="button" onClick={() => setConfirming(null)} className="underline text-rd-muted">
                         Cancel
                       </button>
                     </span>
@@ -158,7 +159,7 @@ export default function UpstreamsPage() {
                       type="button"
                       disabled={row.id === null || row.id === undefined}
                       onClick={() => setConfirming(row.id as number)}
-                      className="underline opacity-70 disabled:opacity-40"
+                      className="underline text-rd-muted disabled:opacity-40"
                     >
                       Delete
                     </button>
@@ -168,6 +169,7 @@ export default function UpstreamsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       <h3 className="mt-6 text-lg font-semibold">Live check</h3>
