@@ -38,7 +38,13 @@ Standards:
   (Moot post-M4: no legacy endpoints exist to shim — Flask was removed with
   them. The map shipped as `docs/deprecation-map.md`; headers were implemented
   behind `REDIRECTOR_FF_HOT_PATH` during M3 and retired with Flask per policy.)
-- [ ] Contract tests (schemathesis / schemathesis-style snapshot) green.
+- [x] Contract tests (schemathesis / schemathesis-style snapshot) green.
+  (Done as `tests/test_v3_contract_snapshot.py`: drives all 36 OpenAPI
+  operations with inert inputs — GETs assert no-500 + JSON/problem shapes
+  (QR PNG + endless SSE allowlisted), POST/PATCH `{}` assert 401/403/422
+  (invalid input never creates), DELETEs assert the status contract. New
+  path params fail loudly until given probe values; new verbs fail until
+  the matrix covers them.)
 
 ## Tasks
 - [x] 1. Inventory every current route (method+path+auth+shape) into `docs/api-inventory.md`.
