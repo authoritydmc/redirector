@@ -33,8 +33,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
+          # Trust auth (see validate.yml): no password literals in CI files.
+          POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_USER: redirector
-          POSTGRES_PASSWORD: redirector
           POSTGRES_DB: redirector
         ports:
           - 5432:5432

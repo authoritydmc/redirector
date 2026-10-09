@@ -50,7 +50,7 @@ paths. CSVs land as the `soak-pg-report` artifact.
 ```sh
 # needs reachable Postgres + Redis; import-v2 needs a sync PG driver:
 pip install psycopg2-binary
-SOAK_PG_URL="postgresql+asyncpg://redirector:secret@127.0.0.1:5432/redirector" \
+SOAK_PG_URL="postgresql+asyncpg://redirector@127.0.0.1:5432/redirector" \
 SOAK_REDIS_URL="redis://127.0.0.1:6379/0" \
   sh load_testing/soak-pg.sh
 ```

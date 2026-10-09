@@ -62,9 +62,12 @@ def make_v2_data_dir(tmp_path):
         "log_level": "debug",
         "delete_requires_password": "yes",
         "upstream_cache": {"enabled": False},
-        "admin_password": "fixture-password-not-real",
-        "session_secret": "fixture-secret-not-real",
-        "mfa": {"enabled": True, "secret": "fixture-mfa-seed-not-real"},
+        # Secrets are intentionally valueless here: the assertions below only
+        # pin key ABSENCE in the migrated table, and empty values keep
+        # credential-shaped literals out of the repo (secret scanners).
+        "admin_password": "",
+        "session_secret": "",
+        "mfa": {"enabled": True, "secret": ""},
         "port": 80,
         "database": "sqlite:///redirect.db",
     }), encoding="utf-8")

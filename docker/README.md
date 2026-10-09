@@ -13,7 +13,7 @@ REDIRECTOR_ADMIN_PASSWORD=... REDIRECTOR_JWT_SECRET=... \
 Postgres variant (merge the overlay — same services, new database):
 
 ```sh
-REDIRECTOR_ADMIN_PASSWORD=... REDIRECTOR_JWT_SECRET=... POSTGRES_PASSWORD=... \
+REDIRECTOR_ADMIN_PASSWORD=... REDIRECTOR_JWT_SECRET=... \
   docker compose -f docker/compose.prod.yml -f docker/compose.postgres.yml up -d --build
 ```
 

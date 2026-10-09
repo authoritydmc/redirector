@@ -21,7 +21,7 @@
 # POSIX sh only — CI/Docker are Linux (see AGENTS.md).
 set -eu
 
-SOAK_PG_URL="${SOAK_PG_URL:-postgresql+asyncpg://redirector:redirector@127.0.0.1:5432/redirector}"
+SOAK_PG_URL="${SOAK_PG_URL:-postgresql+asyncpg://redirector@127.0.0.1:5432/redirector}"
 SOAK_REDIS_URL="${SOAK_REDIS_URL:-redis://127.0.0.1:6379/0}"
 SOAK_PORT="${SOAK_PORT:-8124}"
 LOAD_VUS="${LOAD_VUS:-10}"

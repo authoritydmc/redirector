@@ -93,7 +93,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_PASSWORD: redirector-ci-pw
+          # Trust auth: CI databases hold no real data, so no password
+          # literals live in this file (secret scanners).
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
@@ -102,7 +104,7 @@ jobs:
           --health-timeout 3s
           --health-retries 5
     env:
-      TEST_POSTGRES_URL: postgresql+asyncpg://postgres:redirector-ci-pw@localhost:5432/postgres
+      TEST_POSTGRES_URL: postgresql+asyncpg://postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v5
       - name: Set up Python

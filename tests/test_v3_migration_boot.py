@@ -186,9 +186,10 @@ def test_migrated_redirect_kinds_serve(tmp_path: Any) -> None:
         upstreams = client.get("/api/v1/upstreams").json()
         assert {u["name"] for u in upstreams} == {"go", "bad"}
 
-        # Old v2 password stays behind ...
+        # Old v2 password stays behind (the fixture carries an empty,
+        # non-credential password value) ...
         assert client.post(
-            "/api/v1/auth/login", json={"password": "fixture-password-not-real"}
+            "/api/v1/auth/login", json={"password": "wrongpassword"}
         ).status_code == 401
         # ... the configured v3 password logs in with no MFA challenge ...
         good = client.post(

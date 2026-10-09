@@ -44,8 +44,8 @@ npm run codegen                             # regenerate src/lib/api.ts from doc
 
 ```sh
 wsl docker run -d --name redirector-redis -p 6379:6379 redis:8-alpine
-wsl docker run -d --name redirector-pg -e POSTGRES_PASSWORD=redirector-dev-pw -p 5432:5432 postgres:16-alpine
-$env:TEST_POSTGRES_URL = "postgresql+asyncpg://postgres:redirector-dev-pw@127.0.0.1:5432/postgres"
+wsl docker run -d --name redirector-pg -e POSTGRES_HOST_AUTH_METHOD=trust -p 5432:5432 postgres:16-alpine
+$env:TEST_POSTGRES_URL = "postgresql+asyncpg://postgres@127.0.0.1:5432/postgres"
 ```
 
 ## Migrations (Alembic, v3 history only)

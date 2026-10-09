@@ -3,25 +3,30 @@
 # Compose merges by service name: the api/worker database URLs switch to
 # Postgres and a managed database appears. Same /app/data bind mount
 # (backups, sqlite fallback) is kept.
+#
+# Auth is trust-based on purpose: the postgres port is NOT published, so the
+# database is reachable only inside the compose network, and no password
+# literals live in this file (secret scanners). Override with a real
+# POSTGRES_PASSWORD + matching URLs if you publish the port.
 
 services:
   migrate:
     environment:
-      - REDIRECTOR_DATABASE_URL=postgresql+asyncpg://redirector:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/redirector
+      - REDIRECTOR_DATABASE_URL=postgresql+asyncpg://redirector@postgres:5432/redirector
     depends_on:
       postgres:
         condition: service_healthy
 
   api:
     environment:
-      - REDIRECTOR_DATABASE_URL=postgresql+asyncpg://redirector:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/redirector
+      - REDIRECTOR_DATABASE_URL=postgresql+asyncpg://redirector@postgres:5432/redirector
     depends_on:
       postgres:
         condition: service_healthy
 
   worker:
     environment:
-      - REDIRECTOR_DATABASE_URL=postgresql+asyncpg://redirector:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/redirector
+      - REDIRECTOR_DATABASE_URL=postgresql+asyncpg://redirector@postgres:5432/redirector
     depends_on:
       postgres:
         condition: service_healthy
@@ -30,8 +35,8 @@ services:
     image: postgres:16-alpine
     environment:
       - POSTGRES_USER=redirector
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       - POSTGRES_DB=redirector
+      - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
