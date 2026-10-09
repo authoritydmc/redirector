@@ -77,7 +77,7 @@ export default function Login() {
         </form>
       ) : (
         <form onSubmit={submitTotp} className="mt-6 flex flex-col gap-3">
-          <p className="text-sm opacity-80">
+          <p className="text-sm text-rd-muted">
             Two-factor required — enter a code from your authenticator
             (or one unused backup code).
           </p>

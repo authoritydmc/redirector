@@ -49,6 +49,19 @@ export default function ShortcutsPage() {
     void reload()
   }, [reload])
 
+  useEffect(() => {
+    if (drawer === null) {
+      return
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setDrawer(null)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [drawer])
+
   function onSearch(value: string) {
     setQuery(value)
     setPage(1)
@@ -184,11 +197,12 @@ export default function ShortcutsPage() {
       </div>
       {error !== null && <p role="alert" className="mt-3 text-sm text-rd-danger">{error}</p>}
       {loading ? (
-        <p className="mt-4 text-sm opacity-70">Loading…</p>
+        <p className="mt-4 text-sm text-rd-muted">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="mt-4 text-sm opacity-70">No shortcuts found.</p>
+        <p className="mt-4 text-sm text-rd-muted">No shortcuts found.</p>
       ) : (
-        <table className="mt-3 w-full text-left text-sm">
+        <div className="mt-3 overflow-x-auto">
+        <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-rd-line">
               <th className="py-1 pr-2">
@@ -213,16 +227,16 @@ export default function ShortcutsPage() {
                   />
                 </td>
                 <td className="py-1 pr-2 font-mono">{row.pattern}</td>
-                <td className="max-w-xs truncate py-1 pr-2 opacity-80">{row.target}</td>
-                <td className="py-1 pr-2 opacity-80">{row.type}</td>
-                <td className="py-1 pr-2 opacity-80">{row.access_count}</td>
+                <td className="max-w-xs truncate py-1 pr-2">{row.target}</td>
+                <td className="py-1 pr-2">{row.type}</td>
+                <td className="py-1 pr-2">{row.access_count}</td>
                 <td className="py-1">
                   {confirming === row.pattern ? (
                     <span className="flex gap-2">
                       <button type="button" onClick={() => void removeOne(row.pattern)} className="text-rd-danger underline">
                         Confirm
                       </button>
-                      <button type="button" onClick={() => setConfirming(null)} className="underline opacity-70">
+                      <button type="button" onClick={() => setConfirming(null)} className="underline text-rd-muted">
                         Cancel
                       </button>
                     </span>
@@ -231,11 +245,11 @@ export default function ShortcutsPage() {
                       <button
                         type="button"
                         onClick={() => { setDrawer({ mode: 'edit', row }); setDrawerError(null) }}
-                        className="underline opacity-70"
+                        className="underline text-rd-muted"
                       >
                         Edit
                       </button>
-                      <button type="button" onClick={() => setConfirming(row.pattern)} className="underline opacity-70">
+                      <button type="button" onClick={() => setConfirming(row.pattern)} className="underline text-rd-muted">
                         Delete
                       </button>
                     </span>
@@ -245,6 +259,7 @@ export default function ShortcutsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
       <div className="mt-3 flex items-center gap-3 text-sm">
         <button
@@ -255,7 +270,7 @@ export default function ShortcutsPage() {
         >
           Previous
         </button>
-        <span className="opacity-70">
+        <span className="text-rd-muted">
           Page {page} of {totalPages} · {total} total
         </span>
         <button
@@ -268,6 +283,8 @@ export default function ShortcutsPage() {
         </button>
       </div>
       {drawer !== null && (
+        <>
+        <div aria-hidden="true" onClick={() => setDrawer(null)} className="fixed inset-0 bg-black/40" />
         <div role="dialog" aria-label={drawer.mode === 'create' ? 'New shortcut' : 'Edit shortcut'} className="fixed right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-rd-line bg-rd-surface p-4 text-rd-text shadow-xl">
           <h3 className="text-lg font-semibold">
             {drawer.mode === 'create' ? 'New shortcut' : `Edit ${drawer.row.pattern}`}
@@ -292,6 +309,7 @@ export default function ShortcutsPage() {
             )}
           </div>
         </div>
+        </>
       )}
     </section>
   )
