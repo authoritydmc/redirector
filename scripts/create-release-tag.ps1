@@ -18,30 +18,19 @@ if ($tagExists) {
     exit 1
 }
 
-# --- Docker smoke test (borrowed from Tax_Scripts) ---
-Write-Host "Running Docker smoke test before tagging..." -ForegroundColor Yellow
-$testCmd = "bash test_docker.sh"
-# Try Git Bash / WSL, fallback to direct
-$testResult = $null
-try {
-  if (Get-Command bash -ErrorAction SilentlyContinue) {
-    $p = Start-Process -FilePath "bash" -ArgumentList "test_docker.sh" -NoNewWindow -Wait -PassThru
-    $testResult = $p.ExitCode
-  } elseif (Get-Command wsl -ErrorAction SilentlyContinue) {
-    $p = Start-Process -FilePath "wsl" -ArgumentList "bash test_docker.sh" -NoNewWindow -Wait -PassThru
-    $testResult = $p.ExitCode
-  } else {
-    Write-Host "Skipping Docker test (bash not found) - proceeding with tag." -ForegroundColor Yellow
-    $testResult = 0
-  }
-} catch {
-  Write-Host "Docker test failed or not available: $_" -ForegroundColor Yellow
-  $testResult = 0
+# --- Pre-tag gate: VERSION file must match the tag (Docker + tests are
+# --- covered by CI on push; this guards tagging the wrong version locally).
+Write-Host "Verifying VERSION matches $Version ..." -ForegroundColor Yellow
+$want = $Version.TrimStart('v')
+$have = (Get-Content VERSION -Raw).Trim()
+if ($have -ne $want) {
+    Write-Host "VERSION file says '$have' but tag is '$Version'. Fix and re-run." -ForegroundColor Red
+    exit 1
 }
-if ($testResult -ne 0 -and $testResult -ne $null) {
-  Write-Host "Docker smoke test FAILED (exit $testResult). Fix and re-run." -ForegroundColor Red
-  $confirm = Read-Host "Continue tagging anyway? (y/N)"
-  if ($confirm -ne "y" -and $confirm -ne "Y") { exit 1 }
+$dirty = git status --short
+if ($dirty) {
+    Write-Host "Working tree is not clean. Commit or stash first." -ForegroundColor Red
+    exit 1
 }
 
 # Create the tag

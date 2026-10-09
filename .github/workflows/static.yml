@@ -7,7 +7,7 @@ on:
     paths:
       - "index.html"
       - "VERSION"
-      - "app/static/**"
+      - "assets/**"
       - "scripts/sync-landing-version.py"
       - ".github/workflows/static.yml"
   workflow_dispatch:
@@ -38,8 +38,8 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html _site/
-          mkdir -p _site/app/static
-          cp -r app/static/* _site/app/static/
+          mkdir -p _site/assets
+          cp -r assets/* _site/assets/
           touch _site/.nojekyll
 
       - name: Setup GitHub Pages

@@ -1803,7 +1803,7 @@
   "info": {
     "description": "Async FastAPI backend for Redirector (EPIC-01). Shortcuts, upstreams, resolve hot path, auth, metrics, QR.",
     "title": "Redirector API",
-    "version": "3.2.1"
+    "version": "4.0.0"
   },
   "openapi": "3.1.0",
   "paths": {

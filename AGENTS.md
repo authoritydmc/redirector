@@ -16,7 +16,7 @@ agents must still do the sync — CI fails otherwise.
 - **After ANY of these, run the sync and commit the result:**
   - bumping `VERSION` (`python get_version.py --bump [patch|minor|major]`)
   - editing `CHANGELOG.md`
-  - adding/changing user-facing features, screenshots in `app/static/assets/`, or quick-start instructions
+  - adding/changing user-facing features, screenshots in `assets/img/`, or quick-start instructions
 - **Command:** `python scripts/sync-landing-version.py` (stamps `VERSION` into `index.html`)
 - **Verify:** `python scripts/sync-landing-version.py --check` (exit 0 = in sync; this is what `validate.yml` runs)
 - Safety net: `static.yml` re-stamps at Pages deploy time and triggers on `VERSION` changes, so the live site self-heals even if a PR slips through — but do not rely on it; keep the committed file in sync.

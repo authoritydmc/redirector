@@ -6,7 +6,7 @@ We follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic
 
 ---
 
-## [Unreleased]
+## [4.0.0] - 2026-10-09
 
 ### Security
 - **API-key/MFA secrets now PBKDF2-SHA256** (210k iterations, random salt) instead of plain SHA-256 — plain hashes brute-force too fast for the short backup codes. Pre-release SHA-256 rows fail closed (v3 never shipped, so nothing real to migrate).

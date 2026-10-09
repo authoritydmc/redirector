@@ -11,10 +11,10 @@
   <link rel="canonical" href="https://authoritydmc.github.io/redirector/">
   <meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0c0f1d" media="(prefers-color-scheme: dark)">
-  <link rel="icon" href="app/static/favicon.ico" sizes="any">
-  <link rel="icon" type="image/png" sizes="32x32" href="app/static/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="app/static/favicon-16x16.png">
-  <link rel="apple-touch-icon" href="app/static/assets/logo.png">
+  <link rel="icon" href="assets/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="assets/img/logo.png">
 
   <!-- Open Graph (link previews: Slack, Discord, LinkedIn, iMessage) -->
   <meta property="og:type" content="website">
@@ -22,14 +22,14 @@
   <meta property="og:title" content="Redirector — Own Your Team's Shortlinks">
   <meta property="og:description" content="Free & open-source self-hosted URL shortener. Go-links like r/docs, dynamic shortcuts, Redis speed, SSO + MFA security, Docker in 60 seconds.">
   <meta property="og:url" content="https://authoritydmc.github.io/redirector/">
-  <meta property="og:image" content="https://authoritydmc.github.io/redirector/app/static/assets/dashboard.png">
+  <meta property="og:image" content="https://authoritydmc.github.io/redirector/assets/img/dashboard.png">
   <meta property="og:image:alt" content="Redirector dashboard with link analytics and shortcut management">
 
   <!-- Twitter / X cards -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Redirector — Self-Hosted URL Shortener for Teams">
   <meta name="twitter:description" content="Open-source go-links for your company. r/docs, r/jira/{ticket}, Redis-fast, SSO-protected, Docker-ready.">
-  <meta name="twitter:image" content="https://authoritydmc.github.io/redirector/app/static/assets/dashboard.png">
+  <meta name="twitter:image" content="https://authoritydmc.github.io/redirector/assets/img/dashboard.png">
 
   <!-- Structured data for rich search results -->
   <script type="application/ld+json">
@@ -196,13 +196,13 @@
         <a href="#" class="flex items-center gap-3 group" aria-label="Redirector home">
           <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-0.5 shadow-md shadow-blue-500/20 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-blue-500/30 transition transform">
             <div class="w-full h-full bg-white dark:bg-slate-900 rounded-[14px] flex items-center justify-center overflow-hidden p-1.5">
-              <img src="app/static/assets/logo.png" alt="Redirector Logo" class="w-full h-full object-contain" width="44" height="44">
+              <img src="assets/img/logo.png" alt="Redirector Logo" class="w-full h-full object-contain" width="44" height="44">
             </div>
           </div>
           <div>
             <div class="flex items-center gap-2">
               <span class="text-xl font-black tracking-tight text-slate-900 dark:text-white">Redirector</span>
-              <span class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-700/60">v3.2.1</span>
+              <span class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-700/60">v4.0.0</span>
             </div>
             <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Self-Hosted Team Shortlinks</p>
           </div>
@@ -243,7 +243,7 @@
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-75"></span>
           <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-600 dark:bg-blue-400"></span>
         </span>
-        <span>Version 3.2.1 Released • Enterprise-Ready URL Shortener</span>
+        <span>Version 4.0.0 Released • Enterprise-Ready URL Shortener</span>
       </div>
 
       <h1 class="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight text-slate-900 dark:text-white max-w-4xl mx-auto leading-[1.12]">
@@ -303,7 +303,7 @@
               http://r/dashboard
             </div>
           </div>
-          <img src="app/static/assets/dashboard.png" alt="Redirector dashboard preview — shortcut analytics, search and quick creation" class="w-full h-auto rounded-b-xl border border-slate-800" loading="eager" fetchpriority="high" width="1280" height="720">
+          <img src="assets/img/dashboard.png" alt="Redirector dashboard preview — shortcut analytics, search and quick creation" class="w-full h-auto rounded-b-xl border border-slate-800" loading="eager" fetchpriority="high" width="1280" height="720">
         </div>
       </div>
     </div>
@@ -519,7 +519,7 @@
 
         <!-- Display Area -->
         <div class="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 shadow-inner group">
-          <img id="gallery-img" src="app/static/assets/dashboard.png" alt="Redirector dashboard screenshot" class="w-full h-auto object-contain max-h-[580px] mx-auto transition-all duration-300 group-hover:scale-[1.01]" loading="lazy" width="1280" height="720">
+          <img id="gallery-img" src="assets/img/dashboard.png" alt="Redirector dashboard screenshot" class="w-full h-auto object-contain max-h-[580px] mx-auto transition-all duration-300 group-hover:scale-[1.01]" loading="lazy" width="1280" height="720">
         </div>
         <p id="gallery-desc" class="mt-4 text-center text-sm font-medium text-slate-600 dark:text-slate-300" role="status">
           Central dashboard with link analytics, real-time search, tag filters, and quick creation.
@@ -736,7 +736,7 @@ uvicorn backend.main:app --port 8123</code></pre>
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
         <div>
           <div class="flex items-center gap-3 mb-3">
-            <img src="app/static/assets/logo.png" alt="Redirector logo" class="w-8 h-8 rounded-lg shadow-sm" width="32" height="32">
+            <img src="assets/img/logo.png" alt="Redirector logo" class="w-8 h-8 rounded-lg shadow-sm" width="32" height="32">
             <span class="text-sm font-bold text-slate-800 dark:text-white">Redirector</span>
           </div>
           <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Free, open-source, self-hosted shortlinks for teams. MIT &amp; Apache-2.0 licensed.</p>
@@ -770,7 +770,7 @@ uvicorn backend.main:app --port 8123</code></pre>
       </div>
       <div class="pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
         <span>© 2026 Redirector contributors. Open-source under MIT &amp; Apache-2.0.</span>
-        <span class="font-mono">v3.2.1</span>
+        <span class="font-mono">v4.0.0</span>
       </div>
     </div>
   </footer>
@@ -809,12 +809,12 @@ uvicorn backend.main:app --port 8123</code></pre>
 
     // Screenshot Carousel
     const slides = [
-      { img: 'app/static/assets/dashboard.png', alt: 'Redirector dashboard with analytics and search', desc: 'Central dashboard with link analytics, real-time search, tag filters, and quick creation.' },
-      { img: 'app/static/assets/redirect-page.png', alt: 'Countdown redirect screen', desc: 'Modern countdown redirect screen with favicon detection, source latency badges, and stay/skip controls.' },
-      { img: 'app/static/assets/edit-shortcut.png', alt: 'Edit shortcut interface', desc: 'Edit shortcut interface with live upstream collision checks, tags, visibility, and expiration dates.' },
-      { img: 'app/static/assets/tutorial.png', alt: 'Interactive tutorial for shortcut types', desc: 'Step-by-step interactive tutorial showcasing static, dynamic, and user-dynamic links.' },
-      { img: 'app/static/assets/upstream-logs.png', alt: 'Real-time upstream query logs', desc: 'Real-time SSE audit trail of external upstream queries and cache performance.' },
-      { img: 'app/static/assets/version.png', alt: 'System info and version dashboard', desc: 'System info dashboard with SemVer comparisons, container health probes, and reachable LAN IPs.' }
+      { img: 'assets/img/dashboard.png', alt: 'Redirector dashboard with analytics and search', desc: 'Central dashboard with link analytics, real-time search, tag filters, and quick creation.' },
+      { img: 'assets/img/redirect-page.png', alt: 'Countdown redirect screen', desc: 'Modern countdown redirect screen with favicon detection, source latency badges, and stay/skip controls.' },
+      { img: 'assets/img/edit-shortcut.png', alt: 'Edit shortcut interface', desc: 'Edit shortcut interface with live upstream collision checks, tags, visibility, and expiration dates.' },
+      { img: 'assets/img/tutorial.png', alt: 'Interactive tutorial for shortcut types', desc: 'Step-by-step interactive tutorial showcasing static, dynamic, and user-dynamic links.' },
+      { img: 'assets/img/upstream-logs.png', alt: 'Real-time upstream query logs', desc: 'Real-time SSE audit trail of external upstream queries and cache performance.' },
+      { img: 'assets/img/version.png', alt: 'System info and version dashboard', desc: 'System info dashboard with SemVer comparisons, container health probes, and reachable LAN IPs.' }
     ];
 
     const galleryImg = document.getElementById('gallery-img');
