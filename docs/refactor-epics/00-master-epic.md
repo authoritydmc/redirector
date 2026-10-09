@@ -55,9 +55,10 @@ Evolve redirector from a Flask monolith (server-rendered Jinja, sync workers, JS
   operator steps. Secrets intentionally excluded — admin re-authenticates
   with the configured password.)
 - [x] Single-command dev: `docker compose up` and `npm run dev` + `uvicorn` with hot reload.
-  (`docker compose -f docker/compose.m1.yml up -d --build`, `npm run dev`
-  in `frontend/`, `uvicorn backend.main:app --reload` — each one command;
-  M1 verified live end to end.)
+  (`docker compose -f docker/compose.prod.yml up -d --build` (needs the two
+  secrets in env), `npm run dev` in `frontend/`,
+  `uvicorn backend.main:app --reload` — each one command; prod stack verified
+  live end to end, including the M1/M3 harnesses before their M4 removal.)
 - [ ] CI gate: ruff + mypy (strict on backend) + pytest + vitest + Playwright e2e all green.
 
 ## Sequencing

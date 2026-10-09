@@ -67,10 +67,10 @@
   (`SET NX PX` lock + token-checked Lua release, `uncacheable` tombstone
   so SSO verdicts release followers at once) with v2-style graceful
   degradation on outages; selected via `REDIRECTOR_CACHE_BACKEND`
-  (`memory` default). Covered by `tests/test_v3_cache_redis.py` — 9 tests
+  (`memory` default). Covered by   `tests/test_v3_cache_redis.py` — 9 tests
   against real Redis, skipping cleanly without it. The v2
-  `config.redis_client` global is untouched (Flask runtime); removal lands
-  with the EPIC-08 Flask cutover.)
+  `config.redis_client` global is gone with the M4 Flask removal (verified:
+  no `redis_client` references anywhere under `backend/`).)
 - [x] 5. Settings table (`settings` key→JSON) + migration from `redirect.config.json`.
   (Done on `v3/epic-01-backend-foundation`: `Setting` table + admin
   GET/PATCH API existed; `import-v2` now migrates the curated non-secret

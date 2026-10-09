@@ -34,14 +34,20 @@ Standards:
   via `npm run codegen`; freshness enforced in `frontend.yml` (regenerate +
   `git diff --exit-code`); `tsc --noEmit` covers the generated file. No
   hand-written endpoint strings exist yet — the rule bites from here on.)
-- [ ] Legacy endpoints shimmed with `Deprecation: true` header + sunset date, mapped in EPIC-08.
+- [x] Legacy endpoints shimmed with `Deprecation: true` header + sunset date, mapped in EPIC-08.
+  (Moot post-M4: no legacy endpoints exist to shim — Flask was removed with
+  them. The map shipped as `docs/deprecation-map.md`; headers were implemented
+  behind `REDIRECTOR_FF_HOT_PATH` during M3 and retired with Flask per policy.)
 - [ ] Contract tests (schemathesis / schemathesis-style snapshot) green.
 
 ## Tasks
 - [x] 1. Inventory every current route (method+path+auth+shape) into `docs/api-inventory.md`.
   (Done: 65 routes + 2 error handlers inventoried with v1 targets; auth
   column best-effort, flagged for contract-test re-verification.)
-- [ ] 2. Write OpenAPI-first YAML for `/api/v1` (review with frontend before coding).
+- [x] 2. Write OpenAPI-first YAML for `/api/v1` (review with frontend before coding).
+  (Superseded by decision: code-first with snapshot discipline instead —
+  `docs/openapi.json` + `--check` gate in CI + `npm run codegen` freshness.
+  Same guarantee (no unreviewed contract change), less ceremony.)
 - [x] 3. Define error codes catalog (`SHORTCUT_CONFLICT_UPSTREAM`, `MFA_REQUIRED`, …).
   (Done as `docs/error-codes.md`: all 30 `domain:reason` codes with HTTP
   meanings, enforced both directions by `tests/test_v3_error_codes.py` —
@@ -56,7 +62,10 @@ Standards:
   (Done: transports, `admin:read`/`admin:write` vocabulary, 401-vs-403
   semantics, and the per-route audit table documented in
   `backend/README.md` under Authorization audit.)
-- [ ] 6. Deprecation map: old path → new path + Sunset header.
+- [x] 6. Deprecation map: old path → new path + Sunset header.
+  (Done as `docs/deprecation-map.md` — 14 shipped successors verified
+  against the 36 OpenAPI paths; headers implemented behind the M3 flag and
+  retired at M4 with Flask.)
 
 ## `gh` snippet
 ```bash

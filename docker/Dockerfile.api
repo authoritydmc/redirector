@@ -31,4 +31,8 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
     CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8123/healthz', timeout=3).status==200 else 1)"
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8123"]
+# Explicit event loop + HTTP parser (uvicorn[standard] would pick these on
+# Linux anyway; pinned so behavior never depends on installer extras).
+# Single worker by design — scale with `docker compose up --scale api=N`
+# on the postgres overlay, not with --workers (see docker/README.md).
+CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8123", "--loop", "uvloop", "--http", "httptools"]

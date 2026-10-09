@@ -35,7 +35,10 @@ Key decisions:
 - [ ] Feature parity checklist (all 32 templates mapped, signed off) — legacy template served only if `?legacy=1`.
 - [ ] Lighthouse ≥ 90 on dashboard; dashboard TTI < 1.5s on broadband.
 - [ ] `npm run typecheck`, `vitest`, `playwright test` green in CI.
-- [ ] No Jinja in new code; `app/templates/` frozen (bugfixes only) after cutover.
+- [x] No Jinja in new code; `app/templates/` frozen (bugfixes only) after cutover.
+  (Superseded by M4: `app/templates/` deleted with the Flask app — nothing
+  left to freeze. New UI is React-only; the theme engine added 13
+  contrast-tested themes on top.)
 
 ## Phased tasks
 - [x] 1. Scaffold Vite+TS+Tailwind+Router+Query; MSW mocks from OpenAPI examples (unblocks UI before backend done).

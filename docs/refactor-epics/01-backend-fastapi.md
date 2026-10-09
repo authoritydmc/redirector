@@ -35,7 +35,7 @@ Key decisions:
 - **Pydantic v2** schemas for every request/response; generate OpenAPI automatically.
 - **Lifespan** replaces `app_startup_banner` + `stamp_install_state` spaghetti: discrete startup steps (migrate → seed → warm cache).
 - **Delete gevent/gunicorn**; serve with `uvicorn[standard]` (h11+httptools+uvloop). Dockerfile CMD change only.
-- Replace `requests` with `httpx.AsyncClient` (shared, pooled, timeout预算 3s default).
+- Replace `requests` with `httpx.AsyncClient` (shared, pooled, 3s timeout default).
 
 ## Acceptance criteria (status on `v3/epic-01-backend-foundation`)
 - [x] `GET /{pattern}`, CRUD shortcuts, upstream CRUD, auth, metrics all served by FastAPI with OpenAPI coverage.
@@ -57,8 +57,11 @@ Key decisions:
   + `backend/workers/` tasks + jobs API; sync endpoints retained for
   admin-scale use per the parenthetical. Purge still inline — bulk-purge
   graduates to a worker if it outgrows request scope.)
-- [ ] 7. Dockerfile + compose update (uvicorn workers, `--loop uvloop`).
-  (Blocked on EPIC-08 M3 — the image still boots gunicorn/gevent for v2.)
+- [x] 7. Dockerfile + compose update (uvicorn workers, `--loop uvloop`).
+  (Done post-M4: `docker/Dockerfile.api` pins `--loop uvloop --http httptools`
+  with a single worker by design — scale-out is `--scale api=N` on the
+  postgres overlay per `docker/README.md`, not `--workers`. The M3 blocker
+  is gone with the v2 image.)
 
 ## Out of scope
 - React SPA (EPIC-02); FastAPI initially renders nothing — serve legacy Flask templates via proxy (see EPIC-08).
