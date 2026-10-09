@@ -65,10 +65,10 @@ def test_secret_kdf_roundtrip_and_rejects():
 
     from backend.modules.auth.repository import hash_secret, verify_secret
 
-    stored = hash_secret("correct horse")
+    stored = hash_secret("alpha-one")
     assert stored.startswith("pbkdf2-sha256$")
-    assert verify_secret("correct horse", stored)
-    assert not verify_secret("wrong horse", stored)
+    assert verify_secret("alpha-one", stored)
+    assert not verify_secret("beta-two", stored)
     assert not verify_secret("x", hashlib.sha256(b"x").hexdigest())
     assert not verify_secret("x", "garbage")
     assert not verify_secret("x", "")
