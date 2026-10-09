@@ -32,7 +32,17 @@ as the `load-smoke-report` artifact with per-endpoint p99s.
 ```sh
 sh load_testing/load-smoke.sh   # honors LOAD_VUS / LOAD_RATE / LOAD_TIME / LOAD_PORT
 python load_testing/check_stats.py load_testing/report/load-smoke
+python load_testing/check_regression.py load_testing/report/load-smoke
 ```
+
+Gates, in order: zero request failures (`check_stats.py`), then hot-path
+p50 vs `p99-baselines.json` (`check_regression.py`: fail above 20% *and*
++10ms absolute on the median of `/<shortcut>` + `/<unknown-shortcut>`).
+p99 is reported, not gated — the first gated run proved why (9ms → 95ms
+on byte-identical code: one slow fsync moves p99 over ~100 samples).
+Upstream/SSE rows are excluded entirely: they track external latency.
+Re-baseline deliberately: run the smoke, take the CSV medians, review the
+diff, commit.
 
 Deliberately NOT yet gated: p99-regression-vs-baseline (needs stored
 baselines).

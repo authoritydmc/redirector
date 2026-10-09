@@ -1,0 +1,9 @@
+{
+  "_comment": "Hot-path p99 budgets (ms) for check_regression.py. Seeded from the ubuntu-latest load-smoke run 2026-10-09 (10 VUs, 60s, scratch SQLite). Regenerate deliberately: run the smoke, take the CSV p99s, review, commit. Only the resolve hot path is gated — upstream/SSE rows track external latency and would flake.",
+  "measured": "2026-10-09",
+  "topology": "ubuntu-latest CI, scratch SQLite, 10 VUs x 60s",
+  "endpoints": {
+    "/<shortcut>": { "p50_ms": 4, "p99_ms": 9 },
+    "/<unknown-shortcut>": { "p50_ms": 6, "p99_ms": 91 }
+  }
+}
