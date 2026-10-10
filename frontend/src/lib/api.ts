@@ -66,7 +66,7 @@ export interface paths {
         };
         /**
          * Get system configuration
-         * @description Return active system configuration and stored settings.
+         * @description Return active system configuration, editable schema, and stored settings.
          */
         get: operations["get_config_api_v1_admin_config_get"];
         put?: never;
@@ -77,6 +77,9 @@ export interface paths {
         /**
          * Update system settings
          * @description Update settings entries in the database.
+         *
+         *     Known editable keys are validated + coerced (422 otherwise); anything
+         *     else is stored verbatim under `custom` for import fidelity.
          */
         patch: operations["update_config_api_v1_admin_config_patch"];
         trace?: never;
