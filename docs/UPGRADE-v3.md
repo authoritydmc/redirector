@@ -41,7 +41,7 @@ Flask was removed at M4 — so this is now one straight path, not milestones.)
 
 ## Verify after cutover (`BASE=http://localhost`)
 
-- [ ] `curl $BASE/healthz` → `{"status":"ok"}`; `curl $BASE/app/` → 200 SPA shell.
+- [ ] `curl $BASE/healthz` → `{"status":"ok"}`; `curl $BASE/` → 200 SPA shell.
 - [ ] `curl "$BASE/api/v1/shortcuts?page=1&pageSize=5"` → 200 JSON with your rows.
 - [ ] `curl -sI $BASE/<known-shortcut>` → 302 (or the countdown page when the
   delay is > 0).

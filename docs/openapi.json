@@ -306,6 +306,53 @@
         "title": "BulkDeleteResponse",
         "type": "object"
       },
+      "BulkImportRequest": {
+        "properties": {
+          "shortcuts": {
+            "items": {
+              "$ref": "#/components/schemas/ShortcutCreate"
+            },
+            "title": "Shortcuts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "shortcuts"
+        ],
+        "title": "BulkImportRequest",
+        "type": "object"
+      },
+      "BulkImportResponse": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "inserted": {
+            "title": "Inserted",
+            "type": "integer"
+          },
+          "skipped": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Skipped",
+            "type": "array"
+          },
+          "updated": {
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "inserted",
+          "updated",
+          "skipped",
+          "count"
+        ],
+        "title": "BulkImportResponse",
+        "type": "object"
+      },
       "ByType": {
         "properties": {
           "hits": {
@@ -3049,6 +3096,53 @@
           }
         },
         "summary": "Bulk delete shortcuts",
+        "tags": [
+          "shortcuts"
+        ]
+      }
+    },
+    "/api/v1/shortcuts/bulk-import": {
+      "post": {
+        "description": "Upsert shortcuts by pattern (insert new, overwrite existing). Invalid\nrows are skipped, never fatal \u2014 the response reports every outcome.",
+        "operationId": "bulk_import_shortcuts_api_v1_shortcuts_bulk_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Bulk import shortcuts",
         "tags": [
           "shortcuts"
         ]

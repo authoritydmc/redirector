@@ -18,12 +18,33 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-rd-bg font-sans text-rd-text">
       <header className="flex flex-wrap items-center gap-2 border-b border-rd-line px-4 py-2">
-        <span className="font-bold">Redirector</span>
+        <span className="flex items-center gap-2 font-bold">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect width="24" height="24" rx="6" fill="var(--rd-accent)" opacity="0.2" />
+            <path
+              d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+              stroke="var(--rd-accent)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+              stroke="var(--rd-accent)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Redirector
+        </span>
         <nav className="ml-4 flex flex-wrap gap-1" aria-label="Primary">
           <NavLink className={link} to="/" end>Shortcuts</NavLink>
           <NavLink className={link} to="/upstreams">Upstreams</NavLink>
+          <NavLink className={link} to="/metrics">Metrics</NavLink>
           <NavLink className={link} to="/jobs">Jobs</NavLink>
           <NavLink className={link} to="/admin">Admin</NavLink>
+          <NavLink className={link} to="/guide">Guide</NavLink>
         </nav>
         <span className="ml-auto flex gap-2">
           <select

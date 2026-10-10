@@ -35,6 +35,20 @@ export function bulkDeleteShortcuts(patterns: string[]): Promise<BulkDeleteResul
   })
 }
 
+export interface BulkImportResult {
+  inserted: number
+  updated: number
+  skipped: string[]
+  count: number
+}
+
+export function bulkImportShortcuts(shortcuts: ShortcutInput[]): Promise<BulkImportResult> {
+  return api<BulkImportResult>('/api/v1/shortcuts/bulk-import', {
+    method: 'POST',
+    body: { shortcuts },
+  })
+}
+
 export interface ShortcutInput {
   pattern: string
   target: string

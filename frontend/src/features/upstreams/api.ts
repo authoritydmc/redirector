@@ -18,6 +18,13 @@ export function createUpstream(input: UpstreamInput): Promise<Upstream> {
   return api<Upstream>('/api/v1/upstreams', { method: 'POST', body: input })
 }
 
+export function updateUpstream(
+  id: number,
+  patch: Partial<Pick<UpstreamInput, 'name' | 'base_url'>>,
+): Promise<Upstream> {
+  return api<Upstream>(`/api/v1/upstreams/${id}`, { method: 'PATCH', body: patch })
+}
+
 export async function deleteUpstream(id: number): Promise<void> {
   await api<void>(`/api/v1/upstreams/${id}`, { method: 'DELETE' })
 }

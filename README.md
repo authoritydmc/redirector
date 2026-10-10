@@ -35,7 +35,7 @@ migration steps.
 ## Features
 
 - **FastAPI + async SQLAlchemy**: typed routers, OpenAPI at `/docs`, RFC 7807 errors.
-- **React SPA** served at `/app` (typechecked, unit + Playwright tested).
+- **React SPA** served at `/` (typechecked, unit + Playwright tested).
 - **Redirect hot path** with static / dynamic / user-dynamic shortcuts, countdown or instant 302, access counting.
 - **Upstream shortcut fan-out** with cache, resync/purge, SSE check streams and background jobs (in-process or arq/Redis).
 - **Auth**: admin password + JWT, TOTP MFA with backup codes, API keys (`rk_*`), IP lockout, audit events.
@@ -57,7 +57,7 @@ REDIRECTOR_ADMIN_PASSWORD=... REDIRECTOR_JWT_SECRET=... \
 - Stack: `web` (SPA + proxy, `:80`) → `api` (uvicorn) + `worker` (arq) + `redis`.
 - Data lives in `./data` (bind mount — never change where it points; see
   [`docs/DATA-PERSISTENCE.md`](docs/DATA-PERSISTENCE.md)).
-- Compose fails fast without both secrets. Visit `http://localhost/app`,
+- Compose fails fast without both secrets. Visit `http://localhost`,
   docs at `http://localhost:80/docs` (proxied), health at `/healthz`.
 
 ### Postgres Variant
@@ -271,7 +271,7 @@ redirector/
 │   ├── alembic/             # v3 schema history (env-first URLs)
 │   ├── cli/                 # backup + doctor CLIs
 │   └── requirements.txt
-├── frontend/                # React SPA (served at /app)
+├── frontend/                # React SPA (served at `/`)
 ├── docker/
 │   ├── Dockerfile.api       # non-root uvicorn, migrates on boot
 │   ├── Dockerfile.web       # nginx: SPA + proxy
