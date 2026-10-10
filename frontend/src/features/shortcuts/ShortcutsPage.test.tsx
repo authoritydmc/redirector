@@ -217,7 +217,7 @@ describe('ShortcutsPage', () => {
     })
   })
 
-  it('hides import/export when logged out (admin-only)', async () => {
+  it('hides import when logged out but keeps export public', async () => {
     mockFetch(() => jsonResponse(200, listBody(['docs'], 1)))
     render(
       <AuthProvider>
@@ -225,7 +225,7 @@ describe('ShortcutsPage', () => {
       </AuthProvider>,
     )
     await screen.findByText('docs')
-    expect(screen.queryByRole('button', { name: /export json/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /export json/i })).toBeInTheDocument()
     expect(screen.queryByLabelText(/import json file/i)).not.toBeInTheDocument()
   })
 

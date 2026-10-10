@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '../../lib/client'
 import { useAuth } from '../../lib/auth'
+import { getSitePolicy } from '../../lib/policy'
 import { bulkDeleteShortcuts, bulkImportShortcuts, createShortcut, deleteShortcut, listShortcuts, updateShortcut } from './api'
 import type { Shortcut, ShortcutInput } from './api'
 import ShortcutForm from './ShortcutForm'
@@ -31,6 +32,20 @@ export default function ShortcutsPage() {
   const [importNotice, setImportNotice] = useState<string | null>(null)
   const [drawer, setDrawer] = useState<{ mode: 'create' } | { mode: 'edit'; row: Shortcut } | null>(null)
   const [drawerError, setDrawerError] = useState<string | null>(null)
+  const [publicCreate, setPublicCreate] = useState(false)
+
+  useEffect(() => {
+    if (token !== null) {
+      return
+    }
+    getSitePolicy().then(
+      (policy) => setPublicCreate((policy.public_actions ?? []).includes('shortcuts.create')),
+      () => setPublicCreate(false),
+    )
+  }, [token])
+
+  const canCreate = token !== null || publicCreate
+  const canManage = token !== null
 
   const debouncedQuery = useDebounced(query, 300)
 
@@ -203,13 +218,15 @@ export default function ShortcutsPage() {
     <section>
       <div className="flex items-center gap-3">
         <h2 className="text-xl font-semibold">Shortcuts</h2>
-        <button
-          type="button"
-          onClick={() => { setDrawer({ mode: 'create' }); setDrawerError(null) }}
-          className="ml-auto rounded bg-rd-accent px-3 py-1.5 text-sm text-rd-accent-ink"
-        >
-          New shortcut
-        </button>
+        {canCreate && (
+          <button
+            type="button"
+            onClick={() => { setDrawer({ mode: 'create' }); setDrawerError(null) }}
+            className="ml-auto rounded bg-rd-accent px-3 py-1.5 text-sm text-rd-accent-ink"
+          >
+            New shortcut
+          </button>
+        )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <input
@@ -229,7 +246,7 @@ export default function ShortcutsPage() {
           <option value="created_at">Recently created</option>
           <option value="popular">Most visited</option>
         </select>
-        {selected.size > 0 && (
+        {canManage && selected.size > 0 && (
           confirmingBulk ? (
             <span className="flex gap-2">
               <button type="button" onClick={removeSelected} className="rounded bg-rd-danger px-3 py-1.5 text-sm text-rd-danger-ink">
@@ -257,31 +274,36 @@ export default function ShortcutsPage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-rd-line">
-              <th className="py-1 pr-2">
-                <input type="checkbox" aria-label="Select page" checked={pageSelected} onChange={togglePage} />
-              </th>
+              {canManage && (
+                <th className="py-1 pr-2">
+                  <input type="checkbox" aria-label="Select page" checked={pageSelected} onChange={togglePage} />
+                </th>
+              )}
               <th className="py-1 pr-2">Pattern</th>
               <th className="py-1 pr-2">Target</th>
               <th className="py-1 pr-2">Type</th>
               <th className="py-1 pr-2">Hits</th>
-              <th className="py-1">Actions</th>
+              {canManage && <th className="py-1">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.pattern} className="border-b border-rd-line">
-                <td className="py-1 pr-2">
-                  <input
-                    type="checkbox"
-                    aria-label={`Select ${row.pattern}`}
-                    checked={selected.has(row.pattern)}
-                    onChange={() => toggle(row.pattern)}
-                  />
-                </td>
+                {canManage && (
+                  <td className="py-1 pr-2">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${row.pattern}`}
+                      checked={selected.has(row.pattern)}
+                      onChange={() => toggle(row.pattern)}
+                    />
+                  </td>
+                )}
                 <td className="py-1 pr-2 font-mono">{row.pattern}</td>
                 <td className="max-w-xs truncate py-1 pr-2">{row.target}</td>
                 <td className="py-1 pr-2">{row.type}</td>
                 <td className="py-1 pr-2">{row.access_count}</td>
+                {canManage && (
                 <td className="py-1">
                   {confirming === row.pattern ? (
                     <span className="flex gap-2">
@@ -307,21 +329,22 @@ export default function ShortcutsPage() {
                     </span>
                   )}
                 </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
         </div>
       )}
-      {token !== null && (
-        <div className="mt-3 flex items-center gap-3 text-sm">
-          <button
-            type="button"
-            onClick={() => void exportAll()}
-            className="rounded border border-rd-line px-3 py-1"
-          >
-            Export JSON
-          </button>
+      <div className="mt-3 flex items-center gap-3 text-sm">
+        <button
+          type="button"
+          onClick={() => void exportAll()}
+          className="rounded border border-rd-line px-3 py-1"
+        >
+          Export JSON
+        </button>
+        {token !== null && (
           <label className="rounded border border-rd-line px-3 py-1">
             Import JSON
             <input
@@ -338,8 +361,8 @@ export default function ShortcutsPage() {
               }}
             />
           </label>
-        </div>
-      )}
+        )}
+      </div>
       <div className="mt-3 flex items-center gap-3 text-sm">
         <button
           type="button"

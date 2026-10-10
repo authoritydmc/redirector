@@ -195,13 +195,13 @@ def test_restore_roundtrip(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> No
 
         # Mutate live state after the backup: delete a row, change a value,
         # add a row the backup never saw.
-        assert client.delete("/api/v1/shortcuts/docs").status_code == 204
+        assert client.delete("/api/v1/shortcuts/docs", headers=headers).status_code == 204
         assert client.patch(
             "/api/v1/admin/config", headers=headers,
             json={"settings": {"welcome_message": "changed"}},
         ).status_code == 200
         assert client.post(
-            "/api/v1/shortcuts",
+            "/api/v1/shortcuts", headers=headers,
             json={"pattern": "intruder", "target": "https://evil.example"},
         ).status_code == 201
 

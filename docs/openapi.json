@@ -1470,6 +1470,33 @@
         "title": "ShortcutUpdate",
         "type": "object"
       },
+      "SitePolicy": {
+        "properties": {
+          "known_actions": {
+            "default": [
+              "shortcuts.create",
+              "upstreams.create"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "title": "Known Actions",
+            "type": "array"
+          },
+          "public_actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Public Actions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "public_actions"
+        ],
+        "title": "SitePolicy",
+        "type": "object"
+      },
       "TokenResponse": {
         "properties": {
           "access_token": {
@@ -2672,6 +2699,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Enqueue a background job",
         "tags": [
           "jobs"
@@ -2714,6 +2746,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Cancel a queued/running job",
         "tags": [
           "jobs"
@@ -3054,6 +3091,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create shortcut",
         "tags": [
           "shortcuts"
@@ -3095,6 +3137,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Bulk delete shortcuts",
         "tags": [
           "shortcuts"
@@ -3177,6 +3224,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete shortcut",
         "tags": [
           "shortcuts"
@@ -3267,9 +3319,36 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Update shortcut",
         "tags": [
           "shortcuts"
+        ]
+      }
+    },
+    "/api/v1/site/policy": {
+      "get": {
+        "description": "Which mutating actions are open to anonymous clients (admin-curated).",
+        "operationId": "site_policy_api_v1_site_policy_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SitePolicy"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Public action policy",
+        "tags": [
+          "site"
         ]
       }
     },
@@ -3331,6 +3410,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create an upstream",
         "tags": [
           "upstreams"
@@ -3382,6 +3466,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Purge upstream shortcut cache",
         "tags": [
           "upstreams"
@@ -3477,6 +3566,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Resync upstream cache",
         "tags": [
           "upstreams"
@@ -3528,6 +3622,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Purge one cached upstream entry",
         "tags": [
           "upstreams"
@@ -3579,6 +3678,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Clear upstream check logs",
         "tags": [
           "upstreams"
@@ -3721,6 +3825,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete an upstream",
         "tags": [
           "upstreams"
@@ -3771,6 +3880,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Update an upstream",
         "tags": [
           "upstreams"
@@ -3959,6 +4073,10 @@
     {
       "description": "Redirect hot path + debug",
       "name": "resolve"
+    },
+    {
+      "description": "Public site policy",
+      "name": "site"
     }
   ]
 }

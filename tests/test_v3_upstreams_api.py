@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import SQLModel
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
+from backend.core.config import settings
 from backend.main import create_app
 from backend.core.db import get_session
 
@@ -29,6 +30,10 @@ def client():
 
     app.dependency_overrides[get_session] = override_get_session
     with TestClient(app) as tc:
+        # Mutations require admin (RBAC): authenticate the shared client.
+        login = tc.post("/api/v1/auth/login", json={"password": settings.admin_password})
+        assert login.status_code == 200
+        tc.headers.update({"Authorization": f"Bearer {login.json()['access_token']}"})
         yield tc
 
 

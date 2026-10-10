@@ -21,6 +21,7 @@ from backend.core.cache import build_cache
 from backend.core.config import settings
 from backend.core.db import get_session
 from backend.core.errors import AppError
+from backend.core.policy import RequireAction
 from backend.core.security import ADMIN_WRITE, RequireScopes
 from backend.models.entities import Shortcut, as_utc
 from backend.modules.shortcuts.repository import (
@@ -69,6 +70,7 @@ async def list_shortcuts(
 @router.post("", response_model=ShortcutRead, status_code=status.HTTP_201_CREATED, summary="Create shortcut")
 async def create_shortcut(
     body: ShortcutCreate,
+    _auth: Annotated[dict[str, Any], Depends(RequireAction("shortcuts.create"))],
     repo: SQLAlchemyShortcutRepository = Depends(get_repo),
 ) -> ShortcutRead:
     clean_pat = sanitize_pattern(body.pattern)
@@ -125,6 +127,7 @@ async def create_shortcut(
 @router.post("/bulk-delete", response_model=BulkDeleteResponse, summary="Bulk delete shortcuts")
 async def bulk_delete_shortcuts(
     body: BulkDeleteRequest,
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
     repo: SQLAlchemyShortcutRepository = Depends(get_repo),
 ) -> BulkDeleteResponse:
     deleted: list[str] = []
@@ -221,6 +224,7 @@ async def get_shortcut(
 async def update_shortcut(
     pattern: str,
     body: ShortcutUpdate,
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
     repo: SQLAlchemyShortcutRepository = Depends(get_repo),
 ) -> ShortcutRead:
     data = body.model_dump(exclude_unset=True)
@@ -251,6 +255,7 @@ async def update_shortcut(
 @router.delete("/{pattern:path}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete shortcut")
 async def delete_shortcut(
     pattern: str,
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
     repo: SQLAlchemyShortcutRepository = Depends(get_repo),
 ) -> None:
     deleted = await repo.delete(pattern)

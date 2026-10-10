@@ -77,8 +77,12 @@ Covers shortcuts CRUD + bulk-delete, the resolve hot path (static, dynamic,
 user-dynamic, unknown → 404), upstreams CRUD + cache purge/entry-purge/resync
 + check-logs + SSE check stream, metrics (`/kpi`, `/live`), QR
 (`/api/v1/qr`, `/qr/<pattern>`), and ops probes (`/healthz`, `/health`,
-`/readyz`). Auth-gated admin/config endpoints are excluded on purpose —
-load runs target public/read paths.
+`/readyz`). Mutations are admin-gated (RBAC): the first VU logs in once with
+`REDIRECTOR_ADMIN_PASSWORD` (must match the target server; the dev/smoke
+default is `admin`) and every VU reuses that JWT — a single login because
+`/api/v1/auth/login` is rate-limited (5/minute per IP). Pure reads stay
+anonymous-safe. Auth-gated admin/config endpoints are still excluded —
+they are not load-relevant.
 
 Run against a local v3 server:
 

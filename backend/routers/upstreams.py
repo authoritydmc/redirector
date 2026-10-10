@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
+from typing import Annotated, Any
 
 import httpx
 from fastapi import APIRouter, Depends, Query, status
@@ -13,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.db import get_session
 from backend.core.errors import AppError
+from backend.core.policy import RequireAction
+from backend.core.security import ADMIN_WRITE, RequireScopes
 from backend.models.entities import Upstream
 from backend.modules.upstreams.repository import UpstreamRepository
 from backend.modules.upstreams.schemas import (
@@ -42,6 +45,7 @@ async def list_upstreams(repo: UpstreamRepository = Depends(get_upstream_repo)) 
 @router.post("", response_model=UpstreamRead, status_code=status.HTTP_201_CREATED, summary="Create an upstream")
 async def create_upstream(
     body: UpstreamCreate,
+    _auth: Annotated[dict[str, Any], Depends(RequireAction("upstreams.create"))],
     repo: UpstreamRepository = Depends(get_upstream_repo),
 ) -> UpstreamRead:
     existing = await repo.get_by_name(body.name)
@@ -91,6 +95,7 @@ async def list_upstream_cache(
 
 @router.delete("/cache", response_model=CachePurgeResult, summary="Purge upstream shortcut cache")
 async def purge_upstream_cache(
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
     upstream: str | None = Query(None, description="Purge specific upstream only, or all if omitted"),
     repo: UpstreamRepository = Depends(get_upstream_repo),
 ) -> CachePurgeResult:
@@ -101,6 +106,7 @@ async def purge_upstream_cache(
 @router.post("/cache/resync", response_model=CacheResyncResponse, summary="Resync upstream cache")
 async def resync_upstream_cache(
     body: CacheResyncRequest,
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
     repo: UpstreamRepository = Depends(get_upstream_repo),
 ) -> CacheResyncResponse:
     """Re-check one pattern (or all cached ones) and reconcile cache rows.
@@ -144,6 +150,7 @@ async def resync_upstream_cache(
 async def purge_cache_entry(
     upstream: str,
     pattern: str,
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
     repo: UpstreamRepository = Depends(get_upstream_repo),
 ) -> CachePurgeResult:
     deleted = await repo.clear_cache_entry(pattern, upstream)
@@ -183,6 +190,7 @@ async def list_check_logs(
     summary="Clear upstream check logs",
 )
 async def clear_check_logs(
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
     upstream: str | None = Query(None, description="Clear one upstream only, or all if omitted"),
     repo: UpstreamRepository = Depends(get_upstream_repo),
 ) -> CachePurgeResult:
@@ -197,6 +205,7 @@ async def clear_check_logs(
 async def update_upstream(
     upstream_id: int,
     body: UpstreamUpdate,
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
     repo: UpstreamRepository = Depends(get_upstream_repo),
 ) -> UpstreamRead:
     updated = await repo.update(upstream_id, body.model_dump(exclude_unset=True))
@@ -213,6 +222,7 @@ async def update_upstream(
 @router.delete("/{upstream_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete an upstream")
 async def delete_upstream(
     upstream_id: int,
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
     repo: UpstreamRepository = Depends(get_upstream_repo),
 ) -> None:
     deleted = await repo.delete(upstream_id)
