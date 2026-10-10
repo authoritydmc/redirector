@@ -38,7 +38,7 @@ describe('theme registry', () => {
   it('has unique ids and complete, well-formed palettes', () => {
     const ids = THEMES.map((t) => t.id)
     expect(new Set(ids).size).toBe(ids.length)
-    expect(ids.length).toBeGreaterThanOrEqual(13)
+    expect(ids.length).toBeGreaterThanOrEqual(14)
     for (const theme of THEMES) {
       expect(theme.kind === 'light' || theme.kind === 'dark').toBe(true)
       for (const key of VAR_KEYS) {

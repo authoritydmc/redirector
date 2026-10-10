@@ -1,20 +1,14 @@
 import { useEffect, useState } from 'react'
 import { THEMES, THEME_STORAGE_KEY, isThemeId, type ThemeId } from './themes'
 
-function systemTheme(): ThemeId {
-  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  }
-  return 'light'
-}
-
 function initialTheme(): ThemeId {
   const stored = localStorage.getItem(THEME_STORAGE_KEY)
   // Legacy binary toggle values migrate to the same-named themes.
   if (stored === 'dark' || stored === 'light' || isThemeId(stored)) {
     return stored
   }
-  return systemTheme()
+  // Signature look out of the box — not the OS default.
+  return 'redirector'
 }
 
 /** Active theme id, persisted; flips `document.documentElement.dataset.theme`. */

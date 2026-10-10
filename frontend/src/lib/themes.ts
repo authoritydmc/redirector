@@ -45,6 +45,11 @@ function theme(id: string, label: string, kind: ThemeKind, vars: ThemeVars): The
 }
 
 export const THEMES: Theme[] = [
+  theme('redirector', 'Redirector', 'dark', {
+    bg: '#14101f', surface: '#1d1730', text: '#f2efff', muted: '#b3a8d6',
+    line: '#352c52', input: '#171224', accent: '#a78bfa', accentInk: '#1c1038',
+    danger: '#fb7185', dangerInk: '#14090f',
+  }),
   theme('light', 'Light', 'light', {
     bg: '#ffffff', surface: '#f6f8fa', text: '#1f2328', muted: '#59636e',
     line: '#d1d9e0', input: '#ffffff', accent: '#0969da', accentInk: '#ffffff',

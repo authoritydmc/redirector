@@ -20,6 +20,11 @@
   --color-rd-danger-ink: var(--rd-danger-ink);
 }
 
+@theme {
+  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 :root {
   color-scheme: light;
   --rd-bg: #ffffff;
@@ -36,6 +41,20 @@
 
 /* Light gets its own block (same values as :root) so minifiers never merge
    the fallback away from the explicit theme selector. */
+[data-theme='redirector'] {
+  color-scheme: dark;
+  --rd-bg: #14101f;
+  --rd-surface: #1d1730;
+  --rd-text: #f2efff;
+  --rd-muted: #b3a8d6;
+  --rd-line: #352c52;
+  --rd-input: #171224;
+  --rd-accent: #a78bfa;
+  --rd-accent-ink: #1c1038;
+  --rd-danger: #fb7185;
+  --rd-danger-ink: #14090f;
+}
+
 [data-theme='light'] {
   color-scheme: light;
   --rd-bg: #ffffff;
