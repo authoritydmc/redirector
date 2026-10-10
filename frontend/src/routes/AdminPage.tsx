@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '../lib/client'
+import QRCode from 'react-qr-code'
 import {
   createBackup,
   deleteBackup,
@@ -281,9 +282,14 @@ function MfaSection() {
       )}
       {setup !== null ? (
         <div className="mt-2">
-          <p className="rounded border border-rd-line bg-rd-input p-2 font-mono text-xs break-all">
-            Seed (enter in your authenticator): {setup.secret}
-          </p>
+          <div className="flex flex-wrap items-start gap-3">
+            <div className="rounded border border-rd-line bg-white p-2">
+              <QRCode value={setup.otpauth_url} size={160} aria-label="TOTP setup QR code" />
+            </div>
+            <p className="max-w-sm flex-1 rounded border border-rd-line bg-rd-input p-2 font-mono text-xs break-all">
+              Seed (manual entry): {setup.secret}
+            </p>
+          </div>
           <div className="mt-2 flex flex-wrap items-end gap-2">
             <label className="flex flex-col text-sm">
               6-digit code

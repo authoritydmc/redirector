@@ -56,6 +56,33 @@ describe('AdminPage', () => {
     expect(screen.getByText('Backups')).toBeInTheDocument()
   })
 
+  it('shows a scannable QR code when MFA setup starts', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        const path = String(url)
+        if (path.includes('/api/v1/auth/mfa/setup')) {
+          return jsonResponse(200, {
+            secret: 'SEED123',
+            otpauth_url: 'otpauth://totp/redirector:admin?secret=SEED123&issuer=redirector',
+          })
+        }
+        if (path.includes('/api/v1/auth/mfa/status')) {
+          return jsonResponse(200, { enabled: false, backup_codes_remaining: 0 })
+        }
+        if (path.includes('/api/v1/admin/config')) {
+          return jsonResponse(200, { app_name: 'redirector', app_version: '4.0.0', custom: {} })
+        }
+        return jsonResponse(200, [])
+      }),
+    )
+    renderPage()
+    await user.click(screen.getByRole('button', { name: /start setup/i }))
+    await waitFor(() => expect(screen.getByLabelText('TOTP setup QR code')).toBeInTheDocument())
+    expect(screen.getByText(/SEED123/)).toBeInTheDocument()
+  })
+
   it('issues a key and shows it once', async () => {
     const user = userEvent.setup()
     vi.stubGlobal(

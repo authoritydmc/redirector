@@ -216,4 +216,24 @@ describe('ShortcutsPage', () => {
       expect(patched?.body).toMatchObject({ target: 'https://x.example/changed' })
     })
   })
+
+  it('hides import/export when logged out (admin-only)', async () => {
+    mockFetch(() => jsonResponse(200, listBody(['docs'], 1)))
+    render(
+      <AuthProvider>
+        <ShortcutsPage />
+      </AuthProvider>,
+    )
+    await screen.findByText('docs')
+    expect(screen.queryByRole('button', { name: /export json/i })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/import json file/i)).not.toBeInTheDocument()
+  })
+
+  it('shows import/export when logged in', async () => {
+    mockFetch(() => jsonResponse(200, listBody(['docs'], 1)))
+    renderPage()
+    await screen.findByText('docs')
+    expect(screen.getByRole('button', { name: /export json/i })).toBeInTheDocument()
+    expect(screen.getByLabelText(/import json file/i)).toBeInTheDocument()
+  })
 })

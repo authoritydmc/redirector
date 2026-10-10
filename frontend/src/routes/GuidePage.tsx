@@ -1,70 +1,318 @@
-function Block({ title, children }: { title: string; children: React.ReactNode }) {
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { debugResolve, hasDynamicPlaceholder, suggestPatternFor } from '../features/shortcuts/api'
+
+const inputClass =
+  'mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-1.5 text-sm text-rd-text'
+
+function useDebounced(value: string, delayMs: number): string {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs)
+    return () => clearTimeout(timer)
+  }, [value, delayMs])
+  return debounced
+}
+
+function StepShell({
+  step,
+  total,
+  title,
+  children,
+  onBack,
+  onNext,
+  nextLabel = 'Next',
+}: {
+  step: number
+  total: number
+  title: string
+  children: React.ReactNode
+  onBack: (() => void) | null
+  onNext: (() => void) | null
+  nextLabel?: string
+}) {
   return (
-    <section className="mt-4 rounded-xl border border-rd-line bg-rd-surface p-4 shadow-xl">
-      <h3 className="text-lg font-semibold">{title}</h3>
-      <div className="mt-2 flex flex-col gap-2 text-sm text-rd-text">{children}</div>
-    </section>
+    <div key={step} className="animate-rd-fade-up">
+      <div className="flex items-center gap-1" aria-label={`Step ${step + 1} of ${total}`}>
+        {Array.from({ length: total }, (_, i) => (
+          <span
+            key={i}
+            aria-hidden="true"
+            className={`h-1.5 flex-1 rounded-full ${i <= step ? 'bg-rd-accent' : 'bg-rd-line'}`}
+          />
+        ))}
+      </div>
+      <h3 className="mt-4 text-lg font-semibold">{title}</h3>
+      <div className="mt-3 flex flex-col gap-3">{children}</div>
+      <div className="mt-4 flex gap-2">
+        {onBack !== null && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded border border-rd-line px-4 py-1.5 text-sm"
+          >
+            Back
+          </button>
+        )}
+        {onNext !== null && (
+          <button
+            type="button"
+            onClick={onNext}
+            className="rounded bg-rd-accent px-4 py-1.5 text-sm text-rd-accent-ink"
+          >
+            {nextLabel}
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 
-function Code({ children }: { children: React.ReactNode }) {
-  return <code className="rounded bg-rd-input px-1.5 py-0.5 font-mono text-xs">{children}</code>
+function StepTarget({ target, setTarget }: { target: string; setTarget: (v: string) => void }) {
+  const suggestion = suggestPatternFor(target)
+  const dynamic = hasDynamicPlaceholder(target)
+  return (
+    <>
+      <p className="text-sm text-rd-muted">
+        Type where the link should go. The app reads the target and suggests the rest.
+      </p>
+      <label className="flex flex-col text-sm">
+        Target URL — try <span className="font-mono">https://x.example/docs/getting-started</span>
+        <input
+          aria-label="Tutorial target"
+          value={target}
+          onChange={(event) => setTarget(event.target.value)}
+          placeholder="https://example.com/docs"
+          className={inputClass}
+        />
+      </label>
+      {suggestion !== '' && (
+        <p className="text-sm">
+          Suggested pattern: <span className="font-mono font-bold">r/{suggestion}</span>
+        </p>
+      )}
+      {dynamic && (
+        <p className="text-sm">
+          Detected a placeholder — this wants the{' '}
+          <strong>dynamic</strong> type below.
+        </p>
+      )}
+      {!dynamic && target.trim() !== '' && (
+        <p className="text-sm text-rd-muted">No placeholders — a plain static link.</p>
+      )}
+    </>
+  )
+}
+
+function StepAvailability({ pattern, setPattern }: { pattern: string; setPattern: (v: string) => void }) {
+  const debounced = useDebounced(pattern.trim().toLowerCase(), 400)
+  const [state, setState] = useState<'idle' | 'checking' | 'free' | 'taken' | 'error'>('idle')
+  const [takenTarget, setTakenTarget] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (debounced === '') {
+      setState('idle')
+      return
+    }
+    let live = true
+    setState('checking')
+    debugResolve(debounced).then(
+      (res) => {
+        if (!live) {
+          return
+        }
+        if (res.outcome === 'not_found') {
+          setState('free')
+          setTakenTarget(null)
+        } else if (res.outcome === 'redirect') {
+          setState('taken')
+          setTakenTarget(typeof res.target === 'string' ? res.target : null)
+        } else {
+          setState('error')
+          setTakenTarget(null)
+        }
+      },
+      () => {
+        if (live) {
+          setState('error')
+        }
+      },
+    )
+    return () => {
+      live = false
+    }
+  }, [debounced])
+
+  return (
+    <>
+      <p className="text-sm text-rd-muted">
+        Type a pattern — the app checks it live against shortcuts and upstreams.
+      </p>
+      <label className="flex flex-col text-sm">
+        Pattern — try <span className="font-mono">docs</span>
+        <input
+          aria-label="Tutorial pattern"
+          value={pattern}
+          onChange={(event) => setPattern(event.target.value)}
+          placeholder="my-link"
+          className={inputClass}
+        />
+      </label>
+      {state === 'checking' && <p className="text-sm text-rd-muted">checking…</p>}
+      {state === 'free' && pattern.trim() !== '' && (
+        <p className="text-sm">
+          <span className="font-mono">r/{debounced}</span> is <strong className="text-rd-accent">available ✓</strong>
+        </p>
+      )}
+      {state === 'taken' && (
+        <p className="text-sm">
+          <span className="font-mono">r/{debounced}</span> is taken
+          {takenTarget !== null && (
+            <> — it goes to <span className="font-mono">{takenTarget}</span></>
+          )}
+          . Pick another one.
+        </p>
+      )}
+      {state === 'error' && (
+        <p className="text-sm text-rd-muted">Could not check that pattern right now.</p>
+      )}
+    </>
+  )
+}
+
+function StepDynamic({ template, setTemplate }: { template: string; setTemplate: (v: string) => void }) {
+  const [sample, setSample] = useState('ABC-123')
+  const preview = template
+    .replace(/\{[^}]+\}/g, sample.toLowerCase())
+    .replace(/\[arg\]/gi, sample.toLowerCase())
+  return (
+    <>
+      <p className="text-sm text-rd-muted">
+        One link, infinite destinations. Put a placeholder in the target, then watch a
+        sample value flow through it.
+      </p>
+      <label className="flex flex-col text-sm">
+        Template — try <span className="font-mono">{'https://j.example/{ticket}'}</span>
+        <input
+          aria-label="Tutorial template"
+          value={template}
+          onChange={(event) => setTemplate(event.target.value)}
+          placeholder="https://j.example/{ticket}"
+          className={inputClass}
+        />
+      </label>
+      <label className="flex flex-col text-sm">
+        Sample value
+        <input
+          aria-label="Tutorial sample value"
+          value={sample}
+          onChange={(event) => setSample(event.target.value)}
+          className={inputClass}
+        />
+      </label>
+      {template.trim() !== '' && (
+        <p className="rounded border border-rd-line bg-rd-input p-3 font-mono text-sm break-all">
+          → {preview}
+        </p>
+      )}
+    </>
+  )
+}
+
+const VISIBILITY: Array<{ value: string; who: string; note: string }> = [
+  { value: 'public', who: 'Everyone', note: 'Resolves for anyone, listed everywhere.' },
+  { value: 'unlisted', who: 'Everyone with the link', note: 'Resolves, but hidden from lists.' },
+  { value: 'private', who: 'Only you + admins', note: 'Others get a 403.' },
+  { value: 'team', who: 'Owner + admins', note: 'Tied to the owner email.' },
+]
+
+function StepVisibility() {
+  const [picked, setPicked] = useState('public')
+  const current = VISIBILITY.find((v) => v.value === picked) ?? VISIBILITY[0]
+  return (
+    <>
+      <p className="text-sm text-rd-muted">Pick who may open the link:</p>
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Visibility">
+        {VISIBILITY.map((v) => (
+          <button
+            key={v.value}
+            type="button"
+            role="radio"
+            aria-checked={picked === v.value}
+            onClick={() => setPicked(v.value)}
+            className={`rounded border px-3 py-1.5 text-sm ${
+              picked === v.value
+                ? 'border-rd-accent bg-rd-accent text-rd-accent-ink'
+                : 'border-rd-line'
+            }`}
+          >
+            {v.value}
+          </button>
+        ))}
+      </div>
+      <p className="rounded border border-rd-line bg-rd-input p-3 text-sm">
+        <strong>{current.who}</strong> — {current.note}
+      </p>
+    </>
+  )
 }
 
 export default function GuidePage() {
+  const [step, setStep] = useState(0)
+  const [target, setTarget] = useState('')
+  const [pattern, setPattern] = useState('')
+  const [template, setTemplate] = useState('')
+  const total = 5
+
   return (
     <div>
       <h2 className="text-xl font-semibold">Guide</h2>
-      <p className="mt-1 text-sm text-rd-muted">
-        Everything this app does, in five minutes.
-      </p>
-      <Block title="1 · Shortcuts">
-        <p>
-          A shortcut maps a short <Code>pattern</Code> to a <Code>target</Code> URL.
-          Visit <Code>/docs</Code> and you land on the target — instantly, or after
-          a short countdown page.
-        </p>
-        <p><strong>Static:</strong> <Code>docs</Code> → <Code>https://x.example/docs</Code>.</p>
-        <p>
-          <strong>Dynamic:</strong> one pattern with a placeholder, e.g. <Code>jira</Code> →{' '}
-          <Code>{'https://j.example/{ticket}'}</Code>. Visiting <Code>/jira/ABC-123</Code>{' '}
-          substitutes the argument into the target.
-        </p>
-        <p>
-          <strong>User-dynamic:</strong> like dynamic, but the argument must match a
-          configured parameter (see the shortcut&apos;s params).
-        </p>
-      </Block>
-      <Block title="2 · Visibility and expiry">
-        <p>
-          <Code>public</Code> links resolve for everyone; <Code>unlisted</Code> links
-          work but stay out of lists; <Code>private</Code> and <Code>team</Code> links
-          need the owner or an admin. <Code>expires_at</Code> retires a link
-          automatically (it then answers 410 Gone).
-        </p>
-      </Block>
-      <Block title="3 · Upstreams">
-        <p>
-          Upstreams are other shortener namespaces checked before a pattern is
-          treated as unknown. Add one under Upstreams, then use the live check
-          to watch the fan-out stream event by event. Cache entries can be
-          resynced or purged per pattern.
-        </p>
-      </Block>
-      <Block title="4 · Sharing">
-        <p>
-          Every shortcut has a QR code (<Code>/qr/&lt;pattern&gt;</Code>) for
-          print and rooms. Metrics shows hits, popular links and cache health.
-        </p>
-      </Block>
-      <Block title="5 · Automation">
-        <p>
-          Everything clickable here is an API call under <Code>/api/v1</Code> —
-          issue an API key on the Admin page and drive it from scripts
-          (interactive docs at <Code>/docs</Code>). Backups are versioned
-          archives you can download, delete and restore from Admin.
-        </p>
-      </Block>
+      <p className="mt-1 text-sm text-rd-muted">Learn by doing — every box below is live.</p>
+      <div className="mt-3 rounded-xl border border-rd-line bg-rd-surface p-4 shadow-xl md:p-6">
+        {step === 0 && (
+          <StepShell step={0} total={total} title="1 · Point it somewhere" onBack={null} onNext={() => setStep(1)}>
+            <StepTarget target={target} setTarget={setTarget} />
+          </StepShell>
+        )}
+        {step === 1 && (
+          <StepShell step={1} total={total} title="2 · Claim a name" onBack={() => setStep(0)} onNext={() => setStep(2)}>
+            <StepAvailability pattern={pattern} setPattern={setPattern} />
+          </StepShell>
+        )}
+        {step === 2 && (
+          <StepShell step={2} total={total} title="3 · Go dynamic" onBack={() => setStep(1)} onNext={() => setStep(3)}>
+            <StepDynamic template={template} setTemplate={setTemplate} />
+          </StepShell>
+        )}
+        {step === 3 && (
+          <StepShell step={3} total={total} title="4 · Choose who sees it" onBack={() => setStep(2)} onNext={() => setStep(4)}>
+            <StepVisibility />
+          </StepShell>
+        )}
+        {step === 4 && (
+          <StepShell
+            step={4}
+            total={total}
+            title="5 · Share it"
+            onBack={() => setStep(3)}
+            onNext={null}
+            nextLabel="Done"
+          >
+            <p className="text-sm text-rd-muted">
+              Create the real thing on the Shortcuts page — every shortcut gets a
+              QR code, hit counters, and an API at <span className="font-mono">/api/v1</span>.
+            </p>
+            <div>
+              <Link
+                to="/"
+                className="inline-block rounded bg-rd-accent px-4 py-2 text-sm text-rd-accent-ink"
+              >
+                Create your first link
+              </Link>
+            </div>
+          </StepShell>
+        )}
+      </div>
     </div>
   )
 }
