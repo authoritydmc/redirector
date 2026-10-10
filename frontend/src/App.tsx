@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import Layout from './components/Layout'
 import { AuthProvider, useAuth } from './lib/auth'
 import Login from './routes/Login'
+import NotFound from './routes/NotFound'
 import Placeholder from './routes/Placeholder'
 import ShortcutsPage from './features/shortcuts/ShortcutsPage'
 import UpstreamsPage from './features/upstreams/UpstreamsPage'
@@ -32,7 +33,7 @@ export function AppRoutes() {
         <Route path="upstreams" element={<UpstreamsPage />} />
         <Route path="jobs" element={<Placeholder name="Jobs" />} />
         <Route path="admin" element={<Placeholder name="Admin" />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   )
