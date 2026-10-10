@@ -1,4 +1,5 @@
-# v3 React SPA gates (EPIC-02): typecheck + unit tests + production build.
+# v3 React SPA gates (EPIC-02/07): typecheck + unit tests + production build
+# + Playwright e2e (real API on scratch DB + vite dev, self-orchestrated).
 # The generated API client must match the committed OpenAPI snapshot, so
 # backend contract drift breaks here too — regenerate via
 # `npm run codegen` inside frontend/ and commit the result.
@@ -47,3 +48,16 @@ jobs:
         run: npm run test
       - name: Production build
         run: npm run build
+      - name: Set up Python (e2e API)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend deps (e2e API)
+        run: pip install -r backend/requirements.txt
+        working-directory: .
+      - name: Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: End-to-end tests
+        run: npm run test:e2e
+        working-directory: frontend

@@ -55,7 +55,8 @@ Toolchain:
   pytest-asyncio — deliberate: it keeps the v2 gevent suite runnable in
   isolation without plugin conflicts (see `test_backend_smoke.py`).
   Ratchet stands at zero.)
-- [ ] 3. Vitest+Playwright scaffolding + first 5 critical flows (login, create, redirect, upstream check, backup).
+- [x] 3. Vitest+Playwright scaffolding + first 5 critical flows (login, create, redirect, upstream check, backup).
+  (Done: `frontend/playwright.config.ts` + self-orchestrated `e2e/` — global-setup boots the real API on a scratch DB (with server-reuse probe), vite dev serves the SPA; 5 flows green locally in ~6s and in `frontend.yml` CI (python + backend deps + chromium). Vitest explicitly scoped away from e2e specs via `vitest.config.ts`.)
 - [ ] 4. `ci.yml` rewrite + required checks + CODEOWNERS.
   (Partial: required checks enforced by the `mainProtect` ruleset — direct
   pushes rejected, PR + checks mandatory; `.github/CODEOWNERS` added. A
