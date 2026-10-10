@@ -491,6 +491,26 @@ export interface paths {
         patch: operations["update_shortcut_api_v1_shortcuts__pattern__patch"];
         trace?: never;
     };
+    "/api/v1/site/policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public action policy
+         * @description Which mutating actions are open to anonymous clients (admin-curated).
+         */
+        get: operations["site_policy_api_v1_site_policy_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/upstreams": {
         parameters: {
             query?: never;
@@ -1273,6 +1293,19 @@ export interface components {
             target?: string | null;
             type?: components["schemas"]["ShortcutType"] | null;
             visibility?: components["schemas"]["Visibility"] | null;
+        };
+        /** SitePolicy */
+        SitePolicy: {
+            /**
+             * Known Actions
+             * @default [
+             *       "shortcuts.create",
+             *       "upstreams.create"
+             *     ]
+             */
+            known_actions: string[];
+            /** Public Actions */
+            public_actions: string[];
         };
         /** TokenResponse */
         TokenResponse: {
@@ -2446,6 +2479,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    site_policy_api_v1_site_policy_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SitePolicy"];
                 };
             };
         };
