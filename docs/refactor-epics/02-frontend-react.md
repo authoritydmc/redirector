@@ -34,7 +34,9 @@ Key decisions:
 ## Acceptance criteria
 - [ ] Feature parity checklist (all 32 templates mapped, signed off) — legacy template served only if `?legacy=1`.
 - [ ] Lighthouse ≥ 90 on dashboard; dashboard TTI < 1.5s on broadband.
-- [ ] `npm run typecheck`, `vitest`, `playwright test` green in CI.
+- [x] `npm run typecheck`, `vitest`, `playwright test` green in CI.
+  (All three gate in `frontend.yml`: strict typecheck, vitest suite, and
+  self-orchestrated Playwright e2e against the real API.)
 - [x] No Jinja in new code; `app/templates/` frozen (bugfixes only) after cutover.
   (Superseded by M4: `app/templates/` deleted with the Flask app — nothing
   left to freeze. New UI is React-only; the theme engine added 13
@@ -67,11 +69,17 @@ Key decisions:
   `/api/v1/upstreams/check/stream/{pattern}` (EventSource, progress +
   terminal events, disconnect handling, stop control), 4 component tests
   with a scripted EventSource double.)
-- [ ] 5. Admin config, Redis/upstream cache, import/export, backup, metrics-live, version page.
+- [x] 5. Admin config, Redis/upstream cache, import/export, backup, metrics-live, version page.
+  (Done: Admin page (config editor, API keys, MFA setup/enable/disable,
+  backups with download/restore, system info), Jobs queue with cancel,
+  Metrics KPI/live cards, Guide tutorial, upstream cache list/purge/resync
+  + check-log viewer, per-shortcut QR preview, JSON import/export with a
+  new `POST /api/v1/shortcuts/bulk-import` upsert endpoint. Redis-cache
+  admin view has no backend endpoint and stays out.)
 - [ ] 6. MFA setup/verify (TOTP QR + WebAuthn), setup wizard, 404/500 routes.
-  (Partial 2026-10-10: real 404 route + test landed (`routes/NotFound.tsx`,
-  themed card with a way back, replacing the catch-all redirect); MFA setup
-  UI, setup wizard and 500 route still open.)
+  (Partial: MFA TOTP setup/enable/disable UI lives on the Admin page; 404
+  route landed as a themed page. Still open: WebAuthn/passkeys UI, first-run
+  setup wizard, 500 route.)
 - [x] 7. Production build served by FastAPI `StaticFiles` (single container) + CDN-friendly hashed assets.
   (Done on `v3/epic-01-backend-foundation`: `REDIRECTOR_SPA_DIR` build
   served at `/app` with index.html fallback for client routes
