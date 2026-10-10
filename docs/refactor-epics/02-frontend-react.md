@@ -69,6 +69,9 @@ Key decisions:
   with a scripted EventSource double.)
 - [ ] 5. Admin config, Redis/upstream cache, import/export, backup, metrics-live, version page.
 - [ ] 6. MFA setup/verify (TOTP QR + WebAuthn), setup wizard, 404/500 routes.
+  (Partial 2026-10-10: real 404 route + test landed (`routes/NotFound.tsx`,
+  themed card with a way back, replacing the catch-all redirect); MFA setup
+  UI, setup wizard and 500 route still open.)
 - [x] 7. Production build served by FastAPI `StaticFiles` (single container) + CDN-friendly hashed assets.
   (Done on `v3/epic-01-backend-foundation`: `REDIRECTOR_SPA_DIR` build
   served at `/app` with index.html fallback for client routes

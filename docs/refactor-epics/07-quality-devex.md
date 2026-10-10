@@ -39,7 +39,11 @@ Toolchain:
   documented in `DEVELOPMENT.md` (quarantine dir + `[flake]` issue + nightly
   runs, no silent deletes).)
 - [ ] Images published `rajlabs/redirector-api:v3`, `rajlabs/redirector-web:v3` + compat `rajlabs/redirector:v3` (all-in-one).
-- [ ] Coverage + type gates enforced (no `--no-verify` culture).
+- [x] Coverage + type gates enforced (no `--no-verify` culture).
+  (Done: `validate.yml` backend-smoke enforces `--cov-fail-under=80` on
+  `backend/modules` + `backend/core` (measured 82% with redis up); ruff +
+  mypy strict already gated there. Hot-path-100% sub-target not claimed —
+  `shortcuts/service.py` sits at 92%.)
 
 ## Tasks
 - [x] 1. Monorepo move + import path codemod + `Makefile`/`Taskfile`.
