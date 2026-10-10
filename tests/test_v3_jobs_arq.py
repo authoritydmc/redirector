@@ -129,7 +129,14 @@ def _api_client(tmp_path: Any) -> tuple[TestClient, Any]:
             yield session
 
     app.dependency_overrides[get_session] = override_get_session
-    return TestClient(app), (factory, queue)
+    client = TestClient(app)
+    # Mutations require admin (RBAC): authenticate the shared client.
+    from backend.core.config import settings as _settings
+
+    login = client.post("/api/v1/auth/login", json={"password": _settings.admin_password})
+    assert login.status_code == 200
+    client.headers.update({"Authorization": f"Bearer {login.json()['access_token']}"})
+    return client, (factory, queue)
 
 
 async def _drain(factory, queue: str) -> None:  # type: ignore[no-untyped-def]

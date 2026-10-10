@@ -24,20 +24,27 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route
-        path="/*"
-        element={
-          <RequireAuth>
-            <Layout />
-          </RequireAuth>
-        }
-      >
+      <Route element={<Layout />}>
         <Route index element={<ShortcutsPage />} />
         <Route path="upstreams" element={<UpstreamsPage />} />
-        <Route path="jobs" element={<JobsPage />} />
-        <Route path="admin" element={<AdminPage />} />
         <Route path="metrics" element={<MetricsPage />} />
         <Route path="guide" element={<GuidePage />} />
+        <Route
+          path="jobs"
+          element={
+            <RequireAuth>
+              <JobsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="admin"
+          element={
+            <RequireAuth>
+              <AdminPage />
+            </RequireAuth>
+          }
+        />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

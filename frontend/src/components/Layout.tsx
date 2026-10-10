@@ -3,7 +3,7 @@ import { useAuth } from '../lib/auth'
 import { THEMES, useTheme } from '../lib/theme'
 
 export default function Layout() {
-  const { logout } = useAuth()
+  const { token, logout } = useAuth()
   const navigate = useNavigate()
   const [theme, setTheme] = useTheme()
 
@@ -59,9 +59,13 @@ export default function Layout() {
               </option>
             ))}
           </select>
-          <button type="button" onClick={signOut} className="rounded px-2 py-1 text-sm hover:bg-rd-surface">
-            Sign out
-          </button>
+          {token !== null ? (
+            <button type="button" onClick={signOut} className="rounded px-2 py-1 text-sm hover:bg-rd-surface">
+              Sign out
+            </button>
+          ) : (
+            <NavLink className={link} to="/login">Sign in</NavLink>
+          )}
         </span>
       </header>
       <main className="mx-auto max-w-4xl p-4">

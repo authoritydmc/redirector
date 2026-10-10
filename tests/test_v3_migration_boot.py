@@ -132,7 +132,10 @@ def test_v3_leaves_v2_files_untouched(tmp_path: Any) -> None:
 
     app = _boot_migrated_app(db_path)
     with TestClient(app) as client:
-        # A v3 write lands in the migrated DB only ...
+        # A v3 write lands in the migrated DB only (mutations need admin) ...
+        login = client.post("/api/v1/auth/login", json={"password": v3_settings.admin_password})
+        assert login.status_code == 200
+        client.headers.update({"Authorization": f"Bearer {login.json()['access_token']}"})
         assert client.post(
             "/api/v1/shortcuts",
             json={"pattern": "v3-only", "target": "https://x.example/n"},

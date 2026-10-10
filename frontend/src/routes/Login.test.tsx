@@ -62,8 +62,15 @@ describe('Login', () => {
     expect(localStorage.getItem('redirector.token')).toBe('jwt-test')
   })
 
-  it('redirects anonymous visitors to login', async () => {
+  it('shows public shortcuts to anonymous visitors', async () => {
     renderAt('/')
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Shortcuts' })).toBeInTheDocument()
+    })
+  })
+
+  it('redirects anonymous visitors to login for admin routes', async () => {
+    renderAt('/admin')
     await waitFor(() => {
       expect(screen.getByText('Admin password')).toBeInTheDocument()
     })

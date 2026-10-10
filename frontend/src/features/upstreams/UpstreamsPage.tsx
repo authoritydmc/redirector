@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { createUpstream, deleteUpstream, listUpstreams, updateUpstream } from './api'
 import type { CheckEvent, Upstream } from './api'
+import { useAuth } from '../../lib/auth'
+import { getSitePolicy } from '../../lib/policy'
 import {
   clearCheckLogs,
   listCache,
@@ -14,6 +16,7 @@ import {
 } from '../admin/api'
 
 export default function UpstreamsPage() {
+  const { token } = useAuth()
   const [rows, setRows] = useState<Upstream[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +38,20 @@ export default function UpstreamsPage() {
   const [streaming, setStreaming] = useState(false)
   const [events, setEvents] = useState<CheckEvent[]>([])
   const sourceRef = useRef<EventSource | null>(null)
+  const [publicCreate, setPublicCreate] = useState(false)
+
+  useEffect(() => {
+    if (token !== null) {
+      return
+    }
+    getSitePolicy().then(
+      (policy) => setPublicCreate((policy.public_actions ?? []).includes('upstreams.create')),
+      () => setPublicCreate(false),
+    )
+  }, [token])
+
+  const canCreate = token !== null || publicCreate
+  const canManage = token !== null
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -42,8 +59,8 @@ export default function UpstreamsPage() {
     try {
       const [ups, cache, logs] = await Promise.all([
         listUpstreams(),
-        listCache().catch(() => [] as CacheEntry[]),
-        listCheckLogs().catch(() => [] as CheckLog[]),
+        token !== null ? listCache().catch(() => [] as CacheEntry[]) : Promise.resolve([] as CacheEntry[]),
+        token !== null ? listCheckLogs().catch(() => [] as CheckLog[]) : Promise.resolve([] as CheckLog[]),
       ])
       setRows(ups)
       setCacheRows(cache)
@@ -53,7 +70,7 @@ export default function UpstreamsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [token])
 
   useEffect(() => {
     void reload()
@@ -204,6 +221,7 @@ export default function UpstreamsPage() {
     <section>
       <h2 className="text-xl font-semibold">Upstreams</h2>
 
+      {canCreate && (
       <form onSubmit={create} className="mt-3 flex flex-wrap items-end gap-2">
         <label className="flex flex-col text-sm">
           Name
@@ -228,6 +246,7 @@ export default function UpstreamsPage() {
           Add upstream
         </button>
       </form>
+      )}
 
       {error !== null && <p role="alert" className="mt-3 text-sm text-rd-danger">{error}</p>}
 
@@ -242,7 +261,7 @@ export default function UpstreamsPage() {
             <tr className="border-b border-rd-line">
               <th className="py-1 pr-2">Name</th>
               <th className="py-1 pr-2">Base URL</th>
-              <th className="py-1">Actions</th>
+              {canManage && <th className="py-1">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -250,6 +269,7 @@ export default function UpstreamsPage() {
               <tr key={row.id ?? row.name} className="border-b border-rd-line">
                 <td className="py-1 pr-2 font-mono">{row.name}</td>
                 <td className="max-w-xs truncate py-1 pr-2">{row.base_url}</td>
+                {canManage && (
                 <td className="py-1">
                   {editingId !== null && editingId === row.id ? (
                     <span className="flex flex-wrap items-center gap-2">
@@ -302,6 +322,7 @@ export default function UpstreamsPage() {
                     </span>
                   )}
                 </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -345,6 +366,7 @@ export default function UpstreamsPage() {
         ))}
       </ul>
 
+      {canManage && (<>
       <h3 className="mt-6 text-lg font-semibold">Shortcut cache</h3>
       {cacheNotice !== null && <p role="status" className="mt-2 text-sm text-rd-muted">{cacheNotice}</p>}
       <form onSubmit={resync} className="mt-2 flex flex-wrap items-end gap-2">
@@ -427,7 +449,9 @@ export default function UpstreamsPage() {
         </table>
         </div>
       )}
+      </>)}
 
+      {canManage && (<>
       <h3 className="mt-6 text-lg font-semibold">Check logs</h3>
       <div className="mt-2 flex gap-2">
         <button type="button" onClick={() => void clearLogs()} className="rounded border border-rd-line px-3 py-1.5 text-sm">
@@ -443,6 +467,7 @@ export default function UpstreamsPage() {
           ))}
         </ul>
       )}
+      </>)}
     </section>
   )
 }

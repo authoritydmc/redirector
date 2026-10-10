@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import StreamingResponse
@@ -19,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.db import get_session
 from backend.core.errors import AppError
+from backend.core.security import ADMIN_WRITE, RequireScopes
 from backend.modules.backup.service import backup_dir, backup_path, sanitize_label
 from backend.modules.jobs.repository import JobRepository
 from backend.modules.jobs.runner import TERMINAL, JobRunner
@@ -42,7 +44,11 @@ async def get_job_repo(session: AsyncSession = Depends(get_session)) -> JobRepos
 
 
 @router.post("", response_model=JobRead, status_code=status.HTTP_202_ACCEPTED, summary="Enqueue a background job")
-async def enqueue_job(body: JobEnqueue, runner: JobRunner = Depends(get_runner)) -> JobRead:
+async def enqueue_job(
+    body: JobEnqueue,
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
+    runner: JobRunner = Depends(get_runner),
+) -> JobRead:
     if isinstance(body, BackupEnqueue):
         label = sanitize_label(body.label)
         if body.label is not None and label is None:
@@ -95,6 +101,7 @@ async def get_job(job_id: int, repo: JobRepository = Depends(get_job_repo)) -> J
 @router.delete("/{job_id}", response_model=JobRead, summary="Cancel a queued/running job")
 async def cancel_job(
     job_id: int,
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
     repo: JobRepository = Depends(get_job_repo),
     runner: JobRunner = Depends(get_runner),
 ) -> JobRead:
