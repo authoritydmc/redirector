@@ -2,8 +2,9 @@
 
 Covers: shortcuts CRUD + bulk-delete, the resolve hot path (static, dynamic,
 user-dynamic, unknown), upstreams CRUD + cache purge + SSE check stream,
-metrics, QR, and ops probes. Mutations are admin-gated (RBAC), so each VU
-logs in on start and reuses its JWT; pure reads stay anonymous-safe.
+metrics, QR, and ops probes. Mutations are admin-gated (RBAC): the first VU
+logs in once and every VU shares that JWT (login is rate-limited); pure
+reads stay anonymous-safe.
 
 Password: REDIRECTOR_ADMIN_PASSWORD (must match the target server; the
 dev/smoke default is "admin"). Run: locust -f load_testing/locustfile_v3.py
@@ -13,6 +14,8 @@ dev/smoke default is "admin"). Run: locust -f load_testing/locustfile_v3.py
 from __future__ import annotations
 
 import os
+import threading
+import time
 import uuid
 
 from locust import HttpUser, TaskSet, between, task
@@ -198,14 +201,34 @@ class V3ApiTasks(TaskSet):
         self.client.get("/readyz")
 
 
+# One login per worker: /api/v1/auth/login is rate-limited (5/minute per
+# IP), so ten VUs logging in at spawn would 429 each other and the respawn
+# loop would amplify it. First VU in wins the lock; the rest reuse the JWT.
+_ADMIN_TOKEN: str | None = None
+_ADMIN_TOKEN_LOCK = threading.Lock()
+
+
+def _admin_token(client) -> str:  # type: ignore[no-untyped-def]
+    global _ADMIN_TOKEN
+    if _ADMIN_TOKEN is not None:
+        return _ADMIN_TOKEN
+    with _ADMIN_TOKEN_LOCK:
+        if _ADMIN_TOKEN is not None:
+            return _ADMIN_TOKEN
+        password = os.environ.get("REDIRECTOR_ADMIN_PASSWORD", "admin")
+        for attempt in range(10):
+            resp = client.post("/api/v1/auth/login", json={"password": password})
+            if resp.status_code == 200:
+                _ADMIN_TOKEN = resp.json()["access_token"]
+                return _ADMIN_TOKEN
+            time.sleep(min(2.0, 0.25 * (attempt + 1)))
+        raise RuntimeError(f"load-user login failed: {resp.status_code}")
+
+
 class V3ApiUser(HttpUser):
     wait_time = between(0.5, 2.0)
     tasks = [V3ApiTasks]
 
     def on_start(self) -> None:
-        """Authenticate once per VU: mutations require an admin JWT (RBAC)."""
-        password = os.environ.get("REDIRECTOR_ADMIN_PASSWORD", "admin")
-        resp = self.client.post("/api/v1/auth/login", json={"password": password})
-        if resp.status_code != 200:
-            raise RuntimeError(f"load-user login failed: {resp.status_code}")
-        self.client.headers["Authorization"] = f"Bearer {resp.json()['access_token']}"
+        """Attach the shared admin JWT: mutations require it (RBAC)."""
+        self.client.headers["Authorization"] = f"Bearer {_admin_token(self.client)}"
