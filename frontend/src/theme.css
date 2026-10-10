@@ -23,6 +23,18 @@
 @theme {
   --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --animate-rd-fade-up: rd-fade-up 0.3s ease-out;
+}
+
+@keyframes rd-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 :root {

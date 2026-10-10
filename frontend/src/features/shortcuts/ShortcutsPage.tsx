@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '../../lib/client'
+import { useAuth } from '../../lib/auth'
 import { bulkDeleteShortcuts, bulkImportShortcuts, createShortcut, deleteShortcut, listShortcuts, updateShortcut } from './api'
 import type { Shortcut, ShortcutInput } from './api'
 import ShortcutForm from './ShortcutForm'
@@ -16,6 +17,7 @@ function useDebounced(value: string, delayMs: number): string {
 }
 
 export default function ShortcutsPage() {
+  const { token } = useAuth()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('updated_at')
   const [page, setPage] = useState(1)
@@ -311,31 +313,33 @@ export default function ShortcutsPage() {
         </table>
         </div>
       )}
-      <div className="mt-3 flex items-center gap-3 text-sm">
-        <button
-          type="button"
-          onClick={() => void exportAll()}
-          className="rounded border border-rd-line px-3 py-1"
-        >
-          Export JSON
-        </button>
-        <label className="rounded border border-rd-line px-3 py-1">
-          Import JSON
-          <input
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            aria-label="Import JSON file"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              event.target.value = ''
-              if (file !== undefined) {
-                void importFile(file)
-              }
-            }}
-          />
-        </label>
-      </div>
+      {token !== null && (
+        <div className="mt-3 flex items-center gap-3 text-sm">
+          <button
+            type="button"
+            onClick={() => void exportAll()}
+            className="rounded border border-rd-line px-3 py-1"
+          >
+            Export JSON
+          </button>
+          <label className="rounded border border-rd-line px-3 py-1">
+            Import JSON
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              aria-label="Import JSON file"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                if (file !== undefined) {
+                  void importFile(file)
+                }
+              }}
+            />
+          </label>
+        </div>
+      )}
       <div className="mt-3 flex items-center gap-3 text-sm">
         <button
           type="button"

@@ -18,7 +18,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.cache import build_cache
-from backend.core.config import settings
+from backend.core.config import resolve_setting, settings
 from backend.core.db import get_session
 from backend.modules.shortcuts.repository import SQLAlchemyShortcutRepository, is_sso_url
 from backend.modules.shortcuts.schemas import Problem
@@ -93,9 +93,11 @@ body{{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:
 
 @router.get("/api/v1/resolve", summary="Resolve a subpath (debug)")
 async def api_resolve(pattern: str, request: Request,
-                      repo: SQLAlchemyShortcutRepository = Depends(get_repo)) -> JSONResponse:
+                      repo: SQLAlchemyShortcutRepository = Depends(get_repo),
+                      session: AsyncSession = Depends(get_session)) -> JSONResponse:
+    delay, _ = await resolve_setting(session, "auto_redirect_delay")
     res = await resolve(
-        pattern, repo, countdown_delay=settings.auto_redirect_delay,
+        pattern, repo, countdown_delay=delay,
         client_ip=request.client.host if request.client else None,
     )
     return JSONResponse(res.model_dump())
@@ -103,9 +105,11 @@ async def api_resolve(pattern: str, request: Request,
 
 @router.get("/{pattern:path}", summary="Resolve and redirect a shortcut")
 async def redirect_shortcut(pattern: str, request: Request,
-                            repo: SQLAlchemyShortcutRepository = Depends(get_repo)) -> Response:
+                            repo: SQLAlchemyShortcutRepository = Depends(get_repo),
+                            session: AsyncSession = Depends(get_session)) -> Response:
+    delay, _ = await resolve_setting(session, "auto_redirect_delay")
     res = await resolve(
-        pattern, repo, countdown_delay=settings.auto_redirect_delay,
+        pattern, repo, countdown_delay=delay,
         client_ip=request.client.host if request.client else None,
     )
     if res.outcome == "redirect":

@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.core.config import settings
+from backend.core.config import resolve_setting, settings
 from backend.core.db import get_session
 from backend.core.errors import AppError
 from backend.core.ratelimit import RateLimit
@@ -54,6 +54,21 @@ login_limiter = RateLimit("5/minute")
 verify_limiter = RateLimit("5/minute")
 
 
+async def _lockout_window(session: AsyncSession) -> int:
+    value, _ = await resolve_setting(session, "auth_lockout_window_minutes")
+    return int(value)
+
+
+async def _lockout_max(session: AsyncSession) -> int:
+    value, _ = await resolve_setting(session, "auth_lockout_max_attempts")
+    return int(value)
+
+
+async def _token_ttl(session: AsyncSession) -> int:
+    value, _ = await resolve_setting(session, "jwt_access_token_expire_minutes")
+    return int(value)
+
+
 class LoginRequest(BaseModel):
     password: str
 
@@ -84,8 +99,8 @@ async def login(
         request.headers.get("x-forwarded-for"),
     )
     failures = await failed_logins_since(
-        session, ip, settings.auth_lockout_window_minutes)
-    if failures >= settings.auth_lockout_max_attempts:
+        session, ip, await _lockout_window(session))
+    if failures >= await _lockout_max(session):
         await log_auth_event(session, "auth.locked-out", ip,
                              {"failures": failures})
         raise AppError(
@@ -110,7 +125,8 @@ async def login(
             expires_delta=timedelta(minutes=5),
         )
         return MfaChallengeResponse(pending_token=pending)
-    token = create_access_token(data={"sub": "admin", "role": "admin"})
+    token = create_access_token(
+        data={"sub": "admin", "role": "admin"}, ttl_minutes=await _token_ttl(session))
     return TokenResponse(access_token=token, role="admin")
 
 
@@ -330,10 +346,12 @@ async def mfa_verify(
         )
     secret = await repo.get_secret()
     if secret is not None and verify_totp(secret, body.token):
-        token = create_access_token(data={"sub": "admin", "role": "admin"})
+        token = create_access_token(
+            data={"sub": "admin", "role": "admin"}, ttl_minutes=await _token_ttl(repo.session))
         return TokenResponse(access_token=token, role="admin")
     if await repo.consume_backup_code(body.token):
-        token = create_access_token(data={"sub": "admin", "role": "admin"})
+        token = create_access_token(
+            data={"sub": "admin", "role": "admin"}, ttl_minutes=await _token_ttl(repo.session))
         return TokenResponse(access_token=token, role="admin")
     await log_auth_event(
         repo.session,

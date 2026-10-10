@@ -72,3 +72,50 @@ export function updateShortcut(
     body: patch,
   })
 }
+
+export interface ResolveDebug {
+  outcome: string
+  target?: string | null
+}
+
+/** What would `/{pattern}` do right now (local + upstream cache insight). */
+export function debugResolve(pattern: string): Promise<ResolveDebug> {
+  return api<ResolveDebug>(`/api/v1/resolve?pattern=${encodeURIComponent(pattern)}`)
+}
+
+/** Slug suggestion for an empty pattern, derived from the target URL. */
+export function suggestPatternFor(target: string): string {
+  let url: URL
+  try {
+    url = new URL(target.trim())
+  } catch {
+    return ''
+  }
+  const segments = url.pathname.split('/').filter((part) => part !== '')
+  const raw = segments.length > 0 ? segments.slice(-2).join('-') : hostStem(url.hostname)
+  if (raw === '') {
+    return ''
+  }
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** Hostname minus www prefix and final TLD label (IPs get no suggestion). */
+function hostStem(hostname: string): string {
+  const host = hostname.toLowerCase().replace(/^www\./, '')
+  const labels = host.split('.')
+  if (labels.every((label) => /^\d+$/.test(label))) {
+    return ''
+  }
+  if (labels.length < 2) {
+    return host
+  }
+  return labels.slice(0, -1).join('-')
+}
+
+/** True when the target carries a dynamic placeholder. */
+export function hasDynamicPlaceholder(target: string): boolean {
+  return /\{[^}]+\}|\[arg\]/i.test(target)
+}

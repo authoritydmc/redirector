@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '../lib/client'
+import QRCode from 'react-qr-code'
 import {
   createBackup,
   deleteBackup,
@@ -14,9 +15,9 @@ import {
   patchConfig,
   restoreBackup,
   revokeApiKey,
-  type AdminConfig,
   type ApiKey,
   type Backup,
+  type ConfigSchemaItem,
   type MfaSetup,
   type MfaStatus,
 } from '../features/admin/api'
@@ -46,16 +47,28 @@ function useAdminError(): [string | null, (err: unknown, fallback: string) => vo
 }
 
 function ConfigSection() {
-  const [config, setConfig] = useState<AdminConfig | null>(null)
-  const [draft, setDraft] = useState('')
+  const [schema, setSchema] = useState<ConfigSchemaItem[]>([])
+  const [values, setValues] = useState<Record<string, string>>({})
+  const [custom, setCustom] = useState('')
+  const [appInfo, setAppInfo] = useState<{ app_name?: unknown; app_version?: unknown }>({})
   const [saved, setSaved] = useState<string | null>(null)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [error, fail, clear] = useAdminError()
 
   const load = useCallback(async () => {
     try {
       const loaded = await getConfig()
-      setConfig(loaded)
-      setDraft(JSON.stringify(loaded.custom ?? {}, null, 2))
+      const items = Array.isArray(loaded.schema) ? loaded.schema : []
+      setSchema(items)
+      const next: Record<string, string> = {}
+      for (const item of items) {
+        if (!item.readonly && item.value !== null && item.value !== undefined) {
+          next[item.key] = String(item.value)
+        }
+      }
+      setValues(next)
+      setCustom(JSON.stringify(loaded.custom ?? {}, null, 2))
+      setAppInfo({ app_name: loaded.app_name, app_version: loaded.app_version })
     } catch (err) {
       fail(err, 'Failed to load config')
     }
@@ -65,15 +78,49 @@ function ConfigSection() {
     void load()
   }, [load])
 
+  function dirtyKeys(): Record<string, unknown> {
+    const out: Record<string, unknown> = {}
+    for (const item of schema) {
+      if (item.readonly) {
+        continue
+      }
+      const raw = values[item.key]
+      if (raw === undefined) {
+        continue
+      }
+      const current = item.value === null || item.value === undefined ? '' : String(item.value)
+      if (raw !== current) {
+        out[item.key] = item.type === 'int' ? Number(raw) : raw
+      }
+    }
+    return out
+  }
+
   async function save() {
+    clear()
+    setSaved(null)
+    const changes = dirtyKeys()
+    if (Object.keys(changes).length === 0) {
+      setSaved('Nothing to save.')
+      return
+    }
+    try {
+      const res = await patchConfig(changes)
+      setSaved(`Saved: ${res.keys.join(', ')}`)
+      await load()
+    } catch (err) {
+      fail(err, 'Save failed')
+    }
+  }
+
+  async function saveAdvanced() {
     clear()
     setSaved(null)
     let parsed: Record<string, unknown>
     try {
-      parsed = JSON.parse(draft) as Record<string, unknown>
+      parsed = JSON.parse(custom) as Record<string, unknown>
     } catch {
-      setSaved(null)
-      fail(new Error('Settings must be valid JSON'), 'Invalid JSON')
+      fail(new Error('Advanced JSON must be valid'), 'Invalid JSON')
       return
     }
     try {
@@ -85,26 +132,42 @@ function ConfigSection() {
     }
   }
 
-  if (config === null && error === null) {
-    return <p className="text-sm text-rd-muted">Loading…</p>
-  }
+  const editable = schema.filter((item) => !item.readonly && item.type !== 'secret')
+  const envManaged = schema.filter((item) => item.readonly)
+
   return (
     <div>
       <p className="text-sm text-rd-muted">
-        App <span className="font-mono">{String(config?.app_name ?? '?')}</span>
-        {' · '}version <span className="font-mono">{String(config?.app_version ?? '?')}</span>.
-        Edit the stored settings JSON below (admin only).
+        App <span className="font-mono">{String(appInfo.app_name ?? '?')}</span>
+        {' · '}version <span className="font-mono">{String(appInfo.app_version ?? '?')}</span>.
+        Changes apply immediately — no restart, except environment items.
       </p>
       {error !== null && <p role="alert" className="mt-2 text-sm text-rd-danger">{error}</p>}
-      <textarea
-        aria-label="Settings JSON"
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        rows={8}
-        spellCheck={false}
-        className="mt-2 w-full rounded border border-rd-line bg-rd-input px-3 py-2 font-mono text-xs text-rd-text"
-      />
-      <div className="mt-2 flex items-center gap-3">
+      {editable.map((item) => (
+        <label key={item.key} className="mt-3 flex flex-col text-sm">
+          <span>
+            {item.title}{' '}
+            <span className="rounded bg-rd-surface px-1.5 py-0.5 font-mono text-xs text-rd-muted">
+              {item.source}
+            </span>
+          </span>
+          <span className="text-xs text-rd-muted">{item.description}</span>
+          <span className="text-xs text-rd-muted">
+            {item.min !== null && item.min !== undefined && item.max !== null && item.max !== undefined
+              ? `Range ${item.min}–${item.max}. `
+              : ''}
+            {item.env_var !== null && item.env_var !== undefined ? `Env override: ${item.env_var}.` : ''}
+          </span>
+          <input
+            aria-label={item.title}
+            value={values[item.key] ?? ''}
+            onChange={(event) => setValues((prev) => ({ ...prev, [item.key]: event.target.value }))}
+            inputMode={item.type === 'int' ? 'numeric' : undefined}
+            className="mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-1.5 text-sm text-rd-text"
+          />
+        </label>
+      ))}
+      <div className="mt-3">
         <button
           type="button"
           onClick={() => void save()}
@@ -112,7 +175,49 @@ function ConfigSection() {
         >
           Save settings
         </button>
-        {saved !== null && <span className="text-sm text-rd-muted">{saved}</span>}
+        {saved !== null && <span className="ml-3 text-sm text-rd-muted">{saved}</span>}
+      </div>
+      {envManaged.length > 0 && (
+        <div className="mt-4">
+          <p className="text-sm font-semibold">Environment-only (restart to change)</p>
+          <ul className="mt-1 flex flex-col gap-1 text-sm">
+            {envManaged.map((item) => (
+              <li key={item.key} className="rounded border border-rd-line px-2 py-1">
+                <span className="font-semibold">{item.title}</span>
+                <span className="text-rd-muted"> — {item.description}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <div className="mt-4">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className="text-sm underline text-rd-muted"
+          aria-expanded={showAdvanced}
+        >
+          {showAdvanced ? 'Hide advanced JSON' : 'Show advanced JSON'}
+        </button>
+        {showAdvanced && (
+          <div className="mt-2">
+            <textarea
+              aria-label="Advanced settings JSON"
+              value={custom}
+              onChange={(event) => setCustom(event.target.value)}
+              rows={6}
+              spellCheck={false}
+              className="w-full rounded border border-rd-line bg-rd-input px-3 py-2 font-mono text-xs text-rd-text"
+            />
+            <button
+              type="button"
+              onClick={() => void saveAdvanced()}
+              className="mt-2 rounded border border-rd-line px-3 py-1.5 text-sm"
+            >
+              Save advanced JSON
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -281,9 +386,14 @@ function MfaSection() {
       )}
       {setup !== null ? (
         <div className="mt-2">
-          <p className="rounded border border-rd-line bg-rd-input p-2 font-mono text-xs break-all">
-            Seed (enter in your authenticator): {setup.secret}
-          </p>
+          <div className="flex flex-wrap items-start gap-3">
+            <div className="rounded border border-rd-line bg-white p-2">
+              <QRCode value={setup.otpauth_url} size={160} aria-label="TOTP setup QR code" />
+            </div>
+            <p className="max-w-sm flex-1 rounded border border-rd-line bg-rd-input p-2 font-mono text-xs break-all">
+              Seed (manual entry): {setup.secret}
+            </p>
+          </div>
           <div className="mt-2 flex flex-wrap items-end gap-2">
             <label className="flex flex-col text-sm">
               6-digit code

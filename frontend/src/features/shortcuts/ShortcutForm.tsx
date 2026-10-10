@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { z } from 'zod'
 import type { Shortcut, ShortcutInput } from './api'
+import { debugResolve, hasDynamicPlaceholder, suggestPatternFor } from './api'
 
 const patternRule = z
   .string()
@@ -27,6 +28,21 @@ const formSchema = z.object({
 
 export type FormState = z.infer<typeof formSchema>
 
+function validateForm(state: FormState): Partial<Record<keyof FormState, string>> {
+  const parsed = formSchema.safeParse(state)
+  if (parsed.success) {
+    return {}
+  }
+  const fieldErrors: Partial<Record<keyof FormState, string>> = {}
+  for (const issue of parsed.error.issues) {
+    const key = issue.path[0] as keyof FormState | undefined
+    if (key !== undefined && fieldErrors[key] === undefined) {
+      fieldErrors[key] = issue.message
+    }
+  }
+  return fieldErrors
+}
+
 export function toInput(state: FormState): ShortcutInput {
   return {
     pattern: state.pattern.trim().toLowerCase().replace(/^\/+|\/+$/g, ''),
@@ -50,6 +66,24 @@ interface Props {
 
 const inputClass = 'mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-1.5 text-sm text-rd-text'
 const labelClass = 'flex flex-col text-sm'
+const hintClass = 'mt-1 text-xs text-rd-muted'
+
+function useDebounced(value: string, delayMs: number): string {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs)
+    return () => clearTimeout(timer)
+  }, [value, delayMs])
+  return debounced
+}
+
+type Availability = 'idle' | 'checking' | 'free' | 'taken' | 'unresolvable'
+
+function expiryInputValue(days: number): string {
+  const date = new Date(Date.now() + days * 86400000)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
 
 export default function ShortcutForm({ initial, fixedPattern, submitLabel, serverError, onSubmit, onCancel }: Props) {
   const [state, setState] = useState<FormState>({
@@ -62,30 +96,76 @@ export default function ShortcutForm({ initial, fixedPattern, submitLabel, serve
     owner_email: initial?.owner_email ?? '',
   })
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
+  const [touched, setTouched] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [availability, setAvailability] = useState<Availability>('idle')
+  const [takenTarget, setTakenTarget] = useState<string | null>(null)
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setTouched(true)
     setState((prev) => ({ ...prev, [key]: value }))
   }
 
+  const debouncedPattern = useDebounced(state.pattern.trim().toLowerCase(), 400)
+
+  useEffect(() => {
+    if (fixedPattern === true || debouncedPattern === '') {
+      setAvailability('idle')
+      setTakenTarget(null)
+      return
+    }
+    let live = true
+    setAvailability('checking')
+    debugResolve(debouncedPattern).then(
+      (res) => {
+        if (!live) {
+          return
+        }
+        if (res.outcome === 'redirect' || res.outcome === 'gone' || res.outcome === 'forbidden') {
+          setAvailability('taken')
+          setTakenTarget(typeof res.target === 'string' ? res.target : null)
+        } else if (res.outcome === 'not_found') {
+          setAvailability('free')
+          setTakenTarget(null)
+        } else {
+          setAvailability('unresolvable')
+          setTakenTarget(null)
+        }
+      },
+      () => {
+        if (live) {
+          setAvailability('unresolvable')
+          setTakenTarget(null)
+        }
+      },
+    )
+    return () => {
+      live = false
+    }
+  }, [debouncedPattern, fixedPattern])
+
+  const suggestion = suggestPatternFor(state.target)
+  const showSuggestion = !fixedPattern && suggestion !== '' && suggestion !== state.pattern.trim().toLowerCase()
+  const wantsDynamic = hasDynamicPlaceholder(state.target) && state.type === 'static'
+
+  useEffect(() => {
+    if (touched) {
+      setErrors(validateForm(state))
+    }
+  }, [state, touched])
+
   async function submit(event: FormEvent) {
     event.preventDefault()
-    const parsed = formSchema.safeParse(state)
-    if (!parsed.success) {
-      const fieldErrors: Partial<Record<keyof FormState, string>> = {}
-      for (const issue of parsed.error.issues) {
-        const key = issue.path[0] as keyof FormState | undefined
-        if (key !== undefined && fieldErrors[key] === undefined) {
-          fieldErrors[key] = issue.message
-        }
-      }
+    const fieldErrors = validateForm(state)
+    if (Object.keys(fieldErrors).length > 0) {
       setErrors(fieldErrors)
+      setTouched(true)
       return
     }
     setErrors({})
     setBusy(true)
     try {
-      await onSubmit(toInput(parsed.data))
+      await onSubmit(toInput(state))
     } finally {
       setBusy(false)
     }
@@ -109,6 +189,30 @@ export default function ShortcutForm({ initial, fixedPattern, submitLabel, serve
           className={inputClass}
         />
         {fieldError('pattern')}
+        {!fixedPattern && state.pattern.trim() !== '' && (
+          <span className={hintClass}>
+            Link will be <span className="font-mono">r/{state.pattern.trim().toLowerCase()}</span>
+            {' · '}
+            {availability === 'checking' && <span>checking…</span>}
+            {availability === 'free' && <span className="text-rd-accent">available ✓</span>}
+            {availability === 'taken' && (
+              <span>already taken{takenTarget !== null ? ` → ${takenTarget}` : ''}</span>
+            )}
+            {availability === 'unresolvable' && <span>could not check</span>}
+          </span>
+        )}
+        {showSuggestion && (
+          <span className={hintClass}>
+            Suggestion from target:{' '}
+            <button
+              type="button"
+              onClick={() => set('pattern', suggestion)}
+              className="underline text-rd-accent"
+            >
+              use “{suggestion}”
+            </button>
+          </span>
+        )}
       </label>
       <label className={labelClass}>
         Target URL
@@ -116,10 +220,27 @@ export default function ShortcutForm({ initial, fixedPattern, submitLabel, serve
           aria-label="Target URL"
           value={state.target}
           onChange={(event) => set('target', event.target.value)}
+          onBlur={() => {
+            if (!fixedPattern && state.pattern.trim() === '' && suggestion !== '') {
+              set('pattern', suggestion)
+            }
+          }}
           placeholder="https://example.com/docs"
           className={inputClass}
         />
         {fieldError('target')}
+        {wantsDynamic && (
+          <span className={hintClass}>
+            Target has a placeholder like <span className="font-mono">{'{name}'}</span> —{' '}
+            <button
+              type="button"
+              onClick={() => set('type', 'dynamic')}
+              className="underline text-rd-accent"
+            >
+              switch to dynamic
+            </button>
+          </span>
+        )}
       </label>
       <div className="flex gap-3">
         <label className={labelClass}>
@@ -140,6 +261,16 @@ export default function ShortcutForm({ initial, fixedPattern, submitLabel, serve
           </select>
         </label>
       </div>
+      <p className={hintClass}>
+        {state.type === 'static' && 'Static: one pattern, one target.'}
+        {state.type === 'dynamic' && 'Dynamic: target placeholders like {ticket} fill from the URL path.'}
+        {state.type === 'user-dynamic' && 'User-dynamic: like dynamic, but arguments must match declared params.'}
+        {' '}
+        {state.visibility === 'public' && 'Public: anyone can resolve it.'}
+        {state.visibility === 'unlisted' && 'Unlisted: resolves, but hidden from lists.'}
+        {state.visibility === 'private' && 'Private: only you or an admin can resolve it.'}
+        {state.visibility === 'team' && 'Team: only the owner or an admin can resolve it.'}
+      </p>
       <label className={labelClass}>
         Tags (comma-separated)
         <input
@@ -160,6 +291,17 @@ export default function ShortcutForm({ initial, fixedPattern, submitLabel, serve
             className={inputClass}
           />
         </label>
+        <span className="flex items-end gap-1 pb-0.5">
+          <button type="button" onClick={() => set('expires_at', '')} className="rounded border border-rd-line px-2 py-1 text-xs">
+            Never
+          </button>
+          <button type="button" onClick={() => set('expires_at', expiryInputValue(7))} className="rounded border border-rd-line px-2 py-1 text-xs">
+            +7d
+          </button>
+          <button type="button" onClick={() => set('expires_at', expiryInputValue(30))} className="rounded border border-rd-line px-2 py-1 text-xs">
+            +30d
+          </button>
+        </span>
         <label className={labelClass}>
           Owner email (optional)
           <input
