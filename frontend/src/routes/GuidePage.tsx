@@ -1,6 +1,114 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { debugResolve, hasDynamicPlaceholder, suggestPatternFor } from '../features/shortcuts/api'
+
+const DEMO_TYPE_MS = 28
+const DEMO_START_DELAY_MS = 450
+
+function usePrefersReducedMotion(): boolean {
+  const [reduced] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  )
+  return reduced
+}
+
+/** Auto-types `sample` into an empty field, like a live demo.
+ *
+ * Starts on mount (or replay) while the field is still empty. The first
+ * user edit takes over: keystrokes typed at the end of a running demo
+ * replace the demo text, any other edit is kept verbatim, and the demo
+ * never resumes until Replay. Honors prefers-reduced-motion (fills
+ * instantly, no timers).
+ */
+function useDemoTyping(sample: string, initialValue: string, setValue: (v: string) => void) {
+  const reduced = usePrefersReducedMotion()
+  const liveRef = useRef(false)
+  const shownRef = useRef('')
+  // `initialValue` is read once: remounting on a preserved edit must not replay.
+  // (`value` itself stays out of the effect deps so demo ticks don't retrigger it.)
+  const armedRef = useRef(initialValue === '')
+  const [runId, setRunId] = useState(0)
+  const [typing, setTyping] = useState(false)
+
+  useEffect(() => {
+    if (!armedRef.current || sample === '') {
+      return
+    }
+    if (reduced) {
+      shownRef.current = sample
+      setValue(sample)
+      return
+    }
+    liveRef.current = true
+    shownRef.current = ''
+    setTyping(true)
+    let i = 0
+    let timer: ReturnType<typeof setTimeout>
+    const tick = () => {
+      if (!liveRef.current) {
+        return
+      }
+      i += 1
+      shownRef.current = sample.slice(0, i)
+      setValue(shownRef.current)
+      if (i < sample.length) {
+        timer = setTimeout(tick, DEMO_TYPE_MS)
+      } else {
+        liveRef.current = false
+        setTyping(false)
+      }
+    }
+    timer = setTimeout(tick, DEMO_START_DELAY_MS)
+    return () => {
+      liveRef.current = false
+      clearTimeout(timer)
+      setTyping(false)
+    }
+  }, [runId, sample, reduced, setValue])
+
+  return {
+    typing,
+    takeOver: (next: string) => {
+      const wasRunning = liveRef.current
+      liveRef.current = false
+      armedRef.current = false
+      setTyping(false)
+      const shown = shownRef.current
+      shownRef.current = ''
+      setValue(wasRunning && shown !== '' && next.startsWith(shown) ? next.slice(shown.length) : next)
+    },
+    replay: () => {
+      liveRef.current = false
+      shownRef.current = ''
+      armedRef.current = true
+      setValue('')
+      setRunId((n) => n + 1)
+    },
+  }
+}
+
+function DemoBar({ typing, onReplay }: { typing: boolean; onReplay: () => void }) {
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span
+        role="status"
+        className="inline-flex items-center gap-1.5 rounded-full border border-rd-line px-2 py-0.5 text-rd-muted"
+      >
+        <span
+          aria-hidden="true"
+          className={`inline-block h-3 w-[2px] bg-rd-accent ${typing ? 'animate-rd-caret' : ''}`}
+        />
+        {typing ? 'Demo typing…' : 'Auto demo'}
+      </span>
+      <button type="button" onClick={onReplay} className="underline text-rd-muted">
+        Replay
+      </button>
+    </div>
+  )
+}
 
 const inputClass =
   'mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-1.5 text-sm text-rd-text'
@@ -69,6 +177,7 @@ function StepShell({
 }
 
 function StepTarget({ target, setTarget }: { target: string; setTarget: (v: string) => void }) {
+  const demo = useDemoTyping('https://x.example/docs/getting-started', target, setTarget)
   const suggestion = suggestPatternFor(target)
   const dynamic = hasDynamicPlaceholder(target)
   return (
@@ -76,12 +185,13 @@ function StepTarget({ target, setTarget }: { target: string; setTarget: (v: stri
       <p className="text-sm text-rd-muted">
         Type where the link should go. The app reads the target and suggests the rest.
       </p>
+      <DemoBar typing={demo.typing} onReplay={demo.replay} />
       <label className="flex flex-col text-sm">
-        Target URL — try <span className="font-mono">https://x.example/docs/getting-started</span>
+        Target URL — watch the demo, or type your own
         <input
           aria-label="Tutorial target"
           value={target}
-          onChange={(event) => setTarget(event.target.value)}
+          onChange={(event) => demo.takeOver(event.target.value)}
           placeholder="https://example.com/docs"
           className={inputClass}
         />
@@ -105,6 +215,7 @@ function StepTarget({ target, setTarget }: { target: string; setTarget: (v: stri
 }
 
 function StepAvailability({ pattern, setPattern }: { pattern: string; setPattern: (v: string) => void }) {
+  const demo = useDemoTyping('docs', pattern, setPattern)
   const debounced = useDebounced(pattern.trim().toLowerCase(), 400)
   const [state, setState] = useState<'idle' | 'checking' | 'free' | 'taken' | 'error'>('idle')
   const [takenTarget, setTakenTarget] = useState<string | null>(null)
@@ -148,12 +259,13 @@ function StepAvailability({ pattern, setPattern }: { pattern: string; setPattern
       <p className="text-sm text-rd-muted">
         Type a pattern — the app checks it live against shortcuts and upstreams.
       </p>
+      <DemoBar typing={demo.typing} onReplay={demo.replay} />
       <label className="flex flex-col text-sm">
-        Pattern — try <span className="font-mono">docs</span>
+        Pattern — the demo claims <span className="font-mono">docs</span>; type your own to check it
         <input
           aria-label="Tutorial pattern"
           value={pattern}
-          onChange={(event) => setPattern(event.target.value)}
+          onChange={(event) => demo.takeOver(event.target.value)}
           placeholder="my-link"
           className={inputClass}
         />
@@ -181,6 +293,7 @@ function StepAvailability({ pattern, setPattern }: { pattern: string; setPattern
 }
 
 function StepDynamic({ template, setTemplate }: { template: string; setTemplate: (v: string) => void }) {
+  const demo = useDemoTyping('https://j.example/{ticket}', template, setTemplate)
   const [sample, setSample] = useState('ABC-123')
   const preview = template
     .replace(/\{[^}]+\}/g, sample.toLowerCase())
@@ -191,12 +304,13 @@ function StepDynamic({ template, setTemplate }: { template: string; setTemplate:
         One link, infinite destinations. Put a placeholder in the target, then watch a
         sample value flow through it.
       </p>
+      <DemoBar typing={demo.typing} onReplay={demo.replay} />
       <label className="flex flex-col text-sm">
-        Template — try <span className="font-mono">{'https://j.example/{ticket}'}</span>
+        Template — the demo types one with a <span className="font-mono">{'{ticket}'}</span> placeholder
         <input
           aria-label="Tutorial template"
           value={template}
-          onChange={(event) => setTemplate(event.target.value)}
+          onChange={(event) => demo.takeOver(event.target.value)}
           placeholder="https://j.example/{ticket}"
           className={inputClass}
         />

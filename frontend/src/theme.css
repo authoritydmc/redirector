@@ -24,6 +24,7 @@
   --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --animate-rd-fade-up: rd-fade-up 0.3s ease-out;
+  --animate-rd-caret: rd-caret 1s step-end infinite;
 }
 
 @keyframes rd-fade-up {
@@ -34,6 +35,16 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes rd-caret {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
   }
 }
 
