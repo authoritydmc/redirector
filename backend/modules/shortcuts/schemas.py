@@ -60,6 +60,17 @@ class BulkDeleteResponse(BaseModel):
     count: int
 
 
+class BulkImportRequest(BaseModel):
+    shortcuts: list[ShortcutCreate]
+
+
+class BulkImportResponse(BaseModel):
+    inserted: int
+    updated: int
+    skipped: list[str]
+    count: int
+
+
 class Resolution(BaseModel):
     """Outcome of resolving a subpath. `outcome` drives client behavior."""
 

@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test'
-import { API, loginAsAdmin, unique } from './helpers'
+import { API, unique } from './helpers'
 
 test('create shortcut in the UI, resolve it on the hot path', async ({ page, request }) => {
-  await loginAsAdmin(page)
+  await page.goto('./')
   const pattern = unique('e2e')
   const target = 'https://example.com/e2e'
 

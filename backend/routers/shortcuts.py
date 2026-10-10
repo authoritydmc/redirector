@@ -11,6 +11,7 @@ Supports:
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.exc import IntegrityError
@@ -20,6 +21,7 @@ from backend.core.cache import build_cache
 from backend.core.config import settings
 from backend.core.db import get_session
 from backend.core.errors import AppError
+from backend.core.security import ADMIN_WRITE, RequireScopes
 from backend.models.entities import Shortcut, as_utc
 from backend.modules.shortcuts.repository import (
     SQLAlchemyShortcutRepository,
@@ -28,6 +30,8 @@ from backend.modules.shortcuts.repository import (
 from backend.modules.shortcuts.schemas import (
     BulkDeleteRequest,
     BulkDeleteResponse,
+    BulkImportRequest,
+    BulkImportResponse,
     ShortcutCreate,
     ShortcutListMeta,
     ShortcutListResponse,
@@ -137,6 +141,64 @@ async def bulk_delete_shortcuts(
             not_found.append(clean)
 
     return BulkDeleteResponse(deleted=deleted, not_found=not_found, count=len(deleted))
+
+
+@router.post("/bulk-import", response_model=BulkImportResponse, summary="Bulk import shortcuts")
+async def bulk_import_shortcuts(
+    body: BulkImportRequest,
+    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
+    repo: SQLAlchemyShortcutRepository = Depends(get_repo),
+) -> BulkImportResponse:
+    """Upsert shortcuts by pattern (insert new, overwrite existing). Invalid
+    rows are skipped, never fatal — the response reports every outcome."""
+    inserted = 0
+    updated = 0
+    skipped: list[str] = []
+    for item in body.shortcuts:
+        clean_pat = sanitize_pattern(item.pattern)
+        if not clean_pat:
+            skipped.append(item.pattern)
+            continue
+        exp = None
+        if item.expires_at:
+            try:
+                exp = datetime.fromisoformat(item.expires_at.replace("Z", "+00:00"))
+            except ValueError:
+                skipped.append(item.pattern)
+                continue
+        data = {
+            "target": item.target,
+            "type": item.type,
+            "tags": item.tags,
+            "visibility": item.visibility,
+            "expires_at": as_utc(exp),
+            "owner_email": item.owner_email,
+        }
+        existing, _ = await repo.lookup(clean_pat)
+        if existing is None:
+            try:
+                await repo.create(
+                    Shortcut(
+                        pattern=clean_pat,
+                        target=item.target,
+                        type=item.type,
+                        tags=item.tags,
+                        visibility=item.visibility,
+                        expires_at=as_utc(exp),
+                        owner_email=item.owner_email,
+                    )
+                )
+            except IntegrityError:
+                skipped.append(item.pattern)
+                continue
+            inserted += 1
+        else:
+            await repo.update(clean_pat, data)
+            updated += 1
+    return BulkImportResponse(
+        inserted=inserted, updated=updated, skipped=skipped,
+        count=inserted + updated,
+    )
 
 
 @router.get("/{pattern:path}", response_model=ShortcutRead, summary="Get shortcut details")

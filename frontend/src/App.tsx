@@ -2,9 +2,12 @@ import type { ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Layout from './components/Layout'
 import { AuthProvider, useAuth } from './lib/auth'
+import AdminPage from './routes/AdminPage'
+import GuidePage from './routes/GuidePage'
+import JobsPage from './routes/JobsPage'
 import Login from './routes/Login'
+import MetricsPage from './routes/MetricsPage'
 import NotFound from './routes/NotFound'
-import Placeholder from './routes/Placeholder'
 import ShortcutsPage from './features/shortcuts/ShortcutsPage'
 import UpstreamsPage from './features/upstreams/UpstreamsPage'
 
@@ -31,8 +34,10 @@ export function AppRoutes() {
       >
         <Route index element={<ShortcutsPage />} />
         <Route path="upstreams" element={<UpstreamsPage />} />
-        <Route path="jobs" element={<Placeholder name="Jobs" />} />
-        <Route path="admin" element={<Placeholder name="Admin" />} />
+        <Route path="jobs" element={<JobsPage />} />
+        <Route path="admin" element={<AdminPage />} />
+        <Route path="metrics" element={<MetricsPage />} />
+        <Route path="guide" element={<GuidePage />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
@@ -41,7 +46,7 @@ export function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter basename="/app">
+    <BrowserRouter>
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>

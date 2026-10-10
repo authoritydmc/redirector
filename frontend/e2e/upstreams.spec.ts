@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { API, loginAsAdmin, unique } from './helpers'
+import { API, unique } from './helpers'
 
 test('create upstream in the UI, live-check stream terminates', async ({ page, request }) => {
-  await loginAsAdmin(page)
   const name = unique('e2eup')
 
   await page.goto('./upstreams')

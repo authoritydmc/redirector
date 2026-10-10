@@ -153,4 +153,57 @@ describe('UpstreamsPage', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(/disconnected/i)
     })
   })
+
+  it('edits name and base URL inline', async () => {
+    const user = userEvent.setup()
+    const calls = mockFetch((call) => {
+      if (call.method === 'PATCH') {
+        return jsonResponse(200, { ...wiki, name: 'renamed' })
+      }
+      return jsonResponse(200, [wiki])
+    })
+    renderPage()
+    await screen.findByText('wiki')
+    await user.click(screen.getByRole('button', { name: /^edit$/i }))
+    await user.clear(screen.getByLabelText('Edit name'))
+    await user.type(screen.getByLabelText('Edit name'), 'renamed')
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
+    await waitFor(() => {
+      const patched = calls.find((call) => call.method === 'PATCH')
+      expect(patched?.url).toContain('/7')
+      expect(patched?.body).toMatchObject({ name: 'renamed' })
+    })
+  })
+
+  it('purges a cache entry', async () => {
+    const user = userEvent.setup()
+    const calls = mockFetch((call) => {
+      if (call.url.includes('/cache') && !call.url.includes('/check/stream/')) {
+        if (call.method === 'DELETE' && call.url.includes('/docs')) {
+          return jsonResponse(200, { success: true, purged: 1 })
+        }
+        if (call.method === 'GET') {
+          return jsonResponse(200, [
+            { pattern: 'docs', upstream_name: 'wiki', resolved_url: 'https://wiki.example/docs', checked_at: 'now' },
+          ])
+        }
+      }
+      if (call.url.includes('check-logs')) {
+        return jsonResponse(200, [])
+      }
+      return jsonResponse(200, [wiki])
+    })
+    renderPage()
+    // The fixture row renders in both the upstreams table and the cache
+    // table (mount loads cache too).
+    expect((await screen.findAllByText('wiki')).length).toBeGreaterThanOrEqual(1)
+    await user.click(screen.getByRole('button', { name: /load cache/i }))
+    await screen.findByText('docs')
+    await user.click(screen.getByRole('button', { name: /^purge$/i }))
+    await waitFor(() => {
+      expect(
+        calls.some((call) => call.method === 'DELETE' && call.url.includes('/cache/wiki/docs')),
+      ).toBe(true)
+    })
+  })
 })

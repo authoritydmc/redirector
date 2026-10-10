@@ -10,5 +10,5 @@ test('wrong password shows an error', async ({ page }) => {
 
 test('correct password lands on Shortcuts', async ({ page }) => {
   await loginAsAdmin(page)
-  await expect(page).toHaveURL(/\/app\/?$/)
+  await expect(page).toHaveURL(/\/$/)
 })

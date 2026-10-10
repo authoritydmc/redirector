@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '../../lib/client'
-import { bulkDeleteShortcuts, createShortcut, deleteShortcut, listShortcuts, updateShortcut } from './api'
+import { bulkDeleteShortcuts, bulkImportShortcuts, createShortcut, deleteShortcut, listShortcuts, updateShortcut } from './api'
 import type { Shortcut, ShortcutInput } from './api'
 import ShortcutForm from './ShortcutForm'
 
@@ -26,6 +26,7 @@ export default function ShortcutsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirming, setConfirming] = useState<string | null>(null)
   const [confirmingBulk, setConfirmingBulk] = useState(false)
+  const [importNotice, setImportNotice] = useState<string | null>(null)
   const [drawer, setDrawer] = useState<{ mode: 'create' } | { mode: 'edit'; row: Shortcut } | null>(null)
   const [drawerError, setDrawerError] = useState<string | null>(null)
 
@@ -129,8 +130,7 @@ export default function ShortcutsPage() {
     }
   }
 
-  async function saveDrawer(input: ShortcutInput) {
-    try {
+  async function saveDrawer(input: ShortcutInput) {    try {
       if (drawer?.mode === 'edit') {
         const { pattern: _ignored, ...patch } = input
         await updateShortcut(drawer.row.pattern, patch)
@@ -147,6 +147,55 @@ export default function ShortcutsPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const pageSelected = rows.length > 0 && rows.every((row) => selected.has(row.pattern))
+
+  async function exportAll() {
+    setError(null)
+    try {
+      const all: Shortcut[] = []
+      let page = 1
+      for (;;) {
+        const list = await listShortcuts({ page, pageSize: 100, q: '', sort: 'updated_at' })
+        all.push(...list.data)
+        if (all.length >= list.meta.total || list.data.length === 0) {
+          break
+        }
+        page += 1
+      }
+      const blob = new Blob([JSON.stringify({ shortcuts: all }, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = 'redirector-export.json'
+      anchor.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export failed')
+    }
+  }
+
+  async function importFile(file: File) {
+    setError(null)
+    setImportNotice(null)
+    try {
+      const parsed: unknown = JSON.parse(await file.text())
+      const list = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray((parsed as { shortcuts?: unknown }).shortcuts)
+          ? (parsed as { shortcuts: ShortcutInput[] }).shortcuts
+          : null
+      if (list === null) {
+        throw new Error('Expected {"shortcuts": [...]} or a bare array')
+      }
+      const res = await bulkImportShortcuts(list)
+      setImportNotice(
+        `Imported ${res.count} (${res.inserted} new, ${res.updated} updated`
+        + (res.skipped.length > 0 ? `, skipped ${res.skipped.length}` : '') + ').',
+      )
+      await reload()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Import failed')
+    }
+  }
 
   return (
     <section>
@@ -196,6 +245,7 @@ export default function ShortcutsPage() {
         )}
       </div>
       {error !== null && <p role="alert" className="mt-3 text-sm text-rd-danger">{error}</p>}
+      {importNotice !== null && <p role="status" className="mt-3 text-sm text-rd-muted">{importNotice}</p>}
       {loading ? (
         <p className="mt-4 text-sm text-rd-muted">Loading…</p>
       ) : rows.length === 0 ? (
@@ -264,6 +314,31 @@ export default function ShortcutsPage() {
       <div className="mt-3 flex items-center gap-3 text-sm">
         <button
           type="button"
+          onClick={() => void exportAll()}
+          className="rounded border border-rd-line px-3 py-1"
+        >
+          Export JSON
+        </button>
+        <label className="rounded border border-rd-line px-3 py-1">
+          Import JSON
+          <input
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            aria-label="Import JSON file"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (file !== undefined) {
+                void importFile(file)
+              }
+            }}
+          />
+        </label>
+      </div>
+      <div className="mt-3 flex items-center gap-3 text-sm">
+        <button
+          type="button"
           disabled={page <= 1}
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           className="rounded border border-rd-line px-3 py-1 disabled:opacity-40"
@@ -306,6 +381,19 @@ export default function ShortcutsPage() {
                 onSubmit={saveDrawer}
                 onCancel={() => setDrawer(null)}
               />
+            )}
+            {drawer.mode === 'edit' && (
+              <div className="mt-4 border-t border-rd-line pt-3">
+                <p className="text-sm text-rd-muted">Share this link:</p>
+                <img
+                  src={`/qr/${encodeURIComponent(drawer.row.pattern)}`}
+                  alt={`QR code for ${drawer.row.pattern}`}
+                  width={160}
+                  height={160}
+                  className="mt-2 rounded border border-rd-line bg-white p-2"
+                  loading="lazy"
+                />
+              </div>
             )}
           </div>
         </div>

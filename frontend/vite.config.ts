@@ -3,11 +3,11 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 // Dev proxy: the v3 API on :8123 (see backend/README run instructions).
-// EPIC-08 dual-serve will point this at the nginx front door instead.
-// `base /app/` matches production serving (FastAPI StaticFiles at /app,
-// nginx /app/ block): dev opens at http://localhost:5173/app/.
+// `base /` matches production serving (nginx serves the SPA shell at /
+// and client routes, with /{pattern} resolving on the API hot path).
+// Dev opens at http://localhost:5173/.
 export default defineConfig({
-  base: '/app/',
+  base: '/',
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
