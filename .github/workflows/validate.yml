@@ -123,6 +123,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-cov -r backend/requirements.txt
           pip install ruff mypy
+      - name: Dependency audit (pip-audit, fail on any known vuln)
+        run: |
+          pip install pip-audit
+          pip-audit -r backend/requirements.txt
       - name: "Backend v3 lint + types (EPIC-01 gate: ruff + mypy strict)"
         run: |
           export PYTHONPATH=$(pwd)
