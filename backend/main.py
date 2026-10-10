@@ -29,6 +29,7 @@ from backend.routers import metrics as metrics_router
 from backend.routers import qr as qr_router
 from backend.routers import resolve as resolve_router
 from backend.routers import shortcuts as shortcuts_router
+from backend.routers import site as site_router
 from backend.routers import upstreams as upstreams_router
 
 logger = logging.getLogger("redirector")
@@ -91,6 +92,7 @@ def create_app() -> FastAPI:
             {"name": "jobs", "description": "Background jobs + progress streams"},
             {"name": "qr", "description": "QR code generation"},
             {"name": "resolve", "description": "Redirect hot path + debug"},
+            {"name": "site", "description": "Public site policy"},
         ],
     )
     register_error_handlers(app)
@@ -118,6 +120,7 @@ def create_app() -> FastAPI:
     app.include_router(config_router.router)
     app.include_router(qr_router.router)
     app.include_router(shortcuts_router.router)
+    app.include_router(site_router.router)
     app.include_router(upstreams_router.router)
     app.include_router(metrics_router.router)
     _mount_spa(app)
