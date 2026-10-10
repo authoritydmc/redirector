@@ -59,8 +59,8 @@ export default function UpstreamsPage() {
     try {
       const [ups, cache, logs] = await Promise.all([
         listUpstreams(),
-        token !== null ? listCache().catch(() => [] as CacheEntry[]) : Promise.resolve([] as CacheEntry[]),
-        token !== null ? listCheckLogs().catch(() => [] as CheckLog[]) : Promise.resolve([] as CheckLog[]),
+        listCache().catch(() => [] as CacheEntry[]),
+        listCheckLogs().catch(() => [] as CheckLog[]),
       ])
       setRows(ups)
       setCacheRows(cache)
@@ -70,7 +70,7 @@ export default function UpstreamsPage() {
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [])
 
   useEffect(() => {
     void reload()
@@ -366,9 +366,9 @@ export default function UpstreamsPage() {
         ))}
       </ul>
 
-      {canManage && (<>
       <h3 className="mt-6 text-lg font-semibold">Shortcut cache</h3>
       {cacheNotice !== null && <p role="status" className="mt-2 text-sm text-rd-muted">{cacheNotice}</p>}
+      {canManage && (
       <form onSubmit={resync} className="mt-2 flex flex-wrap items-end gap-2">
         <label className="flex flex-col text-sm">
           Upstream
@@ -393,6 +393,7 @@ export default function UpstreamsPage() {
           Resync
         </button>
       </form>
+      )}
       <div className="mt-2 flex flex-wrap items-end gap-2">
         <label className="flex flex-col text-sm">
           Filter by upstream
@@ -406,7 +407,7 @@ export default function UpstreamsPage() {
         <button type="button" onClick={() => void refreshCache()} className="rounded border border-rd-line px-3 py-1.5 text-sm">
           Load cache
         </button>
-        {confirmPurge ? (
+        {canManage && confirmPurge && (
           <span className="flex gap-2">
             <button type="button" onClick={() => void purgeAll()} className="rounded bg-rd-danger px-3 py-1.5 text-sm text-rd-danger-ink">
               Confirm purge
@@ -415,7 +416,8 @@ export default function UpstreamsPage() {
               Cancel
             </button>
           </span>
-        ) : (
+        )}
+        {canManage && !confirmPurge && (
           <button type="button" onClick={() => setConfirmPurge(true)} className="rounded border border-rd-danger px-3 py-1.5 text-sm text-rd-danger">
             Purge cache
           </button>
@@ -429,7 +431,7 @@ export default function UpstreamsPage() {
               <th className="py-1 pr-2">Pattern</th>
               <th className="py-1 pr-2">Upstream</th>
               <th className="py-1 pr-2">Resolved URL</th>
-              <th className="py-1">Actions</th>
+              {canManage && <th className="py-1">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -438,26 +440,28 @@ export default function UpstreamsPage() {
                 <td className="py-1 pr-2 font-mono">{row.pattern}</td>
                 <td className="py-1 pr-2 font-mono">{row.upstream_name}</td>
                 <td className="max-w-xs truncate py-1 pr-2">{row.resolved_url ?? '—'}</td>
+                {canManage && (
                 <td className="py-1">
                   <button type="button" onClick={() => void purgeOne(row.upstream_name, row.pattern)} className="underline text-rd-muted">
                     Purge
                   </button>
                 </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
         </div>
       )}
-      </>)}
 
-      {canManage && (<>
       <h3 className="mt-6 text-lg font-semibold">Check logs</h3>
+      {canManage && (
       <div className="mt-2 flex gap-2">
         <button type="button" onClick={() => void clearLogs()} className="rounded border border-rd-line px-3 py-1.5 text-sm">
           Clear logs
         </button>
       </div>
+      )}
       {logRows.length > 0 && (
         <ul aria-label="Check logs" className="mt-3 flex flex-col gap-1 text-sm">
           {logRows.slice(0, 50).map((row, index) => (
@@ -467,7 +471,6 @@ export default function UpstreamsPage() {
           ))}
         </ul>
       )}
-      </>)}
     </section>
   )
 }

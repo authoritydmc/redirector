@@ -2,14 +2,17 @@
 
 Covers: shortcuts CRUD + bulk-delete, the resolve hot path (static, dynamic,
 user-dynamic, unknown), upstreams CRUD + cache purge + SSE check stream,
-metrics, QR, and ops probes. Auth-gated admin/config endpoints are excluded
-(load runs target public/read paths; see load_testing.md).
+metrics, QR, and ops probes. Mutations are admin-gated (RBAC), so each VU
+logs in on start and reuses its JWT; pure reads stay anonymous-safe.
 
-Run: locust -f load_testing/locustfile_v3.py --host=http://127.0.0.1:8123
+Password: REDIRECTOR_ADMIN_PASSWORD (must match the target server; the
+dev/smoke default is "admin"). Run: locust -f load_testing/locustfile_v3.py
+--host=http://127.0.0.1:8123
 """
 
 from __future__ import annotations
 
+import os
 import uuid
 
 from locust import HttpUser, TaskSet, between, task
@@ -198,3 +201,11 @@ class V3ApiTasks(TaskSet):
 class V3ApiUser(HttpUser):
     wait_time = between(0.5, 2.0)
     tasks = [V3ApiTasks]
+
+    def on_start(self) -> None:
+        """Authenticate once per VU: mutations require an admin JWT (RBAC)."""
+        password = os.environ.get("REDIRECTOR_ADMIN_PASSWORD", "admin")
+        resp = self.client.post("/api/v1/auth/login", json={"password": password})
+        if resp.status_code != 200:
+            raise RuntimeError(f"load-user login failed: {resp.status_code}")
+        self.client.headers["Authorization"] = f"Bearer {resp.json()['access_token']}"

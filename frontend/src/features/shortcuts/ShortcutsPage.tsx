@@ -336,15 +336,15 @@ export default function ShortcutsPage() {
         </table>
         </div>
       )}
-      {token !== null && (
-        <div className="mt-3 flex items-center gap-3 text-sm">
-          <button
-            type="button"
-            onClick={() => void exportAll()}
-            className="rounded border border-rd-line px-3 py-1"
-          >
-            Export JSON
-          </button>
+      <div className="mt-3 flex items-center gap-3 text-sm">
+        <button
+          type="button"
+          onClick={() => void exportAll()}
+          className="rounded border border-rd-line px-3 py-1"
+        >
+          Export JSON
+        </button>
+        {token !== null && (
           <label className="rounded border border-rd-line px-3 py-1">
             Import JSON
             <input
@@ -361,8 +361,8 @@ export default function ShortcutsPage() {
               }}
             />
           </label>
-        </div>
-      )}
+        )}
+      </div>
       <div className="mt-3 flex items-center gap-3 text-sm">
         <button
           type="button"
