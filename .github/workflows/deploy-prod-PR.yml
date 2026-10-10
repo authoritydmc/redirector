@@ -37,6 +37,19 @@ jobs:
       - name: Set version for image stamping
         run: echo "APP_VERSION=$(tr -d '[:space:]' < VERSION)" >> $GITHUB_ENV
 
+      - name: Set up Node (SPA build for the web image)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build SPA
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
@@ -46,7 +59,7 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      - name: Build and push Docker image (multi-arch)
+      - name: Build and push API image (multi-arch)
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -58,3 +71,16 @@ jobs:
             GIT_COMMIT=${{ github.sha }}
           tags: |
             ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:pr-${{ env.PR_NUMBER }}
+
+      - name: Build and push web image (multi-arch)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.web
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            APP_VERSION=${{ env.APP_VERSION }}
+            GIT_COMMIT=${{ github.sha }}
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/redirector-web:pr-${{ env.PR_NUMBER }}
