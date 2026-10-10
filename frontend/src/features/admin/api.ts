@@ -12,10 +12,24 @@ export type Live = components['schemas']['LiveResponse']
 export type CacheEntry = components['schemas']['UpstreamCacheEntry']
 export type CheckLog = components['schemas']['CheckLogEntry']
 
+export interface ConfigSchemaItem {
+  key: string
+  title: string
+  description: string
+  type: string
+  min?: number | null
+  max?: number | null
+  env_var?: string | null
+  value?: unknown
+  source?: string
+  readonly?: boolean
+}
+
 export interface AdminConfig {
   app_name?: string
   app_version?: string
   custom?: Record<string, unknown>
+  schema?: ConfigSchemaItem[]
   [key: string]: unknown
 }
 

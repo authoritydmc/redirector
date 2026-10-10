@@ -33,13 +33,22 @@ def verify_password(plain_password: str, expected_password: str) -> bool:
     return secrets.compare_digest(plain_password, expected_password)
 
 
-def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
-    """Generate encoded JWT access token."""
+def create_access_token(
+    data: dict[str, Any],
+    expires_delta: timedelta | None = None,
+    ttl_minutes: int | None = None,
+) -> str:
+    """Generate encoded JWT access token.
+
+    Lifetime: explicit `expires_delta`, else `ttl_minutes`, else the
+    configured default (callers resolve DB/env overrides first).
+    """
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(UTC) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
+        minutes = ttl_minutes if ttl_minutes is not None else settings.jwt_access_token_expire_minutes
+        expire = datetime.now(UTC) + timedelta(minutes=minutes)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
     return encoded_jwt

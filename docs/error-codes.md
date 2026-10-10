@@ -5,6 +5,12 @@ Every API error is an RFC 7807 problem with a machine-readable `code`
 A test (`test_error_codes_cataloged`) fails when backend code introduces a
 code missing here — document first, then implement.
 
+## `admin` — configuration
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `admin:invalid-setting` | 422 | Settings PATCH value outside the schema (wrong type or range) |
+
 ## `auth` — login, tokens, keys, MFA
 
 | Code | HTTP | Meaning |
