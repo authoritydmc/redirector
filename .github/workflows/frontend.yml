@@ -38,6 +38,11 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install
         run: npm ci
+      - name: Audit production dependencies (fail on high+)
+        # --omit=dev: the only known vulns are dev-only vitest-toolchain
+        # advisories whose fix is a breaking major; test runners never ship
+        # in dist/, so the gate covers what users actually download.
+        run: npm audit --omit=dev --audit-level=high
       - name: Generated client in sync
         run: |
           npm run codegen
