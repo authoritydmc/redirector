@@ -75,4 +75,43 @@ describe('Login', () => {
       expect(screen.getByText('Admin password')).toBeInTheDocument()
     })
   })
+
+  it('shows SSO provider buttons when configured', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: unknown) => {
+        if (String(url).includes('/api/v1/auth/providers')) {
+          return jsonResponse(200, [{ id: 'google', display_name: 'Google' }])
+        }
+        return jsonResponse(404, {})
+      }),
+    )
+    renderAt('/login')
+    const button = await screen.findByRole('link', { name: /continue with google/i })
+    expect(button).toHaveAttribute('href', '/api/v1/auth/oidc/google/login')
+  })
+
+  it('adopts an SSO token from the URL fragment', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: unknown) => {
+        if (String(url).includes('/api/v1/auth/providers')) {
+          return jsonResponse(200, [])
+        }
+        return jsonResponse(200, { data: [], meta: { total: 0 } })
+      }),
+    )
+    renderAt('/login#access_token=sso-jwt-test')
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Shortcuts' })).toBeInTheDocument()
+    })
+    expect(localStorage.getItem('redirector.token')).toBe('sso-jwt-test')
+  })
+
+  it('explains SSO errors from the URL fragment', async () => {
+    renderAt('/login#error=not-authorized')
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/not in an admin group/i)
+    })
+  })
 })

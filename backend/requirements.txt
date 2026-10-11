@@ -20,6 +20,9 @@ httpx>=0.27
 # (EPIC-06), MFA/TOTP + JWT auth (EPIC-05), Redis-backed cache (EPIC-04).
 redis>=5.0
 pyjwt>=2.9
+# OIDC SSO logins (EPIC-05 task 6): authorization-code + PKCE via any
+# standards-compliant discovery document (Google, Entra ID, Keycloak).
+authlib>=1.3
 psutil>=5.9
 qrcode[pil]>=8.0
 pyotp>=2.9

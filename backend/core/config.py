@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     jwt_secret: str = "redirector-insecure-dev-secret-change-in-production"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60
+    # Where the OIDC callback sends the browser after SSO (fragment-carried
+    # token, never query — query lands in server logs). Same-origin SPA path:
+    # "/app/login" in prod (SPA served at /app), "/login" for vite dev.
+    sso_login_url: str = "/app/login"
 
 
 @lru_cache
@@ -117,6 +121,7 @@ ENV_MANAGED_SETTINGS: list[dict[str, str]] = [
     {"key": "job_backend", "title": "Job backend", "description": "Set REDIRECTOR_JOB_BACKEND and restart."},
     {"key": "log_level", "title": "Log level", "description": "Set REDIRECTOR_LOG_LEVEL and restart."},
     {"key": "data_dir", "title": "Data directory", "description": "Set REDIRECTOR_DATA_DIR and restart."},
+    {"key": "sso_login_url", "title": "SSO landing page", "description": "Set REDIRECTOR_SSO_LOGIN_URL and restart."},
 ]
 
 

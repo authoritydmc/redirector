@@ -36,6 +36,7 @@ from backend.models.entities import (
     Setting,
     Shortcut,
     ShortcutType,
+    SsoUser,
     Upstream,
     UpstreamCache,
     UserParam,
@@ -49,6 +50,7 @@ TABLE_MODELS: dict[str, type[SQLModel]] = {
     "user_params": UserParam,
     "settings": Setting,
     "api_keys": ApiKey,
+    "sso_users": SsoUser,
 }
 
 FILENAME_RE = re.compile(r"^redirector-backup-\d{8}T\d{6}Z(?:-[a-z0-9-]+)?(?:-\d+)?\.zip$")
@@ -275,6 +277,13 @@ def _validated_rows(table: str, rows: list[dict[str, Any]]) -> list[dict[str, An
                 raise RestoreError("corrupt api_keys row: 'scopes' must be a list")
             for stamp in ("created_at", "last_used_at", "revoked_at"):
                 _parse_dt(data.get(stamp))
+        elif table == "sso_users":
+            _nonempty_str(data, table, "provider")
+            _nonempty_str(data, table, "subject")
+            if data.get("role", "viewer") not in ("admin", "viewer"):
+                raise RestoreError("corrupt sso_users row: 'role' must be admin|viewer")
+            for stamp in ("created_at", "last_login_at"):
+                _parse_dt(data.get(stamp))
     return rows
 
 
@@ -401,6 +410,27 @@ async def _apply_table(session: AsyncSession, table: str, rows: list[dict[str, A
             else:
                 for attr, value in fields.items():
                     setattr(api_key, attr, value)
+            written += 1
+    elif table == "sso_users":
+        for data in rows:
+            user = (await session.execute(
+                select(SsoUser).where(
+                    SsoUser.provider == data["provider"],
+                    SsoUser.subject == data["subject"])
+            )).scalar_one_or_none()
+            fields = {
+                "email": data.get("email"),
+                "name": data.get("name"),
+                "role": data.get("role", "viewer"),
+                "created_at": _dt_or_now(data.get("created_at")),
+                "last_login_at": _parse_dt(data.get("last_login_at")),
+            }
+            if user is None:
+                session.add(SsoUser(
+                    provider=data["provider"], subject=data["subject"], **fields))
+            else:
+                for attr, value in fields.items():
+                    setattr(user, attr, value)
             written += 1
     await session.commit()
     return written
