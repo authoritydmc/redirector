@@ -50,15 +50,15 @@
 
 :root {
   color-scheme: light;
-  --rd-bg: #ffffff;
-  --rd-surface: #f6f8fa;
-  --rd-text: #1f2328;
-  --rd-muted: #59636e;
-  --rd-line: #d1d9e0;
-  --rd-input: #ffffff;
-  --rd-accent: #0969da;
+  --rd-bg: #f7f0e6;
+  --rd-surface: #fffdf8;
+  --rd-text: #3a2e22;
+  --rd-muted: #6b5d4d;
+  --rd-line: #e2d5c0;
+  --rd-input: #fffdf8;
+  --rd-accent: #9a3412;
   --rd-accent-ink: #ffffff;
-  --rd-danger: #cf222e;
+  --rd-danger: #b91c1c;
   --rd-danger-ink: #ffffff;
 }
 
@@ -258,6 +258,207 @@
   --rd-accent-ink: #ffffff;
     --rd-danger: #b91c1c;
     --rd-danger-ink: #ffffff;
+}
+
+[data-theme='clay-cream'] {
+  color-scheme: light;
+  --rd-bg: #f7f0e6;
+  --rd-surface: #fffdf8;
+  --rd-text: #3a2e22;
+  --rd-muted: #6b5d4d;
+  --rd-line: #e2d5c0;
+  --rd-input: #fffdf8;
+  --rd-accent: #9a3412;
+  --rd-accent-ink: #ffffff;
+  --rd-danger: #b91c1c;
+  --rd-danger-ink: #ffffff;
+}
+
+[data-theme='clay-lavender'] {
+  color-scheme: light;
+  --rd-bg: #f1edfb;
+  --rd-surface: #ffffff;
+  --rd-text: #2d2645;
+  --rd-muted: #5d547e;
+  --rd-line: #d5cdea;
+  --rd-input: #ffffff;
+  --rd-accent: #6d28d9;
+  --rd-accent-ink: #ffffff;
+  --rd-danger: #b91c1c;
+  --rd-danger-ink: #ffffff;
+}
+
+[data-theme='clay-mint'] {
+  color-scheme: light;
+  --rd-bg: #eaf6ef;
+  --rd-surface: #ffffff;
+  --rd-text: #1e3329;
+  --rd-muted: #44665a;
+  --rd-line: #c4ddd0;
+  --rd-input: #ffffff;
+  --rd-accent: #046c4e;
+  --rd-accent-ink: #ffffff;
+  --rd-danger: #b91c1c;
+  --rd-danger-ink: #ffffff;
+}
+
+[data-theme='clay-midnight'] {
+  color-scheme: dark;
+  --rd-bg: #232738;
+  --rd-surface: #2b3049;
+  --rd-text: #f1f0ff;
+  --rd-muted: #b0b3cc;
+  --rd-line: #3d435f;
+  --rd-input: #1c2033;
+  --rd-accent: #a5b4fc;
+  --rd-accent-ink: #1a1e35;
+  --rd-danger: #fb7185;
+  --rd-danger-ink: #232738;
+}
+
+/* Claymorphism layer — soft 3D only under clay-* themes. Flat themes above
+   are untouched. Tokens derive from each clay palette via color-mix, so new
+   clay colorways pick up the same depth automatically. Unlayered author CSS
+   beats Tailwind's @layer utilities, so these overrides win without
+   !important and without touching component code. */
+[data-theme^='clay-'] {
+  --rd-clay-dark: color-mix(in srgb, var(--rd-bg) 78%, #2f2a24);
+  --rd-clay-light: #ffffff;
+  --rd-clay-shadow-sm:
+    3px 3px 7px var(--rd-clay-dark), -3px -3px 7px var(--rd-clay-light);
+  --rd-clay-shadow-md:
+    7px 7px 16px var(--rd-clay-dark), -7px -7px 16px var(--rd-clay-light);
+  --rd-clay-inset:
+    inset 3px 3px 6px var(--rd-clay-dark), inset -3px -3px 6px var(--rd-clay-light);
+  --rd-clay-accent-edge: color-mix(in srgb, var(--rd-accent) 78%, black);
+  --rd-clay-accent-hi: color-mix(in srgb, var(--rd-accent) 72%, white);
+}
+
+[data-theme='clay-midnight'] {
+  --rd-clay-dark: #131624;
+  --rd-clay-light: color-mix(in srgb, var(--rd-surface) 58%, white);
+}
+
+/* Page: soft gradient wash instead of a flat fill. */
+[data-theme^='clay-'] .bg-rd-bg {
+  background-image: linear-gradient(
+    145deg,
+    var(--rd-clay-light) 0%,
+    var(--rd-bg) 55%,
+    color-mix(in srgb, var(--rd-bg) 88%, var(--rd-clay-dark)) 100%
+  );
+}
+
+/* Chunkier radii for the standard rounded steps (pills stay pills). */
+[data-theme^='clay-'] .rounded {
+  border-radius: 14px;
+}
+[data-theme^='clay-'] .rounded-xl {
+  border-radius: 22px;
+}
+
+/* Raised clay cards / panels / drawer. Table-row hairlines use border-b and
+   are deliberately excluded (selector requires the full .border class). */
+[data-theme^='clay-'] .bg-rd-surface,
+[data-theme^='clay-'] .border.border-rd-line.bg-rd-surface {
+  border-width: 2px;
+  box-shadow: var(--rd-clay-shadow-md);
+}
+[data-theme^='clay-'] div[role='dialog'] {
+  border-width: 0 0 0 2px;
+  border-radius: 22px 0 0 22px;
+  box-shadow:
+    -8px 0 20px var(--rd-clay-dark),
+    inset 2px 2px 5px var(--rd-clay-light);
+}
+
+/* Pressed clay inputs: full borders go 2px + inset shadow; the bg utility
+   already supplies the fill. */
+[data-theme^='clay-'] input.bg-rd-input,
+[data-theme^='clay-'] select.bg-rd-input,
+[data-theme^='clay-'] textarea.bg-rd-input,
+[data-theme^='clay-'] select.border,
+[data-theme^='clay-'] .border.border-rd-line.bg-rd-input {
+  border-width: 2px;
+  border-radius: 14px;
+  box-shadow: var(--rd-clay-inset);
+}
+
+/* Chunky clay push buttons (accent + danger fills). */
+[data-theme^='clay-'] .bg-rd-accent,
+[data-theme^='clay-'] .bg-rd-danger {
+  border: 2px solid var(--rd-clay-accent-edge);
+  border-radius: 14px;
+  box-shadow:
+    4px 4px 9px var(--rd-clay-dark),
+    -3px -3px 8px var(--rd-clay-light),
+    inset 1px 1px 2px var(--rd-clay-accent-hi);
+  transition:
+    transform 0.08s ease-out,
+    box-shadow 0.12s ease-out;
+}
+[data-theme^='clay-'] .bg-rd-danger {
+  --rd-clay-accent-edge: color-mix(in srgb, var(--rd-danger) 78%, black);
+  --rd-clay-accent-hi: color-mix(in srgb, var(--rd-danger) 70%, white);
+}
+[data-theme^='clay-'] .bg-rd-accent:hover,
+[data-theme^='clay-'] .bg-rd-danger:hover {
+  transform: translateY(-1px);
+}
+[data-theme^='clay-'] .bg-rd-accent:active,
+[data-theme^='clay-'] .bg-rd-danger:active {
+  transform: translateY(1px);
+  box-shadow:
+    2px 2px 5px var(--rd-clay-dark),
+    inset 2px 2px 5px rgb(0 0 0 / 0.25);
+}
+[data-theme^='clay-'] .bg-rd-accent:disabled,
+[data-theme^='clay-'] .bg-rd-danger:disabled {
+  transform: none;
+  box-shadow: var(--rd-clay-shadow-sm);
+  opacity: 0.55;
+}
+
+/* Ghost / outline controls read as small clay chips. */
+[data-theme^='clay-'] button.border-rd-line,
+[data-theme^='clay-'] .border.border-rd-line:not(.bg-rd-input):not(.bg-rd-surface) {
+  border-width: 2px;
+  border-radius: 14px;
+  box-shadow: var(--rd-clay-shadow-sm);
+}
+[data-theme^='clay-'] button.border-rd-line:active {
+  transform: translateY(1px);
+  box-shadow: var(--rd-clay-inset);
+}
+
+/* Header floats as a clay bar; nav pills puff up on hover/active. */
+[data-theme^='clay-'] header {
+  background: color-mix(in srgb, var(--rd-surface) 88%, var(--rd-bg));
+  border-bottom-width: 2px;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--rd-clay-dark) 55%, transparent);
+}
+[data-theme^='clay-'] nav a {
+  border-radius: 12px;
+}
+[data-theme^='clay-'] nav a:hover {
+  box-shadow: var(--rd-clay-shadow-sm);
+}
+[data-theme^='clay-'] nav a[aria-current='page'] {
+  box-shadow: var(--rd-clay-inset);
+}
+
+/* Reduced motion: clay stays clay, minus the travel. */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme^='clay-'] .bg-rd-accent,
+  [data-theme^='clay-'] .bg-rd-danger {
+    transition: none;
+  }
+  [data-theme^='clay-'] .bg-rd-accent:hover,
+  [data-theme^='clay-'] .bg-rd-danger:hover,
+  [data-theme^='clay-'] .bg-rd-accent:active,
+  [data-theme^='clay-'] .bg-rd-danger:active {
+    transform: none;
+  }
 }
 
 /* Visible keyboard focus everywhere (accent ring, theme-aware). */

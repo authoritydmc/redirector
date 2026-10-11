@@ -6,6 +6,9 @@
  * bound to the variables with `@theme inline` — so switching themes never
  * touches component code, and every pair below is contrast-tested in
  * `themes.test.ts` (WCAG AA: body text >= 7:1, everything else >= 4.5:1).
+ * The `clay-*` family reuses the same ten tokens; its soft-3D look comes
+ * from an extra claymorphism layer in `theme.css` scoped to
+ * `[data-theme^='clay-']`, so flat themes are untouched.
  */
 
 export interface ThemeVars {
@@ -114,6 +117,26 @@ export const THEMES: Theme[] = [
     bg: '#faf6ef', surface: '#f1e9d7', text: '#4a3f2f', muted: '#776549',
     line: '#ddd0b8', input: '#fffdf8', accent: '#92400a', accentInk: '#ffffff',
     danger: '#b91c1c', dangerInk: '#ffffff',
+  }),
+  theme('clay-cream', 'Clay Cream', 'light', {
+    bg: '#f7f0e6', surface: '#fffdf8', text: '#3a2e22', muted: '#6b5d4d',
+    line: '#e2d5c0', input: '#fffdf8', accent: '#9a3412', accentInk: '#ffffff',
+    danger: '#b91c1c', dangerInk: '#ffffff',
+  }),
+  theme('clay-lavender', 'Clay Lavender', 'light', {
+    bg: '#f1edfb', surface: '#ffffff', text: '#2d2645', muted: '#5d547e',
+    line: '#d5cdea', input: '#ffffff', accent: '#6d28d9', accentInk: '#ffffff',
+    danger: '#b91c1c', dangerInk: '#ffffff',
+  }),
+  theme('clay-mint', 'Clay Mint', 'light', {
+    bg: '#eaf6ef', surface: '#ffffff', text: '#1e3329', muted: '#44665a',
+    line: '#c4ddd0', input: '#ffffff', accent: '#046c4e', accentInk: '#ffffff',
+    danger: '#b91c1c', dangerInk: '#ffffff',
+  }),
+  theme('clay-midnight', 'Clay Midnight', 'dark', {
+    bg: '#232738', surface: '#2b3049', text: '#f1f0ff', muted: '#b0b3cc',
+    line: '#3d435f', input: '#1c2033', accent: '#a5b4fc', accentInk: '#1a1e35',
+    danger: '#fb7185', dangerInk: '#232738',
   }),
 ]
 

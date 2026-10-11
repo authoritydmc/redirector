@@ -4,11 +4,13 @@ import { THEMES, THEME_STORAGE_KEY, isThemeId, type ThemeId } from './themes'
 function initialTheme(): ThemeId {
   const stored = localStorage.getItem(THEME_STORAGE_KEY)
   // Legacy binary toggle values migrate to the same-named themes.
+  // Any stored id (including the retired 'redirector' default) is respected;
+  // only first-time visitors fall through to the clay default.
   if (stored === 'dark' || stored === 'light' || isThemeId(stored)) {
     return stored
   }
   // Signature look out of the box — not the OS default.
-  return 'redirector'
+  return 'clay-cream'
 }
 
 /** Active theme id, persisted; flips `document.documentElement.dataset.theme`. */
