@@ -21,6 +21,7 @@ from backend.core.security import (
     get_current_admin,
     log_auth_event,
     record_failed_login,
+    require_jwt_session,
     verify_password,
 )
 from backend.models.entities import ApiKey
@@ -136,18 +137,6 @@ async def get_me(admin: Annotated[dict[str, Any], Depends(get_current_admin)]) -
     return CurrentUserResponse(role=admin["role"], sub=admin["sub"])
 
 
-def _require_jwt_session(admin: dict[str, Any]) -> None:
-    """Key management needs an interactive session: a leaked key must not be
-    able to mint or revoke sibling keys."""
-    if admin.get("auth_method") != "jwt":
-        raise AppError(
-            "Admin session required",
-            status=status.HTTP_403_FORBIDDEN,
-            detail="API key management requires an interactive JWT session",
-            code="auth:forbidden",
-        )
-
-
 def _to_read(row: ApiKey) -> ApiKeyRead:
     return ApiKeyRead(
         id=row.id,  # type: ignore[arg-type]
@@ -176,7 +165,7 @@ async def issue_api_key(
     repo: Annotated[ApiKeyRepository, Depends(_get_repo)],
 ) -> ApiKeyIssued:
     """Mint a key for automation. The plaintext is returned exactly once."""
-    _require_jwt_session(admin)
+    require_jwt_session(admin)
     name = body.name.strip()
     if not name:
         raise AppError(
@@ -197,7 +186,7 @@ async def list_api_keys(
     repo: Annotated[ApiKeyRepository, Depends(_get_repo)],
 ) -> list[ApiKeyRead]:
     """List keys (never secret material — only prefixes)."""
-    _require_jwt_session(admin)
+    require_jwt_session(admin)
     return [_to_read(row) for row in await repo.list_all()]
 
 
@@ -207,7 +196,7 @@ async def revoke_api_key(
     admin: Annotated[dict[str, Any], Depends(get_current_admin)],
     repo: Annotated[ApiKeyRepository, Depends(_get_repo)],
 ) -> ApiKeyRead:
-    _require_jwt_session(admin)
+    require_jwt_session(admin)
     row = await repo.get_by_id(key_id)
     if row is None:
         raise AppError(
@@ -235,7 +224,7 @@ async def mfa_status(
     admin: Annotated[dict[str, Any], Depends(get_current_admin)],
     repo: Annotated[MfaRepository, Depends(get_mfa_repo)],
 ) -> MfaStatusResponse:
-    _require_jwt_session(admin)
+    require_jwt_session(admin)
     return MfaStatusResponse(enabled=await repo.is_enabled(),
                              backup_codes_remaining=await repo.code_count())
 
@@ -247,7 +236,7 @@ async def mfa_setup(
 ) -> MfaSetupResponse:
     """Stage a fresh seed (render the URL as QR). Nothing is enabled until
     a token from the new seed verifies at `mfa/enable`."""
-    _require_jwt_session(admin)
+    require_jwt_session(admin)
     if await repo.is_enabled():
         raise AppError(
             "MFA already enrolled",
@@ -268,7 +257,7 @@ async def mfa_enable(
 ) -> MfaEnableResponse:
     """Verify a token from the staged seed: enables MFA and mints single-use
     backup codes (plaintext exactly once — store them now)."""
-    _require_jwt_session(admin)
+    require_jwt_session(admin)
     if await repo.is_enabled():
         raise AppError(
             "MFA already enrolled",
@@ -297,7 +286,7 @@ async def mfa_disable(
     repo: Annotated[MfaRepository, Depends(get_mfa_repo)],
 ) -> MfaStatusResponse:
     """Disable MFA with TOTP proof of possession; clears seed and codes."""
-    _require_jwt_session(admin)
+    require_jwt_session(admin)
     if not await repo.is_enabled():
         raise AppError(
             "MFA not enrolled",
@@ -376,7 +365,7 @@ async def mfa_regenerate_codes(
     repo: Annotated[MfaRepository, Depends(get_mfa_repo)],
 ) -> MfaEnableResponse:
     """Mint a fresh backup-code set (old codes die) with TOTP possession proof."""
-    _require_jwt_session(admin)
+    require_jwt_session(admin)
     if not await repo.is_enabled():
         raise AppError(
             "MFA not enrolled",

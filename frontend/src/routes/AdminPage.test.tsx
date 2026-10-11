@@ -150,8 +150,11 @@ describe('AdminPage', () => {
     )
     renderPage()
     await screen.findByText('Redirect delay')
-    expect(screen.getByText('default')).toBeInTheDocument()
+    // Default source shows no badge; env var folds into one muted line.
+    expect(screen.queryByText('default')).not.toBeInTheDocument()
+    expect(screen.getByText(/REDIRECTOR_AUTO_REDIRECT_DELAY/, { exact: false })).toBeInTheDocument()
     expect(screen.getByText(/environment-only/i)).toBeInTheDocument()
+    expect(screen.getByText('Admin password')).toBeInTheDocument()
     const input = screen.getByLabelText('Redirect delay')
     await user.clear(input)
     await user.type(input, '3')

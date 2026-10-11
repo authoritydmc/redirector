@@ -102,7 +102,7 @@ def test_contract_snapshot(tmp_path: Any) -> None:
                         # Errors render RFC 7807 application/problem+json.
                         assert "json" in resp.headers["content-type"], route
                         assert isinstance(resp.json(), (dict, list)), route
-                elif method in ("post", "patch"):
+                elif method in ("post", "patch", "put"):
                     resp = client.request(method, route, json={})
                     assert resp.status_code in (401, 403, 404, 422), (method, route, resp.status_code)
                     assert isinstance(resp.json(), dict), route

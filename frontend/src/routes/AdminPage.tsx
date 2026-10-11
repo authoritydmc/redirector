@@ -106,7 +106,7 @@ function ConfigSection() {
     }
     try {
       const res = await patchConfig(changes)
-      setSaved(`Saved: ${res.keys.join(', ')}`)
+      setSaved(`Saved: ${res.keys.join(', ')} — live immediately, no restart needed.`)
       await load()
     } catch (err) {
       fail(err, 'Save failed')
@@ -143,30 +143,38 @@ function ConfigSection() {
         Changes apply immediately — no restart, except environment items.
       </p>
       {error !== null && <p role="alert" className="mt-2 text-sm text-rd-danger">{error}</p>}
-      {editable.map((item) => (
-        <label key={item.key} className="mt-3 flex flex-col text-sm">
-          <span>
-            {item.title}{' '}
-            <span className="rounded bg-rd-surface px-1.5 py-0.5 font-mono text-xs text-rd-muted">
-              {item.source}
-            </span>
-          </span>
-          <span className="text-xs text-rd-muted">{item.description}</span>
-          <span className="text-xs text-rd-muted">
-            {item.min !== null && item.min !== undefined && item.max !== null && item.max !== undefined
-              ? `Range ${item.min}–${item.max}. `
-              : ''}
-            {item.env_var !== null && item.env_var !== undefined ? `Env override: ${item.env_var}.` : ''}
-          </span>
-          <input
-            aria-label={item.title}
-            value={values[item.key] ?? ''}
-            onChange={(event) => setValues((prev) => ({ ...prev, [item.key]: event.target.value }))}
-            inputMode={item.type === 'int' ? 'numeric' : undefined}
-            className="mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-1.5 text-sm text-rd-text"
-          />
-        </label>
-      ))}
+      {editable.map((item) => {
+        const range =
+          item.min !== null && item.min !== undefined && item.max !== null && item.max !== undefined
+            ? `Range ${item.min}–${item.max}`
+            : null
+        const sub = [item.description, range, item.env_var ? `Env: ${item.env_var}` : null]
+          .filter((part): part is string => part !== null && part !== '')
+          .join(' · ')
+        return (
+          <div key={item.key} className="mt-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <label htmlFor={`cfg-${item.key}`} className="text-sm font-medium">
+                {item.title}
+              </label>
+              {item.source !== undefined && item.source !== 'default' && (
+                <span className="text-xs text-rd-muted">· {item.source}</span>
+              )}
+              <input
+                id={`cfg-${item.key}`}
+                aria-label={item.title}
+                value={values[item.key] ?? ''}
+                onChange={(event) => setValues((prev) => ({ ...prev, [item.key]: event.target.value }))}
+                inputMode={item.type === 'int' ? 'numeric' : undefined}
+                className={`ml-auto rounded border border-rd-line bg-rd-input px-3 py-1.5 text-sm text-rd-text ${
+                  item.type === 'int' ? 'w-28' : 'w-full max-w-xs'
+                }`}
+              />
+            </div>
+            {sub !== '' && <p className="mt-0.5 text-xs text-rd-muted">{sub}</p>}
+          </div>
+        )
+      })}
       <div className="mt-3">
         <button
           type="button"
@@ -179,12 +187,21 @@ function ConfigSection() {
       </div>
       {envManaged.length > 0 && (
         <div className="mt-4">
-          <p className="text-sm font-semibold">Environment-only (restart to change)</p>
-          <ul className="mt-1 flex flex-col gap-1 text-sm">
+          <p className="text-sm font-semibold">
+            Environment-only{' '}
+            <span className="font-normal text-rd-muted">
+              — set the variable and restart; nothing here is editable
+            </span>
+          </p>
+          <ul className="mt-1 text-sm">
             {envManaged.map((item) => (
-              <li key={item.key} className="rounded border border-rd-line px-2 py-1">
-                <span className="font-semibold">{item.title}</span>
-                <span className="text-rd-muted"> — {item.description}</span>
+              <li key={item.key} className="flex flex-wrap items-baseline gap-x-2 border-b border-rd-line py-1">
+                <span>{item.title}</span>
+                {item.env_var !== null && item.env_var !== undefined ? (
+                  <span className="ml-auto font-mono text-xs text-rd-muted">{item.env_var}</span>
+                ) : (
+                  <span className="text-rd-muted"> — {item.description}</span>
+                )}
               </li>
             ))}
           </ul>

@@ -53,7 +53,9 @@ async def get_config(
             "readonly": source == "environment",
         })
     for item in ENV_MANAGED_SETTINGS:
-        schema.append({**item, "type": "secret", "value": None, "source": "environment", "readonly": True})
+        schema.append({**item, "type": "secret", "value": None, "source": "environment",
+                       "readonly": True,
+                       "env_var": "REDIRECTOR_" + item["key"].upper()})
 
     return {
         "app_name": settings.app_name,

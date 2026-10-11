@@ -566,7 +566,13 @@ export interface paths {
          * @description Which mutating actions are open to anonymous clients (admin-curated).
          */
         get: operations["site_policy_api_v1_site_policy_get"];
-        put?: never;
+        /**
+         * Curate the public action policy
+         * @description Replace the admin-curated public-action list (unknown actions 422).
+         *     Empty list = default deny: every mutation needs an admin identity.
+         *     Interactive session only: a leaked key must not widen access.
+         */
+        put: operations["update_site_policy_api_v1_site_policy_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1367,6 +1373,11 @@ export interface components {
              *     ]
              */
             known_actions: string[];
+            /** Public Actions */
+            public_actions: string[];
+        };
+        /** SitePolicyUpdate */
+        SitePolicyUpdate: {
             /** Public Actions */
             public_actions: string[];
         };
@@ -2654,6 +2665,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SitePolicy"];
+                };
+            };
+        };
+    };
+    update_site_policy_api_v1_site_policy_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SitePolicyUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SitePolicy"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
