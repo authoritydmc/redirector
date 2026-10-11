@@ -6,6 +6,7 @@ import { getSitePolicy } from '../../lib/policy'
 import { bulkDeleteShortcuts, bulkImportShortcuts, createShortcut, deleteShortcut, listShortcuts, updateShortcut } from './api'
 import type { Shortcut, ShortcutInput, ShortcutType } from './api'
 import ShortcutForm from './ShortcutForm'
+import ShortcutWizard from './ShortcutWizard'
 
 const PAGE_SIZE = 20
 
@@ -35,6 +36,7 @@ export default function ShortcutsPage() {
   const [drawerError, setDrawerError] = useState<string | null>(null)
   const [publicCreate, setPublicCreate] = useState(false)
   const [preset, setPreset] = useState<ShortcutType>('static')
+  const [dialogMode, setDialogMode] = useState<'normal' | 'wizard'>('normal')
   const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => {
@@ -418,6 +420,26 @@ export default function ShortcutsPage() {
               {drawer.mode === 'create' ? 'New shortcut' : `Edit ${drawer.row.pattern}`}
             </h3>
             {drawer.mode === 'create' && (
+              <div className="mt-3 flex gap-2" role="tablist" aria-label="Creation mode">
+                {(['normal', 'wizard'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="tab"
+                    aria-selected={dialogMode === mode}
+                    onClick={() => setDialogMode(mode)}
+                    className={`rounded border px-3 py-1 text-xs ${
+                      dialogMode === mode
+                        ? 'border-rd-accent bg-rd-accent text-rd-accent-ink'
+                        : 'border-rd-line text-rd-muted'
+                    }`}
+                  >
+                    {mode === 'normal' ? 'Normal' : 'Wizard'}
+                  </button>
+                ))}
+              </div>
+            )}
+            {drawer.mode === 'create' && dialogMode === 'normal' && (
               <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Link kind">
                 {([
                   ['static', 'Simple link'],
@@ -443,14 +465,22 @@ export default function ShortcutsPage() {
             )}
             <div className="mt-3">
               {drawer.mode === 'create' ? (
-                <ShortcutForm
-                  key={`${preset}:${drawer.initialPattern ?? ''}`}
-                  initial={{ pattern: drawer.initialPattern ?? '', type: preset }}
-                  submitLabel="Create"
-                  serverError={drawerError}
-                  onSubmit={saveDrawer}
-                  onCancel={() => setDrawer(null)}
-                />
+                dialogMode === 'wizard' ? (
+                  <ShortcutWizard
+                    initialPattern={drawer.initialPattern ?? ''}
+                    serverError={drawerError}
+                    onSubmit={saveDrawer}
+                  />
+                ) : (
+                  <ShortcutForm
+                    key={`${preset}:${drawer.initialPattern ?? ''}`}
+                    initial={{ pattern: drawer.initialPattern ?? '', type: preset }}
+                    submitLabel="Create"
+                    serverError={drawerError}
+                    onSubmit={saveDrawer}
+                    onCancel={() => setDrawer(null)}
+                  />
+                )
               ) : (
                 <ShortcutForm
                   initial={drawer.row}

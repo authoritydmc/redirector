@@ -250,4 +250,15 @@ describe('ShortcutsPage', () => {
     expect(screen.getByLabelText(/^pattern$/i)).toHaveValue('wik')
     expect(screen.getByRole('radio', { name: 'Simple link' })).toHaveAttribute('aria-checked', 'true')
   })
+
+  it('switches the creation popup to wizard mode', async () => {
+    const user = userEvent.setup()
+    mockFetch(() => jsonResponse(200, listBody(['docs'], 1)))
+    renderPage()
+    await screen.findByText('docs')
+    await user.click(screen.getByRole('button', { name: /new shortcut/i }))
+    await user.click(screen.getByRole('tab', { name: 'Wizard' }))
+    expect(await screen.findByText(/what kind of link is this/i)).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /guided params/i })).toBeInTheDocument()
+  })
 })
