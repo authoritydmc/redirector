@@ -28,7 +28,7 @@ const formSchema = z.object({
 
 export type FormState = z.infer<typeof formSchema>
 
-function validateForm(state: FormState): Partial<Record<keyof FormState, string>> {
+export function validateForm(state: FormState): Partial<Record<keyof FormState, string>> {
   const parsed = formSchema.safeParse(state)
   if (parsed.success) {
     return {}
