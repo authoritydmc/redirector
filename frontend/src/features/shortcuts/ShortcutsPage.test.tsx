@@ -2,6 +2,7 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../../lib/auth'
 import type { Shortcut } from './api'
@@ -50,12 +51,14 @@ function mockFetch(handler: (call: Call) => Response) {
   return calls
 }
 
-function renderPage() {
+function renderPage(initialEntries: string[] = ['/']) {
   localStorage.setItem('redirector.token', 'jwt-test')
   return render(
-    <AuthProvider>
-      <ShortcutsPage />
-    </AuthProvider>,
+    <MemoryRouter initialEntries={initialEntries}>
+      <AuthProvider>
+        <ShortcutsPage />
+      </AuthProvider>
+    </MemoryRouter>,
   )
 }
 
@@ -220,9 +223,11 @@ describe('ShortcutsPage', () => {
   it('hides import when logged out but keeps export public', async () => {
     mockFetch(() => jsonResponse(200, listBody(['docs'], 1)))
     render(
-      <AuthProvider>
-        <ShortcutsPage />
-      </AuthProvider>,
+      <MemoryRouter initialEntries={['/']}>
+        <AuthProvider>
+          <ShortcutsPage />
+        </AuthProvider>
+      </MemoryRouter>,
     )
     await screen.findByText('docs')
     expect(screen.getByRole('button', { name: /export json/i })).toBeInTheDocument()
@@ -235,5 +240,14 @@ describe('ShortcutsPage', () => {
     await screen.findByText('docs')
     expect(screen.getByRole('button', { name: /export json/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/import json file/i)).toBeInTheDocument()
+  })
+
+  it('opens a centered creation popup prefilled from ?new=', async () => {
+    mockFetch(() => jsonResponse(200, listBody(['docs'], 1)))
+    renderPage(['/?new=wik'])
+    const dialog = await screen.findByRole('dialog', { name: 'New shortcut' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByLabelText(/^pattern$/i)).toHaveValue('wik')
+    expect(screen.getByRole('radio', { name: 'Simple link' })).toHaveAttribute('aria-checked', 'true')
   })
 })

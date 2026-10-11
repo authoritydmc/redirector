@@ -69,6 +69,15 @@ export function patchConfig(settings: Record<string, unknown>): Promise<{ keys: 
   return api<{ keys: string[] }>('/api/v1/admin/config', { method: 'PATCH', body: { settings } })
 }
 
+export interface SitePolicy {
+  public_actions: string[]
+  known_actions: string[]
+}
+
+export function setSitePolicy(publicActions: string[]): Promise<SitePolicy> {
+  return api<SitePolicy>('/api/v1/site/policy', { method: 'PUT', body: { public_actions: publicActions } })
+}
+
 export function listApiKeys(): Promise<ApiKey[]> {
   return api<ApiKey[]>('/api/v1/auth/api-keys')
 }
