@@ -1,8 +1,7 @@
-"""Tests for QR router and Health aliases."""
-
 import pytest
 
 pytest.importorskip("fastapi")
+pytest.importorskip("sqlmodel")
 
 from fastapi.testclient import TestClient
 
