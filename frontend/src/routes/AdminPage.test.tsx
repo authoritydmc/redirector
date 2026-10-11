@@ -166,4 +166,39 @@ describe('AdminPage', () => {
       expect(patched?.body).toMatchObject({ settings: { auto_redirect_delay: 3 } })
     })
   })
+
+  it('toggles public creation with immediate PUT', async () => {
+    const user = userEvent.setup()
+    const calls: Array<{ url: string; method: string; body?: unknown }> = []
+    let policy: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined
+        calls.push({ url: String(url), method: init?.method ?? 'GET', body })
+        const path = String(url)
+        if (path.includes('/api/v1/site/policy')) {
+          if ((init?.method ?? 'GET') === 'PUT') {
+            policy = (body as { public_actions: string[] }).public_actions
+          }
+          return jsonResponse(200, { public_actions: policy, known_actions: [] })
+        }
+        if (path.includes('/api/v1/admin/config')) {
+          return jsonResponse(200, { app_name: 'redirector', app_version: '4.0.0', custom: {} })
+        }
+        return jsonResponse(200, [])
+      }),
+    )
+    renderPage()
+    const checkbox = await screen.findByLabelText('Anyone can create links')
+    expect(checkbox).not.toBeChecked()
+    await user.click(checkbox)
+    await waitFor(() => {
+      const put = calls.find(
+        (call) => call.url.includes('/api/v1/site/policy') && call.method === 'PUT',
+      )
+      expect(put?.body).toMatchObject({ public_actions: ['shortcuts.create'] })
+    })
+    expect(checkbox).toBeChecked()
+  })
 })

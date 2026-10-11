@@ -12,6 +12,7 @@ unsafe → 400. SSO targets always get no-store (v2 parity).
 from __future__ import annotations
 
 import html
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -50,6 +51,43 @@ def _display_host(target: str) -> str:
         return host if host else target
     except ValueError:
         return target
+
+
+def _missing_page(pattern: str, suggestions: list[Any]) -> str:
+    """Human 404 for browser navigation: what happened, close matches,
+    and a one-click path to creating the link (needs no login when the
+    admin opened creation to the public). API clients keep the JSON
+    problem (see below) — HTML is served only on `Accept: text/html`."""
+    safe_pattern = html.escape(pattern, quote=True)
+    names = [getattr(s, "pattern", "") or "" for s in (suggestions or [])]
+    names = [n for n in names if n][:5]
+    items = "".join(
+        f"<li><a href=\"/{html.escape(n.lstrip('/'), quote=True)}\">r/{html.escape(n, quote=False)}</a></li>"
+        for n in names
+    )
+    suggest = f"<ul>{items}</ul>" if items else "<p>Try a different name, or claim this one.</p>"
+    return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>r/{safe_pattern} — not found</title>
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light dark">
+<style>
+body{{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f7f0e6;color:#3a2e22;font-family:'Space Grotesk',system-ui,sans-serif}}
+.card{{max-width:26rem;width:calc(100% - 2rem);background:#fffdf8;border:1px solid #e2d5c0;border-radius:1rem;padding:2rem;text-align:center;box-shadow:0 20px 50px rgba(58,46,34,.15)}}
+.pattern{{font-size:1.5rem;font-weight:700;overflow-wrap:anywhere;margin:0 0 .25rem}}
+.sub{{color:#6b5d4d;margin:0 0 1rem}}
+ul{{list-style:none;margin:0 0 1rem;padding:0}}
+li a{{color:#9a3412}}
+.create{{display:inline-block;border-radius:.75rem;padding:.7rem 1.4rem;font-weight:700;text-decoration:none;background:#9a3412;color:#fff}}
+.back{{display:inline-block;margin-top:1rem;color:#6b5d4d;font-size:.85rem}}
+</style></head>
+<body><div class="card" role="status">
+<p class="pattern">r/{safe_pattern}</p>
+<p class="sub">doesn&rsquo;t exist yet.</p>
+{suggest}
+<p><a class="create" href="/?new={html.escape(pattern, quote=True)}">Create this link</a></p>
+<p><a class="back" href="/">Back to Shortcuts</a></p>
+</div></body></html>"""
 
 
 def _countdown_page(target: str, delay: int, source: str | None) -> str:
@@ -122,7 +160,10 @@ async def redirect_shortcut(pattern: str, request: Request,
         _no_store(resp, res.target)
         return resp
     status = {"need_params": 422, "not_found": 404, "gone": 410,
-              "forbidden": 403, "unsafe": 400}[res.outcome]
+                "forbidden": 403, "unsafe": 400}[res.outcome]
+    if res.outcome == "not_found" and "text/html" in (request.headers.get("accept") or ""):
+        wanted = pattern.strip().strip("/")
+        return HTMLResponse(_missing_page(wanted, res.suggestions or []), status_code=404)
     problem = Problem(
         title={"need_params": "Missing shortcut parameters",
                "not_found": "Shortcut not found",

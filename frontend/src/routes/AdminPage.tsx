@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '../lib/client'
 import QRCode from 'react-qr-code'
+import { getSitePolicy } from '../lib/policy'
 import {
   createBackup,
   deleteBackup,
@@ -15,6 +16,7 @@ import {
   patchConfig,
   restoreBackup,
   revokeApiKey,
+  setSitePolicy,
   type ApiKey,
   type Backup,
   type ConfigSchemaItem,
@@ -235,6 +237,65 @@ function ConfigSection() {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function AccessSection() {
+  const [actions, setActions] = useState<string[]>([])
+  const [loaded, setLoaded] = useState(false)
+  const [error, fail, clear] = useAdminError()
+
+  const reload = useCallback(async () => {
+    try {
+      const policy = await getSitePolicy()
+      setActions(policy.public_actions ?? [])
+      setLoaded(true)
+    } catch (err) {
+      fail(err, 'Failed to load public access')
+    }
+  }, [fail])
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  async function toggle(action: string) {
+    clear()
+    const next = actions.includes(action)
+      ? actions.filter((a) => a !== action)
+      : [...actions, action]
+    try {
+      const policy = await setSitePolicy(next)
+      setActions(policy.public_actions ?? [])
+    } catch (err) {
+      fail(err, 'Save failed')
+    }
+  }
+
+  const options: Array<[string, string]> = [
+    ['shortcuts.create', 'Anyone can create links'],
+    ['upstreams.create', 'Anyone can add upstreams'],
+  ]
+  return (
+    <div>
+      {error !== null && <p role="alert" className="mt-2 text-sm text-rd-danger">{error}</p>}
+      <p className="text-sm text-rd-muted">
+        Open creation to visitors without sign-in. Applies immediately;
+        unticked means sign-in required.
+      </p>
+      <div className="mt-2 flex flex-col gap-2">
+        {options.map(([action, label]) => (
+          <label key={action} className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={loaded && actions.includes(action)}
+              onChange={() => void toggle(action)}
+            />
+            {label}
+          </label>
+        ))}
       </div>
     </div>
   )
@@ -571,6 +632,9 @@ export default function AdminPage() {
       <h2 className="text-xl font-semibold">Admin</h2>
       <Section title="Configuration">
         <ConfigSection />
+      </Section>
+      <Section title="Public access">
+        <AccessSection />
       </Section>
       <Section title="API keys">
         <KeysSection />

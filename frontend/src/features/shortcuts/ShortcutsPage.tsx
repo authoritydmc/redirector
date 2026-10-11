@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../lib/client'
 import { useAuth } from '../../lib/auth'
 import { getSitePolicy } from '../../lib/policy'
 import { bulkDeleteShortcuts, bulkImportShortcuts, createShortcut, deleteShortcut, listShortcuts, updateShortcut } from './api'
-import type { Shortcut, ShortcutInput } from './api'
+import type { Shortcut, ShortcutInput, ShortcutType } from './api'
 import ShortcutForm from './ShortcutForm'
 
 const PAGE_SIZE = 20
@@ -30,9 +31,11 @@ export default function ShortcutsPage() {
   const [confirming, setConfirming] = useState<string | null>(null)
   const [confirmingBulk, setConfirmingBulk] = useState(false)
   const [importNotice, setImportNotice] = useState<string | null>(null)
-  const [drawer, setDrawer] = useState<{ mode: 'create' } | { mode: 'edit'; row: Shortcut } | null>(null)
+  const [drawer, setDrawer] = useState<{ mode: 'create'; initialPattern?: string } | { mode: 'edit'; row: Shortcut } | null>(null)
   const [drawerError, setDrawerError] = useState<string | null>(null)
   const [publicCreate, setPublicCreate] = useState(false)
+  const [preset, setPreset] = useState<ShortcutType>('static')
+  const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => {
     if (token !== null) {
@@ -46,6 +49,24 @@ export default function ShortcutsPage() {
 
   const canCreate = token !== null || publicCreate
   const canManage = token !== null
+
+  function openCreate(initialPattern?: string) {
+    setPreset('static')
+    setDrawerError(null)
+    setDrawer({ mode: 'create', initialPattern })
+  }
+
+  // Deep link from the "doesn't exist yet" page (?new=<pattern>): open the
+  // creation popup prefilled, then consume the param so refresh won't reopen.
+  useEffect(() => {
+    const prefill = searchParams.get('new')
+    if (prefill !== null && canCreate && drawer === null) {
+      setPreset('static')
+      setDrawerError(null)
+      setDrawer({ mode: 'create', initialPattern: prefill })
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, canCreate, drawer, setSearchParams])
 
   const debouncedQuery = useDebounced(query, 300)
 
@@ -221,7 +242,7 @@ export default function ShortcutsPage() {
         {canCreate && (
           <button
             type="button"
-            onClick={() => { setDrawer({ mode: 'create' }); setDrawerError(null) }}
+            onClick={() => openCreate()}
             className="ml-auto rounded bg-rd-accent px-3 py-1.5 text-sm text-rd-accent-ink"
           >
             New shortcut
@@ -385,46 +406,77 @@ export default function ShortcutsPage() {
         </button>
       </div>
       {drawer !== null && (
-        <>
-        <div aria-hidden="true" onClick={() => setDrawer(null)} className="fixed inset-0 bg-black/40" />
-        <div role="dialog" aria-label={drawer.mode === 'create' ? 'New shortcut' : 'Edit shortcut'} className="fixed right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-rd-line bg-rd-surface p-4 text-rd-text shadow-xl">
-          <h3 className="text-lg font-semibold">
-            {drawer.mode === 'create' ? 'New shortcut' : `Edit ${drawer.row.pattern}`}
-          </h3>
-          <div className="mt-3">
-            {drawer.mode === 'create' ? (
-              <ShortcutForm
-                submitLabel="Create"
-                serverError={drawerError}
-                onSubmit={saveDrawer}
-                onCancel={() => setDrawer(null)}
-              />
-            ) : (
-              <ShortcutForm
-                initial={drawer.row}
-                fixedPattern
-                submitLabel="Save"
-                serverError={drawerError}
-                onSubmit={saveDrawer}
-                onCancel={() => setDrawer(null)}
-              />
-            )}
-            {drawer.mode === 'edit' && (
-              <div className="mt-4 border-t border-rd-line pt-3">
-                <p className="text-sm text-rd-muted">Share this link:</p>
-                <img
-                  src={`/qr/${encodeURIComponent(drawer.row.pattern)}`}
-                  alt={`QR code for ${drawer.row.pattern}`}
-                  width={160}
-                  height={160}
-                  className="mt-2 rounded border border-rd-line bg-white p-2"
-                  loading="lazy"
-                />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div aria-hidden="true" onClick={() => setDrawer(null)} className="absolute inset-0 bg-black/40" />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={drawer.mode === 'create' ? 'New shortcut' : 'Edit shortcut'}
+            className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-rd-line bg-rd-surface p-5 text-rd-text shadow-xl"
+          >
+            <h3 className="text-lg font-semibold">
+              {drawer.mode === 'create' ? 'New shortcut' : `Edit ${drawer.row.pattern}`}
+            </h3>
+            {drawer.mode === 'create' && (
+              <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Link kind">
+                {([
+                  ['static', 'Simple link'],
+                  ['dynamic', 'Dynamic link'],
+                  ['user-dynamic', 'Guided params'],
+                ] as Array<[ShortcutType, string]>).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={preset === value}
+                    onClick={() => setPreset(value)}
+                    className={`rounded border px-3 py-1.5 text-sm ${
+                      preset === value
+                        ? 'border-rd-accent bg-rd-accent text-rd-accent-ink'
+                        : 'border-rd-line'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             )}
+            <div className="mt-3">
+              {drawer.mode === 'create' ? (
+                <ShortcutForm
+                  key={`${preset}:${drawer.initialPattern ?? ''}`}
+                  initial={{ pattern: drawer.initialPattern ?? '', type: preset }}
+                  submitLabel="Create"
+                  serverError={drawerError}
+                  onSubmit={saveDrawer}
+                  onCancel={() => setDrawer(null)}
+                />
+              ) : (
+                <ShortcutForm
+                  initial={drawer.row}
+                  fixedPattern
+                  submitLabel="Save"
+                  serverError={drawerError}
+                  onSubmit={saveDrawer}
+                  onCancel={() => setDrawer(null)}
+                />
+              )}
+              {drawer.mode === 'edit' && (
+                <div className="mt-4 border-t border-rd-line pt-3">
+                  <p className="text-sm text-rd-muted">Share this link:</p>
+                  <img
+                    src={`/qr/${encodeURIComponent(drawer.row.pattern)}`}
+                    alt={`QR code for ${drawer.row.pattern}`}
+                    width={160}
+                    height={160}
+                    className="mt-2 rounded border border-rd-line bg-white p-2"
+                    loading="lazy"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
-        </>
       )}
     </section>
   )
