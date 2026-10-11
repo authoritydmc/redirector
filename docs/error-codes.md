@@ -50,6 +50,12 @@ login page with a `#error=` fragment instead (`unknown-provider`,
 | `backup:invalid-label` | 422 | Label outside `[a-z0-9-]` (max 32) |
 | `backup:not-found` | 404 | No archive with that name (also on traversal-shaped names) |
 
+## `policy` — public action policy (admin curation)
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `policy:unknown-action` | 422 | Action outside the known public-action list |
+
 ## `jobs` — background jobs
 
 | Code | HTTP | Meaning |

@@ -21,7 +21,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.core.config import settings
+from backend.core.config import resolve_setting, settings
 from backend.core.db import get_session
 from backend.core.errors import AppError
 from backend.core.ratelimit import RateLimit
@@ -165,7 +165,9 @@ async def oidc_callback(
         return _deny("not-authorized")
     await log_auth_event(session, "sso.login", _ip(request),
                          {"provider": provider.id, "user_id": user.id})
-    jwt = create_access_token(data={"sub": f"sso:{provider.id}:{subject}", "role": "admin"})
+    ttl, _ = await resolve_setting(session, "jwt_access_token_expire_minutes")
+    jwt = create_access_token(data={"sub": f"sso:{provider.id}:{subject}", "role": "admin"},
+                              ttl_minutes=int(ttl))
     return RedirectResponse(url=_login_url_with(token=jwt),
                             status_code=status.HTTP_302_FOUND)
 

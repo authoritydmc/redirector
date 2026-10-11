@@ -155,6 +155,18 @@ class RequireScopes:
         )
 
 
+def require_jwt_session(admin: dict[str, Any]) -> None:
+    """Sensitive management needs an interactive session: a leaked API key
+    must not widen access (mint/revoke sibling keys, open public actions)."""
+    if admin.get("auth_method") != "jwt":
+        raise AppError(
+            "Admin session required",
+            status=status.HTTP_403_FORBIDDEN,
+            detail="This management endpoint requires an interactive JWT session",
+            code="auth:forbidden",
+        )
+
+
 def client_ip(request_ip: str | None, forwarded_for: str | None) -> str:
     """Client identity for rate limits and lockout: leftmost X-Forwarded-For
     when behind the documented proxy configs, else the peer address."""

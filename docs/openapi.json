@@ -1497,6 +1497,22 @@
         "title": "SitePolicy",
         "type": "object"
       },
+      "SitePolicyUpdate": {
+        "properties": {
+          "public_actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Public Actions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "public_actions"
+        ],
+        "title": "SitePolicyUpdate",
+        "type": "object"
+      },
       "SsoProviderRead": {
         "properties": {
           "display_name": {
@@ -3505,6 +3521,51 @@
           }
         },
         "summary": "Public action policy",
+        "tags": [
+          "site"
+        ]
+      },
+      "put": {
+        "description": "Replace the admin-curated public-action list (unknown actions 422).\nEmpty list = default deny: every mutation needs an admin identity.\nInteractive session only: a leaked key must not widen access.",
+        "operationId": "update_site_policy_api_v1_site_policy_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SitePolicyUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SitePolicy"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Curate the public action policy",
         "tags": [
           "site"
         ]
