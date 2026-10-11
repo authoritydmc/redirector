@@ -10,6 +10,7 @@ interface AuthState {
   token: string | null
   login: (password: string) => Promise<{ pending_token: string } | null>
   verifyMfa: (pendingToken: string, totp: string) => Promise<void>
+  loginWithToken: (token: string) => void
   logout: () => void
 }
 
@@ -73,9 +74,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(data.access_token)
   }, [])
 
+  const loginWithToken = useCallback((token: string) => {
+    localStorage.setItem(STORAGE_KEY, token)
+    setToken(token)
+  }, [])
+
   const value = useMemo(
-    () => ({ token, login, verifyMfa, logout }),
-    [token, login, verifyMfa, logout],
+    () => ({ token, login, verifyMfa, loginWithToken, logout }),
+    [token, login, verifyMfa, loginWithToken, logout],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

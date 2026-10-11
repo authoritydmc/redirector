@@ -221,3 +221,45 @@ class AuthEvent(SQLModel, table=True):
     detail: dict[str, JSONValue] = Field(default_factory=dict, sa_column=Column(JSON))
     ip: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow)
+
+
+class SsoUser(SQLModel, table=True):
+    """JIT-provisioned SSO identity (EPIC-05 task 6).
+
+    One row per (provider, subject) — the IdP owns the password/MFA, we
+    only remember who may enter. `role` is `"admin"` for group-mapped
+    users, `"viewer"` otherwise (viewer mints nothing yet: roles beyond
+    admin land with the per-user RBAC follow-up, but the row already
+    audits who tried). Never stores IdP tokens.
+    """
+
+    __tablename__ = "sso_users"
+    __table_args__ = (UniqueConstraint("provider", "subject", name="uq_sso_user"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    provider: str = Field(index=True)
+    subject: str = Field(index=True)
+    email: str | None = Field(default=None)
+    name: str | None = Field(default=None)
+    role: str = Field(default="viewer")
+    created_at: datetime = Field(default_factory=utcnow)
+    last_login_at: datetime | None = Field(default=None)
+
+
+class OidcState(SQLModel, table=True):
+    """PKCE/verifier store for in-flight OIDC logins (EPIC-05 task 6).
+
+    The `state` param round-trips through the browser (opaque to it);
+    the code_verifier + nonce never leave the server. Rows are consumed
+    (deleted) at the callback and expire after minutes — no cleanup job
+    needed, callback prunes as it goes.
+    """
+
+    __tablename__ = "oidc_states"
+
+    state: str = Field(primary_key=True)
+    provider: str = Field()
+    code_verifier: str = Field()
+    nonce: str = Field()
+    created_at: datetime = Field(default_factory=utcnow)
+    expires_at: datetime = Field()

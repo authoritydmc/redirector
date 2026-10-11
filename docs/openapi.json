@@ -1497,6 +1497,24 @@
         "title": "SitePolicy",
         "type": "object"
       },
+      "SsoProviderRead": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "display_name"
+        ],
+        "title": "SsoProviderRead",
+        "type": "object"
+      },
       "TokenResponse": {
         "properties": {
           "access_token": {
@@ -2601,6 +2619,146 @@
         "summary": "Complete MFA login",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/oidc/{provider_id}/callback": {
+      "get": {
+        "description": "Exchange the code (PKCE), verify the ID token, JIT-provision, and\nmint the standard admin JWT for group-mapped users. Every failure\nredirects to the login page with a machine-readable `#error=` code.",
+        "operationId": "oidc_callback_api_v1_auth_oidc__provider_id__callback_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Finish an OIDC login",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
+    "/api/v1/auth/oidc/{provider_id}/login": {
+      "get": {
+        "description": "302 to the IdP with PKCE + state + nonce; the verifier waits in\n`oidc_states` for the callback (10-minute TTL, one-shot).",
+        "operationId": "oidc_login_api_v1_auth_oidc__provider_id__login_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start an OIDC login",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
+    "/api/v1/auth/providers": {
+      "get": {
+        "description": "Login-ready IdP buttons (public \u2014 ids and display names only).",
+        "operationId": "list_providers_api_v1_auth_providers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SsoProviderRead"
+                  },
+                  "title": "Response List Providers Api V1 Auth Providers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List SSO providers",
+        "tags": [
+          "sso"
         ]
       }
     },
@@ -4061,6 +4219,10 @@
     {
       "description": "Login + current admin",
       "name": "auth"
+    },
+    {
+      "description": "Multi-IdP OIDC logins (SSO)",
+      "name": "sso"
     },
     {
       "description": "Background jobs + progress streams",

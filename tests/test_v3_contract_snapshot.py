@@ -39,6 +39,7 @@ _PROBE_VALUES = {
     "pattern": "contract-probe-missing",
     "name": "contract-probe-missing",
     "upstream": "contract-probe-missing",
+    "provider_id": "contract-probe-missing",
     "job_id": "999999999",
     "key_id": "999999999",
     "upstream_id": "999999999",
@@ -48,6 +49,10 @@ _PROBE_VALUES = {
 _SKIP_PREFIXES = (
     "/api/v1/upstreams/check/stream/",
     "/events",
+    # Browser-redirect SSO flows: the login 302 leaves the app (IdP) and the
+    # callback 302 lands on the SPA (HTML fragment session). Redirect
+    # targets are covered by test_v3_sso_oidc.py instead.
+    "/api/v1/auth/oidc/",
 )
 _BINARY_PREFIXES = ("/qr/",)
 

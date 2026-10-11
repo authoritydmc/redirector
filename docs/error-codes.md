@@ -31,6 +31,18 @@ code missing here — document first, then implement.
 | `auth:mfa-setup-required` | 409 | Enable before setup staged a seed |
 | `auth:required` | 401 | No (or non-Bearer) credentials on a guarded endpoint |
 
+## `sso` — OIDC logins
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `sso:unknown-provider` | 404 | No login-ready provider with that id (undeclared, or secret env var missing) |
+| `sso:bad-discovery` | 502 | Discovery document unreachable or malformed |
+
+Browser-flow failures never surface as JSON: the callback 302s to the
+login page with a `#error=` fragment instead (`unknown-provider`,
+`invalid-state`, `bad-discovery`, `invalid-token`, `bad-claims`,
+`not-authorized`) — see `docs/SSO-SETUP.md`.
+
 ## `backup` — archives (admin)
 
 | Code | HTTP | Meaning |
