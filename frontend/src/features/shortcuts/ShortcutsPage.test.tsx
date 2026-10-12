@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -51,8 +51,12 @@ function mockFetch(handler: (call: Call) => Response) {
   return calls
 }
 
-function renderPage(initialEntries: string[] = ['/']) {
-  localStorage.setItem('redirector.token', 'jwt-test')
+function fakeJwt(payload: Record<string, string>): string {
+  return `x.${btoa(JSON.stringify(payload))}.y`
+}
+
+function renderPage(initialEntries: string[] = ['/'], token?: string) {
+  localStorage.setItem('redirector.token', token ?? fakeJwt({ role: 'admin', sub: 'admin' }))
   return render(
     <MemoryRouter initialEntries={initialEntries}>
       <AuthProvider>
@@ -195,6 +199,27 @@ describe('ShortcutsPage', () => {
     })
   })
 
+  it('auto-detects dynamic type from a placeholder, manual pick wins', async () => {
+    const user = userEvent.setup()
+    mockFetch(() => jsonResponse(200, listBody([], 0)))
+    renderPage()
+    await screen.findByText('No shortcuts found.')
+    await user.click(screen.getByRole('button', { name: /new shortcut/i }))
+    // Note: userEvent.type treats {…} as special keys, so set the
+    // placeholder-bearing value directly.
+    fireEvent.change(screen.getByLabelText(/target url/i), {
+      target: { value: 'https://j.example/{ticket}' },
+    })
+    const typeSelect = screen.getByLabelText('Type') as HTMLSelectElement
+    await waitFor(() => {
+      expect(typeSelect.value).toBe('dynamic')
+    })
+    expect(await screen.findByText(/detected a placeholder/i)).toBeInTheDocument()
+    await user.selectOptions(typeSelect, 'static')
+    expect(typeSelect.value).toBe('static')
+    expect(screen.queryByText(/detected a placeholder/i)).not.toBeInTheDocument()
+  })
+
   it('edits a row with the pattern locked', async () => {
     const user = userEvent.setup()
     const calls = mockFetch((call) => {
@@ -220,7 +245,7 @@ describe('ShortcutsPage', () => {
     })
   })
 
-  it('hides import when logged out but keeps export public', async () => {
+  it('keeps import/export off the main page (admin-only, see Admin)', async () => {
     mockFetch(() => jsonResponse(200, listBody(['docs'], 1)))
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -230,16 +255,8 @@ describe('ShortcutsPage', () => {
       </MemoryRouter>,
     )
     await screen.findByText('docs')
-    expect(screen.getByRole('button', { name: /export json/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /export json/i })).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/import json file/i)).not.toBeInTheDocument()
-  })
-
-  it('shows import/export when logged in', async () => {
-    mockFetch(() => jsonResponse(200, listBody(['docs'], 1)))
-    renderPage()
-    await screen.findByText('docs')
-    expect(screen.getByRole('button', { name: /export json/i })).toBeInTheDocument()
-    expect(screen.getByLabelText(/import json file/i)).toBeInTheDocument()
   })
 
   it('opens a centered creation popup prefilled from ?new=', async () => {
@@ -260,5 +277,18 @@ describe('ShortcutsPage', () => {
     await user.click(screen.getByRole('tab', { name: 'Wizard' }))
     expect(await screen.findByText(/what kind of link is this/i)).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /guided params/i })).toBeInTheDocument()
+  })
+
+  it('shows edit actions to users only on their own rows', async () => {
+    const owned = { ...row('mine'), owner_email: 'amy@x.com' }
+    const foreign = { ...row('theirs'), owner_email: 'bob@x.com' }
+    mockFetch(() => jsonResponse(200, {
+      data: [owned, foreign],
+      meta: { page: 1, pageSize: 20, total: 2 },
+    }))
+    renderPage(['/'], fakeJwt({ role: 'user', sub: 'amy@x.com' }))
+    await screen.findByText('mine')
+    expect(screen.getAllByRole('button', { name: /^edit$/i })).toHaveLength(1)
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
   })
 })

@@ -24,7 +24,7 @@ from backend.core.security import (
     require_jwt_session,
     verify_password,
 )
-from backend.models.entities import ApiKey
+from backend.models.entities import ApiKey, User
 from backend.modules.auth.repository import (
     ApiKeyRepository,
     MfaRepository,
@@ -32,6 +32,7 @@ from backend.modules.auth.repository import (
     hash_secret,
     new_backup_codes,
     new_totp_seed,
+    verify_secret,
     verify_totp,
 )
 from backend.modules.auth.schemas import (
@@ -47,11 +48,17 @@ from backend.modules.auth.schemas import (
     MfaStatusResponse,
     MfaVerifyRequest,
 )
+from backend.modules.teams.repository import UserRepository, normalize_email
+from backend.modules.teams.schemas import UserLogin, UserRead, UserSignup
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 # Brute-force budgets (threat model): per-route buckets, 5/min/IP.
+# Team-account endpoints share their own bucket (separate credential
+# surface from the admin password — attackers get no double budget
+# either way, and each surface keeps the full 5/min for legit use).
 login_limiter = RateLimit("5/minute")
+user_limiter = RateLimit("5/minute")
 verify_limiter = RateLimit("5/minute")
 
 
@@ -137,6 +144,20 @@ async def get_me(admin: Annotated[dict[str, Any], Depends(get_current_admin)]) -
     return CurrentUserResponse(role=admin["role"], sub=admin["sub"])
 
 
+def require_admin_session(admin: dict[str, Any]) -> None:
+    """Admin-only management over an interactive session: API keys (even
+    wide ones) and non-admin users never qualify, so leaked automation
+    credentials can't rewire access."""
+    require_jwt_session(admin)
+    if admin.get("role") != "admin":
+        raise AppError(
+            "Admin privileges required",
+            status=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+            code="auth:forbidden",
+        )
+
+
 def _to_read(row: ApiKey) -> ApiKeyRead:
     return ApiKeyRead(
         id=row.id,  # type: ignore[arg-type]
@@ -165,7 +186,7 @@ async def issue_api_key(
     repo: Annotated[ApiKeyRepository, Depends(_get_repo)],
 ) -> ApiKeyIssued:
     """Mint a key for automation. The plaintext is returned exactly once."""
-    require_jwt_session(admin)
+    require_admin_session(admin)
     name = body.name.strip()
     if not name:
         raise AppError(
@@ -186,7 +207,7 @@ async def list_api_keys(
     repo: Annotated[ApiKeyRepository, Depends(_get_repo)],
 ) -> list[ApiKeyRead]:
     """List keys (never secret material — only prefixes)."""
-    require_jwt_session(admin)
+    require_admin_session(admin)
     return [_to_read(row) for row in await repo.list_all()]
 
 
@@ -196,7 +217,7 @@ async def revoke_api_key(
     admin: Annotated[dict[str, Any], Depends(get_current_admin)],
     repo: Annotated[ApiKeyRepository, Depends(_get_repo)],
 ) -> ApiKeyRead:
-    require_jwt_session(admin)
+    require_admin_session(admin)
     row = await repo.get_by_id(key_id)
     if row is None:
         raise AppError(
@@ -206,6 +227,163 @@ async def revoke_api_key(
             code="auth:key-not-found",
         )
     return _to_read(await repo.revoke(row))
+
+
+def _to_user_read(row: User) -> UserRead:
+    return UserRead(
+        id=row.id,  # type: ignore[arg-type]
+        email=row.email,
+        name=row.name,
+        disabled=bool(row.disabled),
+        created_at=row.created_at.isoformat(),
+    )
+
+
+async def _get_users(session: AsyncSession = Depends(get_session)) -> UserRepository:
+    return UserRepository(session)
+
+
+@router.post("/signup", response_model=UserRead, status_code=status.HTTP_201_CREATED,
+             summary="Sign up a team account")
+async def signup(
+    body: UserSignup,
+    request: Request,
+    repo: Annotated[UserRepository, Depends(_get_users)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _rate_limited: Annotated[None, Depends(user_limiter)],
+) -> UserRead:
+    """Open registration for team accounts (self-hosted: disable abuse
+    accounts from Admin). Never reveals whether an email exists beyond
+    the 409 on re-signup."""
+    email = normalize_email(body.email)
+    if email is None:
+        raise AppError(
+            "Invalid email",
+            status=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Enter a valid email address",
+            code="users:invalid-email",
+        )
+    if len(body.password) < 8:
+        raise AppError(
+            "Weak password",
+            status=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Password needs at least 8 characters",
+            code="users:weak-password",
+        )
+    if await repo.get_by_email(email) is not None:
+        raise AppError(
+            "Account exists",
+            status=status.HTTP_409_CONFLICT,
+            detail="An account with that email already exists — sign in instead",
+            code="users:exists",
+        )
+    row = await repo.create(email, body.name, hash_secret(body.password))
+    await log_auth_event(session, "user.signup", _ip_of(request), {"user_id": row.id})
+    return _to_user_read(row)
+
+
+@router.post("/user/login", response_model=TokenResponse, summary="Team account login")
+async def user_login(
+    body: UserLogin,
+    request: Request,
+    repo: Annotated[UserRepository, Depends(_get_users)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _rate_limited: Annotated[None, Depends(user_limiter)],
+) -> TokenResponse:
+    """Password login for team accounts. Same lockout accounting as the
+    admin login; disabled accounts fail closed without oracle differences
+    beyond the 403 (deliberate: admins must tell disabled users apart)."""
+    email = normalize_email(body.email) or ""
+    ip = client_ip(
+        request.client.host if request.client else None,
+        request.headers.get("x-forwarded-for"),
+    )
+    failures = await failed_logins_since(session, ip, await _lockout_window(session))
+    if failures >= await _lockout_max(session):
+        await log_auth_event(session, "auth.locked-out", ip, {"failures": failures})
+        raise AppError(
+            "Account locked",
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed logins; try again later",
+            code="auth:locked-out",
+        )
+    row = await repo.get_by_email(email)
+    if row is None or not verify_secret(body.password, row.password_hash):
+        await record_failed_login(session, ip)
+        await log_auth_event(session, "login.failed", ip)
+        raise AppError(
+            "Invalid credentials",
+            status=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            code="auth:bad-credentials",
+        )
+    if row.disabled:
+        await log_auth_event(session, "user.login_blocked", ip, {"user_id": row.id})
+        raise AppError(
+            "Account disabled",
+            status=status.HTTP_403_FORBIDDEN,
+            detail="This account is disabled — ask an admin",
+            code="users:disabled",
+        )
+    await log_auth_event(session, "user.login", ip, {"user_id": row.id})
+    token = create_access_token(
+        data={"sub": row.email, "role": "user", "scopes": []},
+        ttl_minutes=await _token_ttl(session))
+    return TokenResponse(access_token=token, role="user")
+
+
+@router.get("/users", response_model=list[UserRead], summary="List team accounts")
+async def list_users(
+    admin: Annotated[dict[str, Any], Depends(get_current_admin)],
+    repo: Annotated[UserRepository, Depends(_get_users)],
+) -> list[UserRead]:
+    """Admin roster (never password material)."""
+    require_admin_session(admin)
+    return [_to_user_read(row) for row in await repo.list_all()]
+
+
+@router.post("/users/{email}/disable", response_model=UserRead, summary="Disable a team account")
+async def disable_user(
+    email: str,
+    admin: Annotated[dict[str, Any], Depends(get_current_admin)],
+    repo: Annotated[UserRepository, Depends(_get_users)],
+) -> UserRead:
+    require_admin_session(admin)
+    row = await repo.get_by_email(normalize_email(email) or "")
+    if row is None:
+        raise AppError(
+            "User not found",
+            status=status.HTTP_404_NOT_FOUND,
+            detail=f"No account with email {email}",
+            code="users:not-found",
+        )
+    return _to_user_read(await repo.set_disabled(row, True))
+
+
+@router.post("/users/{email}/enable", response_model=UserRead, summary="Re-enable a team account")
+async def enable_user(
+    email: str,
+    admin: Annotated[dict[str, Any], Depends(get_current_admin)],
+    repo: Annotated[UserRepository, Depends(_get_users)],
+) -> UserRead:
+    require_admin_session(admin)
+    row = await repo.get_by_email(normalize_email(email) or "")
+    if row is None:
+        raise AppError(
+            "User not found",
+            status=status.HTTP_404_NOT_FOUND,
+            detail=f"No account with email {email}",
+            code="users:not-found",
+        )
+    return _to_user_read(await repo.set_disabled(row, False))
+
+
+def _ip_of(request: Request) -> str | None:
+    host = request.client.host if request.client else None
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip().lower()
+    return host
 
 
 def _mfa_token_or_401(secret: str | None, token: str) -> None:
@@ -224,7 +402,7 @@ async def mfa_status(
     admin: Annotated[dict[str, Any], Depends(get_current_admin)],
     repo: Annotated[MfaRepository, Depends(get_mfa_repo)],
 ) -> MfaStatusResponse:
-    require_jwt_session(admin)
+    require_admin_session(admin)
     return MfaStatusResponse(enabled=await repo.is_enabled(),
                              backup_codes_remaining=await repo.code_count())
 
@@ -236,7 +414,7 @@ async def mfa_setup(
 ) -> MfaSetupResponse:
     """Stage a fresh seed (render the URL as QR). Nothing is enabled until
     a token from the new seed verifies at `mfa/enable`."""
-    require_jwt_session(admin)
+    require_admin_session(admin)
     if await repo.is_enabled():
         raise AppError(
             "MFA already enrolled",
@@ -257,7 +435,7 @@ async def mfa_enable(
 ) -> MfaEnableResponse:
     """Verify a token from the staged seed: enables MFA and mints single-use
     backup codes (plaintext exactly once — store them now)."""
-    require_jwt_session(admin)
+    require_admin_session(admin)
     if await repo.is_enabled():
         raise AppError(
             "MFA already enrolled",
@@ -286,7 +464,7 @@ async def mfa_disable(
     repo: Annotated[MfaRepository, Depends(get_mfa_repo)],
 ) -> MfaStatusResponse:
     """Disable MFA with TOTP proof of possession; clears seed and codes."""
-    require_jwt_session(admin)
+    require_admin_session(admin)
     if not await repo.is_enabled():
         raise AppError(
             "MFA not enrolled",
@@ -365,7 +543,7 @@ async def mfa_regenerate_codes(
     repo: Annotated[MfaRepository, Depends(get_mfa_repo)],
 ) -> MfaEnableResponse:
     """Mint a fresh backup-code set (old codes die) with TOTP possession proof."""
-    require_jwt_session(admin)
+    require_admin_session(admin)
     if not await repo.is_enabled():
         raise AppError(
             "MFA not enrolled",

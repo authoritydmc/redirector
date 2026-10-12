@@ -3,7 +3,7 @@ import { useAuth } from '../lib/auth'
 import { THEMES, useTheme } from '../lib/theme'
 
 export default function Layout() {
-  const { token, logout } = useAuth()
+  const { token, role, logout } = useAuth()
   const navigate = useNavigate()
   const [theme, setTheme] = useTheme()
 
@@ -42,8 +42,15 @@ export default function Layout() {
           <NavLink className={link} to="/" end>Shortcuts</NavLink>
           <NavLink className={link} to="/upstreams">Upstreams</NavLink>
           <NavLink className={link} to="/metrics">Metrics</NavLink>
-          <NavLink className={link} to="/jobs">Jobs</NavLink>
-          <NavLink className={link} to="/admin">Admin</NavLink>
+          {token !== null && (
+            <NavLink className={link} to="/teams">Teams</NavLink>
+          )}
+          {role === 'admin' && (
+            <NavLink className={link} to="/jobs">Jobs</NavLink>
+          )}
+          {role === 'admin' && (
+            <NavLink className={link} to="/admin">Admin</NavLink>
+          )}
           <NavLink className={link} to="/guide">Guide</NavLink>
         </nav>
         <span className="ml-auto flex gap-2">

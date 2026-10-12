@@ -23,6 +23,7 @@ from backend.core.cache import build_cache
 from backend.core.config import resolve_setting, settings
 from backend.core.db import get_session
 from backend.core.policy import get_public_actions
+from backend.core.security import caller_email, get_current_admin
 from backend.modules.shortcuts.repository import SQLAlchemyShortcutRepository, is_sso_url
 from backend.modules.shortcuts.schemas import Problem
 from backend.modules.shortcuts.service import is_safe_redirect_target, resolve
@@ -38,6 +39,34 @@ _cache = build_cache(settings.cache_backend, settings.redis_url)
 
 async def get_repo(session: AsyncSession = Depends(get_session)) -> SQLAlchemyShortcutRepository:
     return SQLAlchemyShortcutRepository(session, _cache)
+
+
+async def _caller_access(
+    request: Request, session: AsyncSession
+) -> tuple[bool, str | None, frozenset[int]]:
+    """(is_admin, current_user, team_ids) behind an optional identity.
+    Never 401s: the hot path stays open — bad/absent tokens simply
+    resolve as anonymous."""
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    from backend.modules.teams.repository import TeamRepository
+
+    header = request.headers.get("authorization")
+    if not header or not header.lower().startswith("bearer "):
+        return False, None, frozenset()
+    try:
+        identity = await get_current_admin(
+            HTTPAuthorizationCredentials(scheme="Bearer", credentials=header[7:].strip()),
+            session,
+        )
+    except Exception:
+        return False, None, frozenset()
+    if identity.get("role") == "admin":
+        return True, None, frozenset()
+    email = await caller_email(identity, session)
+    if not email:
+        return False, None, frozenset()
+    return False, email, frozenset(await TeamRepository(session).team_ids_for(email))
 
 
 def _no_store(response: Response, target: str | None) -> None:
@@ -223,9 +252,13 @@ async def redirect_shortcut(pattern: str, request: Request,
                             repo: SQLAlchemyShortcutRepository = Depends(get_repo),
                             session: AsyncSession = Depends(get_session)) -> Response:
     delay, _ = await resolve_setting(session, "auto_redirect_delay")
+    is_admin, current_user, team_ids = await _caller_access(request, session)
     res = await resolve(
         pattern, repo, countdown_delay=delay,
         client_ip=request.client.host if request.client else None,
+        current_user=current_user,
+        is_admin=is_admin,
+        team_ids=team_ids,
     )
     if res.outcome == "redirect":
         assert res.target is not None

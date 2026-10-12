@@ -8,6 +8,7 @@ import JobsPage from './routes/JobsPage'
 import Login from './routes/Login'
 import MetricsPage from './routes/MetricsPage'
 import NotFound from './routes/NotFound'
+import TeamsPage from './features/teams/TeamsPage'
 import ShortcutsPage from './features/shortcuts/ShortcutsPage'
 import UpstreamsPage from './features/upstreams/UpstreamsPage'
 
@@ -16,6 +17,14 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation()
   if (token === null) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
+  return children
+}
+
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const { role } = useAuth()
+  if (role !== 'admin') {
+    return <Navigate to="/teams" replace />
   }
   return children
 }
@@ -30,10 +39,20 @@ export function AppRoutes() {
         <Route path="metrics" element={<MetricsPage />} />
         <Route path="guide" element={<GuidePage />} />
         <Route
+          path="teams"
+          element={
+            <RequireAuth>
+              <TeamsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
           path="jobs"
           element={
             <RequireAuth>
-              <JobsPage />
+              <RequireAdmin>
+                <JobsPage />
+              </RequireAdmin>
             </RequireAuth>
           }
         />
@@ -41,7 +60,9 @@ export function AppRoutes() {
           path="admin"
           element={
             <RequireAuth>
-              <AdminPage />
+              <RequireAdmin>
+                <AdminPage />
+              </RequireAdmin>
             </RequireAuth>
           }
         />

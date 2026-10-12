@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../lib/auth'
@@ -200,5 +200,76 @@ describe('AdminPage', () => {
       expect(put?.body).toMatchObject({ public_actions: ['shortcuts.create'] })
     })
     expect(checkbox).toBeChecked()
+  })
+
+  it('imports shortcuts from JSON in the data section', async () => {
+    const user = userEvent.setup()
+    const calls: Array<{ url: string; method: string; body?: unknown }> = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined
+        calls.push({ url: String(url), method: init?.method ?? 'GET', body })
+        const path = String(url)
+        if (path.includes('/api/v1/shortcuts/bulk-import')) {
+          return jsonResponse(200, { count: 1, inserted: 1, updated: 0, skipped: [] })
+        }
+        if (path.includes('/api/v1/admin/config')) {
+          return jsonResponse(200, { app_name: 'redirector', app_version: '4.0.0', custom: {} })
+        }
+        return jsonResponse(200, [])
+      }),
+    )
+    renderPage()
+    expect(await screen.findByText('Import & export')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /export json/i })).toBeInTheDocument()
+    const file = new File([JSON.stringify({ shortcuts: [{ pattern: 'a', target: 'https://a.example' }] })], 'a.json', {
+      type: 'application/json',
+    })
+    await user.upload(screen.getByLabelText(/import json file/i), file)
+    await waitFor(() => {
+      const posted = calls.find(
+        (call) => call.url.includes('/api/v1/shortcuts/bulk-import') && call.method === 'POST',
+      )
+      expect(posted?.body).toMatchObject({
+        shortcuts: [{ pattern: 'a', target: 'https://a.example' }],
+      })
+    })
+    expect(await screen.findByText(/imported 1 \(1 new/i)).toBeInTheDocument()
+  })
+
+  it('lists team accounts and toggles disabled', async () => {
+    const user = userEvent.setup()
+    let disabled = false
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const path = String(url)
+        if (path.includes('/api/v1/auth/users')) {
+          if ((init?.method ?? 'GET') === 'POST') {
+            disabled = path.endsWith('/disable')
+          }
+          return jsonResponse(200, [
+            { id: 1, email: 'amy@x.com', name: 'Amy', disabled, created_at: 'now' },
+          ])
+        }
+        if (path.includes('/api/v1/admin/config')) {
+          return jsonResponse(200, { app_name: 'redirector', app_version: '4.0.0', custom: {} })
+        }
+        return jsonResponse(200, [])
+      }),
+    )
+    renderPage()
+    expect(await screen.findByText('Users')).toBeInTheDocument()
+    const row = (await screen.findByText('amy@x.com')).closest('li') as HTMLElement
+    expect(row).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Disable' }))
+    await waitFor(() => {
+      expect(within(row).getByText('disabled')).toBeInTheDocument()
+    })
+    await user.click(screen.getByRole('button', { name: 'Enable' }))
+    await waitFor(() => {
+      expect(within(row).queryByText('disabled')).not.toBeInTheDocument()
+    })
   })
 })

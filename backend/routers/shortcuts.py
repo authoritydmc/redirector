@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,8 +23,14 @@ from backend.core.config import settings
 from backend.core.db import get_session
 from backend.core.errors import AppError
 from backend.core.policy import RequireAction
-from backend.core.security import ADMIN_WRITE, RequireScopes
-from backend.models.entities import Shortcut, as_utc
+from backend.core.security import (
+    ADMIN_WRITE,
+    RequireScopes,
+    caller_email,
+    get_current_admin,
+    security,
+)
+from backend.models.entities import Shortcut, Visibility, as_utc
 from backend.modules.shortcuts.repository import (
     SQLAlchemyShortcutRepository,
     sanitize_pattern,
@@ -49,6 +56,52 @@ async def get_repo(session: AsyncSession = Depends(get_session)) -> SQLAlchemySh
     return SQLAlchemyShortcutRepository(session, _cache)
 
 
+async def _optional_identity(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any] | None:
+    """Identity when a valid token rides along, else None. Mirrors
+    RequireAction's leniency: on public actions an invalid token is
+    ignored rather than rejected (enforcement itself stays untouched)."""
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        return None
+    try:
+        return await get_current_admin(credentials, session)
+    except AppError:
+        return None
+
+
+async def _owned_shortcut(
+    pattern: str,
+    admin: Annotated[dict[str, Any], Depends(get_current_admin)],
+    repo: Annotated[SQLAlchemyShortcutRepository, Depends(get_repo)],
+) -> Shortcut:
+    """Row for PATCH/DELETE: admins (scopes) pass; local users pass for
+    links they own (owner_email match); everything else 403. Missing
+    rows 404 exactly like before (same message/code)."""
+    sc, _ = await repo.lookup(pattern)
+    if sc is None or not isinstance(sc, Shortcut):
+        raise AppError(
+            "Shortcut not found",
+            status=status.HTTP_404_NOT_FOUND,
+            detail=f"Shortcut '{pattern}' not found",
+            code="shortcuts:not-found",
+        )
+    granted = admin.get("scopes") or []
+    if "*" in granted or ADMIN_WRITE in granted:
+        return sc
+    if admin.get("auth_method") == "jwt" and admin.get("role") == "user":
+        email = admin.get("sub")
+        if isinstance(email, str) and sc.owner_email and sc.owner_email == email:
+            return sc
+    raise AppError(
+        "Admin privileges required",
+        status=status.HTTP_403_FORBIDDEN,
+        detail="Only the owner or an admin can change this link",
+        code="auth:forbidden",
+    )
+
+
 @router.get("", response_model=ShortcutListResponse, summary="List shortcuts")
 async def list_shortcuts(
     page: int = Query(1, ge=1, description="Page number"),
@@ -71,6 +124,8 @@ async def list_shortcuts(
 async def create_shortcut(
     body: ShortcutCreate,
     _auth: Annotated[dict[str, Any], Depends(RequireAction("shortcuts.create"))],
+    me: Annotated[dict[str, Any] | None, Depends(_optional_identity)],
+    session: Annotated[AsyncSession, Depends(get_session)],
     repo: SQLAlchemyShortcutRepository = Depends(get_repo),
 ) -> ShortcutRead:
     clean_pat = sanitize_pattern(body.pattern)
@@ -89,6 +144,43 @@ async def create_shortcut(
             detail=f"Shortcut with pattern '{clean_pat}' already exists",
             code="shortcuts:conflict",
         )
+
+    # Creator stamp (the stored username): signed-in users/SSO back it
+    # with their verified email unless they overrode it.
+    email = await caller_email(me, session) if me is not None else None
+    owner = (body.owner_email or "").strip() or email
+
+    # Team links ride on real memberships (site admins bypass).
+    from backend.modules.teams.repository import TeamRepository
+
+    team_id = body.team_id
+    if body.visibility == Visibility.TEAM:
+        if team_id is None:
+            raise AppError(
+                "Team link needs a team",
+                status=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Pick the team this link belongs to",
+                code="teams:link-needs-team",
+            )
+        team_repo = TeamRepository(session)
+        if await team_repo.get(team_id) is None:
+            raise AppError(
+                "Team not found",
+                status=status.HTTP_404_NOT_FOUND,
+                detail=f"No team with id {team_id}",
+                code="teams:not-found",
+            )
+        is_site_admin = me is not None and me.get("role") == "admin"
+        member = email is not None and await team_repo.member_role(team_id, email) is not None
+        if not is_site_admin and not member:
+            raise AppError(
+                "Team membership required",
+                status=status.HTTP_403_FORBIDDEN,
+                detail="Only team members can post team links",
+                code="teams:not-member",
+            )
+    else:
+        team_id = None
 
     exp = None
     if body.expires_at:
@@ -109,7 +201,8 @@ async def create_shortcut(
         tags=body.tags,
         visibility=body.visibility,
         expires_at=as_utc(exp),
-        owner_email=body.owner_email,
+        owner_email=owner,
+        team_id=team_id,
     )
     try:
         created = await repo.create(sc)
@@ -224,7 +317,7 @@ async def get_shortcut(
 async def update_shortcut(
     pattern: str,
     body: ShortcutUpdate,
-    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
+    _owner: Annotated[Shortcut, Depends(_owned_shortcut)],
     repo: SQLAlchemyShortcutRepository = Depends(get_repo),
 ) -> ShortcutRead:
     data = body.model_dump(exclude_unset=True)
@@ -255,7 +348,7 @@ async def update_shortcut(
 @router.delete("/{pattern:path}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete shortcut")
 async def delete_shortcut(
     pattern: str,
-    _admin: Annotated[dict[str, Any], Depends(RequireScopes(ADMIN_WRITE))],
+    _owner: Annotated[Shortcut, Depends(_owned_shortcut)],
     repo: SQLAlchemyShortcutRepository = Depends(get_repo),
 ) -> None:
     deleted = await repo.delete(pattern)
