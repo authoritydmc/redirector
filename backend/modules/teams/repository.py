@@ -2,21 +2,30 @@
 
 from __future__ import annotations
 
-import re
-from datetime import UTC, datetime
-
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.entities import Shortcut, SsoUser, Team, TeamMember, User
 
-_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-
 
 def normalize_email(raw: str) -> str | None:
-    """Lowercased email, or None when it is not shaped like one."""
+    """Lowercased email, or None when it is not shaped like one.
+
+    Deliberately regex-free (linear string ops only): this runs on
+    signup/add-member input, and nested-quantifier patterns are a ReDoS
+    footgun CodeQL rightly flags.
+    """
     email = raw.strip().lower()
-    return email if _EMAIL_RE.match(email) else None
+    if not email or len(email) > 254 or any(ch.isspace() for ch in email):
+        return None
+    local, sep, domain = email.partition("@")
+    if not sep or "@" in domain or not local:
+        return None
+    if "." not in domain or domain.startswith(".") or domain.endswith("."):
+        return None
+    if ".." in email:
+        return None
+    return email
 
 
 class UserRepository:

@@ -23,7 +23,13 @@ from backend.core.config import settings
 from backend.core.db import get_session
 from backend.core.errors import AppError
 from backend.core.policy import RequireAction
-from backend.core.security import ADMIN_WRITE, RequireScopes, caller_email, get_current_admin, security
+from backend.core.security import (
+    ADMIN_WRITE,
+    RequireScopes,
+    caller_email,
+    get_current_admin,
+    security,
+)
 from backend.models.entities import Shortcut, Visibility, as_utc
 from backend.modules.shortcuts.repository import (
     SQLAlchemyShortcutRepository,
