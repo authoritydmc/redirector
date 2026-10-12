@@ -43,6 +43,7 @@ module = [
   "backend.modules.jobs.repository",
   "backend.modules.auth.repository",
   "backend.modules.sso.repository",
+  "backend.modules.teams.repository",
   "backend.core.security",
   "backend.core.config",
   "backend.core.policy",

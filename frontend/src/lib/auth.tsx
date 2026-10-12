@@ -8,8 +8,12 @@ const STORAGE_KEY = 'redirector.token'
 
 interface AuthState {
   token: string | null
+  role: string | null
+  email: string | null
   login: (password: string) => Promise<{ pending_token: string } | null>
   verifyMfa: (pendingToken: string, totp: string) => Promise<void>
+  loginUser: (email: string, password: string) => Promise<void>
+  signup: (email: string, name: string, password: string) => Promise<void>
   loginWithToken: (token: string) => void
   logout: () => void
 }
@@ -32,6 +36,22 @@ async function postJson<T>(path: string, body: unknown): Promise<{ status: numbe
     throw new Error(`Request failed (HTTP ${res.status})`)
   }
   return { status: res.status, data }
+}
+
+/** UI-only identity from the JWT payload (never verified client-side —
+ * the server enforces everything; this just hides buttons you can't use). */
+function identityOf(token: string | null): { role: string | null; email: string | null } {
+  if (token === null) {
+    return { role: null, email: null }
+  }
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1])) as { role?: unknown; sub?: unknown }
+    const role = typeof payload.role === 'string' ? payload.role : null
+    const sub = typeof payload.sub === 'string' ? payload.sub : null
+    return { role, email: role === 'user' ? sub : null }
+  } catch {
+    return { role: null, email: null }
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -79,9 +99,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(token)
   }, [])
 
+  const loginUser = useCallback(async (email: string, password: string) => {
+    const { status, data } = await postJson<TokenResponse>('/api/v1/auth/user/login', {
+      email,
+      password,
+    })
+    if (status === 401) {
+      throw new Error('Incorrect email or password')
+    }
+    if (status === 403) {
+      throw new Error('This account is disabled — ask an admin')
+    }
+    if (status === 429) {
+      throw new Error('Too many attempts — try again later')
+    }
+    if (status !== 200 || !('access_token' in data)) {
+      throw new Error(`Login failed (HTTP ${status})`)
+    }
+    loginWithToken(data.access_token)
+  }, [loginWithToken])
+
+  const signup = useCallback(async (email: string, name: string, password: string) => {
+    const { status, data } = await postJson<{ detail?: string }>('/api/v1/auth/signup', {
+      email,
+      name,
+      password,
+    })
+    if (status === 409) {
+      throw new Error('That email already has an account — sign in instead')
+    }
+    if (status === 422) {
+      throw new Error(
+        typeof data.detail === 'string' ? data.detail : 'Check the email and password',
+      )
+    }
+    if (status !== 201) {
+      throw new Error(`Sign-up failed (HTTP ${status})`)
+    }
+  }, [])
+
+  const { role, email } = useMemo(() => identityOf(token), [token])
+
   const value = useMemo(
-    () => ({ token, login, verifyMfa, loginWithToken, logout }),
-    [token, login, verifyMfa, loginWithToken, logout],
+    () => ({ token, role, email, login, verifyMfa, loginUser, signup, loginWithToken, logout }),
+    [token, role, email, login, verifyMfa, loginUser, signup, loginWithToken, logout],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

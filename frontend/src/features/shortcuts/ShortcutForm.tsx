@@ -24,6 +24,10 @@ const formSchema = z.object({
   tags: z.string(),
   expires_at: z.string(),
   owner_email: z.string(),
+  team_id: z.string(),
+}).refine((val) => val.visibility !== 'team' || val.team_id !== '', {
+  path: ['team_id'],
+  message: 'Pick a team',
 })
 
 export type FormState = z.infer<typeof formSchema>
@@ -52,7 +56,13 @@ export function toInput(state: FormState): ShortcutInput {
     tags: state.tags.split(',').map((tag) => tag.trim()).filter((tag) => tag.length > 0),
     expires_at: state.expires_at === '' ? null : new Date(state.expires_at).toISOString(),
     owner_email: state.owner_email.trim() === '' ? null : state.owner_email.trim(),
+    team_id: state.team_id === '' ? null : Number(state.team_id),
   }
+}
+
+interface TeamOption {
+  id: number
+  name: string
 }
 
 interface Props {
@@ -62,6 +72,7 @@ interface Props {
   serverError: string | null
   onSubmit: (input: ShortcutInput) => Promise<void>
   onCancel: () => void
+  teamOptions?: Array<TeamOption> | null
 }
 
 const inputClass = 'mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-1.5 text-sm text-rd-text'
@@ -85,7 +96,7 @@ function expiryInputValue(days: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-export default function ShortcutForm({ initial, fixedPattern, submitLabel, serverError, onSubmit, onCancel }: Props) {
+export default function ShortcutForm({ initial, fixedPattern, submitLabel, serverError, onSubmit, onCancel, teamOptions = null }: Props) {
   const [state, setState] = useState<FormState>({
     pattern: initial?.pattern ?? '',
     target: initial?.target ?? '',
@@ -94,17 +105,33 @@ export default function ShortcutForm({ initial, fixedPattern, submitLabel, serve
     tags: (initial?.tags ?? []).join(', '),
     expires_at: '',
     owner_email: initial?.owner_email ?? '',
+    team_id: initial?.team_id === null || initial?.team_id === undefined ? '' : String(initial.team_id),
   })
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
   const [touched, setTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [availability, setAvailability] = useState<Availability>('idle')
   const [takenTarget, setTakenTarget] = useState<string | null>(null)
+  const [typeTouched, setTypeTouched] = useState(false)
+  const [autoSwitched, setAutoSwitched] = useState(false)
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setTouched(true)
+    if (key === 'type') {
+      setTypeTouched(true)
+      setAutoSwitched(false)
+    }
     setState((prev) => ({ ...prev, [key]: value }))
   }
+
+  // Auto-detect: a placeholder in the target means dynamic. Manual picks
+  // always win — once touched, the type stays exactly as left.
+  useEffect(() => {
+    if (!typeTouched && state.type === 'static' && hasDynamicPlaceholder(state.target)) {
+      setState((prev) => (prev.type === 'static' ? { ...prev, type: 'dynamic' } : prev))
+      setAutoSwitched(true)
+    }
+  }, [state.target, state.type, typeTouched])
 
   const debouncedPattern = useDebounced(state.pattern.trim().toLowerCase(), 400)
 
@@ -229,6 +256,12 @@ export default function ShortcutForm({ initial, fixedPattern, submitLabel, serve
           className={inputClass}
         />
         {fieldError('target')}
+        {autoSwitched && (
+          <span className={hintClass}>
+            Detected a placeholder — switched to <strong>dynamic</strong> for you
+            (change it back below if that wasn&apos;t right).
+          </span>
+        )}
         {wantsDynamic && (
           <span className={hintClass}>
             Target has a placeholder like <span className="font-mono">{'{name}'}</span> —{' '}
@@ -261,6 +294,31 @@ export default function ShortcutForm({ initial, fixedPattern, submitLabel, serve
           </select>
         </label>
       </div>
+      {state.visibility === 'team' && (
+        <label className={labelClass}>
+          Team
+          {teamOptions === null ? (
+            <span className={hintClass}>Sign in and join a team to post team links.</span>
+          ) : teamOptions.length === 0 ? (
+            <span className={hintClass}>You are in no team yet — create one on the Teams page.</span>
+          ) : (
+            <select
+              aria-label="Team"
+              value={state.team_id}
+              onChange={(event) => set('team_id', event.target.value)}
+              className={inputClass}
+            >
+              <option value="">Pick a team…</option>
+              {teamOptions.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {fieldError('team_id')}
+        </label>
+      )}
       <p className={hintClass}>
         {state.type === 'static' && 'Static: one pattern, one target.'}
         {state.type === 'dynamic' && 'Dynamic: target placeholders like {ticket} fill from the URL path.'}

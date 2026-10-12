@@ -31,6 +31,30 @@ code missing here — document first, then implement.
 | `auth:mfa-setup-required` | 409 | Enable before setup staged a seed |
 | `auth:required` | 401 | No (or non-Bearer) credentials on a guarded endpoint |
 
+## `users` — team accounts
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `users:exists` | 409 | Signup with an already-registered email |
+| `users:disabled` | 403 | Login on a disabled account |
+| `users:not-found` | 404 | No account with that email |
+| `users:invalid-email` | 422 | Malformed email address |
+| `users:weak-password` | 422 | Password shorter than 8 characters |
+
+## `teams` — teams and membership
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `teams:exists` | 409 | Team name already taken |
+| `teams:invalid-name` | 422 | Blank team name |
+| `teams:invalid-role` | 422 | Member role outside member/admin |
+| `teams:not-found` | 404 | No team (or membership) with that id |
+| `teams:not-member` | 403 | Team link creation without membership |
+| `teams:member-exists` | 409 | Email already on the roster |
+| `teams:last-admin` | 409 | Removing the team's final admin |
+| `teams:link-needs-team` | 422 | Team-visibility link without a team |
+| `teams:links-exist` | 409 | Deleting a team that still holds links |
+
 ## `sso` — OIDC logins
 
 | Code | HTTP | Meaning |

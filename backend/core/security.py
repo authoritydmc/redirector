@@ -107,7 +107,7 @@ async def get_current_admin(
             "scopes": row.scopes,
         }
     payload = decode_access_token(token)
-    if payload.get("role") != "admin":
+    if payload.get("role") not in ("admin", "user"):
         raise AppError(
             "Admin privileges required",
             status=status.HTTP_403_FORBIDDEN,
@@ -124,7 +124,12 @@ async def get_current_admin(
             code="auth:invalid-token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return {**payload, "auth_method": "jwt", "scopes": ["*"]}
+    # Sessions honor embedded scopes (local users carry []); legacy tokens
+    # minted without a scopes claim keep full access.
+    scopes = payload.get("scopes")
+    if not isinstance(scopes, list):
+        scopes = ["*"]
+    return {**payload, "auth_method": "jwt", "scopes": scopes}
 
 
 class RequireScopes:
@@ -165,6 +170,28 @@ def require_jwt_session(admin: dict[str, Any]) -> None:
             detail="This management endpoint requires an interactive JWT session",
             code="auth:forbidden",
         )
+
+
+async def caller_email(admin: dict[str, Any], session: AsyncSession) -> str | None:
+    """Verified email behind an identity, if any: local users carry it as
+    sub; SSO admins resolve through their JIT row; password-admin and API
+    keys have none (automation acts as the install, not a person)."""
+    if admin.get("role") == "user":
+        sub = admin.get("sub")
+        return sub if isinstance(sub, str) and sub else None
+    sub = admin.get("sub")
+    if not isinstance(sub, str) or not sub.startswith("sso:"):
+        return None
+    try:
+        _, provider, subject = sub.split(":", 2)
+    except ValueError:
+        return None
+    from backend.models.entities import SsoUser  # deferred: models import config
+
+    row = (await session.execute(
+        select(SsoUser).where(SsoUser.provider == provider, SsoUser.subject == subject)
+    )).scalar_one_or_none()
+    return row.email if row and row.email else None
 
 
 def client_ip(request_ip: str | None, forwarded_for: str | None) -> str:

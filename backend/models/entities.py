@@ -71,6 +71,7 @@ class Shortcut(SQLModel, table=True):
     )
     expires_at: datetime | None = Field(default=None, index=True)
     owner_email: str | None = Field(default=None, index=True)
+    team_id: int | None = Field(default=None, index=True, foreign_key="teams.id")
 
     def is_expired(self, at: datetime | None = None) -> bool:
         ref = as_utc(at) or utcnow()
@@ -263,3 +264,46 @@ class OidcState(SQLModel, table=True):
     nonce: str = Field()
     created_at: datetime = Field(default_factory=utcnow)
     expires_at: datetime = Field()
+
+
+class User(SQLModel, table=True):
+    """Local team account (username + password). Open signup; the admin can
+    disable accounts. Passwords are PBKDF2 hashes (same KDF as API keys) —
+    plaintext never rests here. Users own their links (`owner_email`) and
+    join teams; they never gain admin scopes (those stay JWT/API-key admin)."""
+
+    __tablename__ = "users"
+
+    id: int | None = Field(default=None, primary_key=True)
+    email: str = Field(unique=True, index=True)
+    name: str | None = Field(default=None)
+    password_hash: str = Field()
+    disabled: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class Team(SQLModel, table=True):
+    """A named group holding team-visibility links. Created by any signed-in
+    user (who becomes its first team-admin); site admins see/manage all."""
+
+    __tablename__ = "teams"
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(unique=True, index=True)
+    created_by_email: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class TeamMember(SQLModel, table=True):
+    """One membership: team + member email + role (`member` reads/creates
+    team links, `admin` also manages the roster). Email (not user id) is
+    the key so SSO identities join by matching email too."""
+
+    __tablename__ = "team_members"
+    __table_args__ = (UniqueConstraint("team_id", "email", name="uq_team_member"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    team_id: int = Field(index=True, foreign_key="teams.id")
+    email: str = Field(index=True)
+    role: str = Field(default="member")
+    created_at: datetime = Field(default_factory=utcnow)

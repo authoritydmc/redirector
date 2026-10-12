@@ -31,6 +31,7 @@ from backend.routers import resolve as resolve_router
 from backend.routers import shortcuts as shortcuts_router
 from backend.routers import site as site_router
 from backend.routers import sso as sso_router
+from backend.routers import teams as teams_router
 from backend.routers import upstreams as upstreams_router
 
 logger = logging.getLogger("redirector")
@@ -90,6 +91,7 @@ def create_app() -> FastAPI:
             {"name": "admin-config", "description": "DB-backed settings (admin only)"},
             {"name": "admin-backup", "description": "Backup archives (admin only)"},
             {"name": "auth", "description": "Login + current admin"},
+            {"name": "teams", "description": "Local users, teams, membership"},
             {"name": "sso", "description": "Multi-IdP OIDC logins (SSO)"},
             {"name": "jobs", "description": "Background jobs + progress streams"},
             {"name": "qr", "description": "QR code generation"},
@@ -124,6 +126,7 @@ def create_app() -> FastAPI:
     app.include_router(shortcuts_router.router)
     app.include_router(site_router.router)
     app.include_router(sso_router.router)
+    app.include_router(teams_router.router)
     app.include_router(upstreams_router.router)
     app.include_router(metrics_router.router)
     _mount_spa(app)

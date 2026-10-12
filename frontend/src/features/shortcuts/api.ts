@@ -57,6 +57,7 @@ export interface ShortcutInput {
   tags: string[]
   expires_at?: string | null
   owner_email?: string | null
+  team_id?: number | null
 }
 
 export function createShortcut(input: ShortcutInput): Promise<Shortcut> {

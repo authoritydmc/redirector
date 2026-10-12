@@ -75,6 +75,8 @@ const hintClass = 'mt-1 text-xs text-rd-muted'
 export default function ShortcutWizard({ initialPattern = '', serverError, onSubmit }: Props) {
   const [step, setStep] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [typeTouched, setTypeTouched] = useState(false)
+  const [autoSwitched, setAutoSwitched] = useState(false)
   const [state, setState] = useState<FormState>({
     pattern: initialPattern,
     target: '',
@@ -83,14 +85,28 @@ export default function ShortcutWizard({ initialPattern = '', serverError, onSub
     tags: '',
     expires_at: '',
     owner_email: '',
+    team_id: '',
   })
   const { status: availability, takenTarget } = useAvailability(state.pattern)
   const suggestion = suggestPatternFor(state.target)
   const errors = validateForm(state)
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
+    if (key === 'type') {
+      setTypeTouched(true)
+      setAutoSwitched(false)
+    }
     setState((prev) => ({ ...prev, [key]: value }))
   }
+
+  // Auto-detect: a placeholder in the target means dynamic (the Kind step
+  // reflects it when going back). Manual picks always win.
+  useEffect(() => {
+    if (!typeTouched && state.type === 'static' && hasDynamicPlaceholder(state.target)) {
+      setState((prev) => (prev.type === 'static' ? { ...prev, type: 'dynamic' } : prev))
+      setAutoSwitched(true)
+    }
+  }, [state.target, state.type, typeTouched])
 
   const steps = ['Kind', 'Target', 'Name', 'Review']
   const targetError = errors.target
@@ -170,6 +186,11 @@ export default function ShortcutWizard({ initialPattern = '', serverError, onSub
           </label>
           {targetError !== undefined && (
             <span role="alert" className="text-xs text-rd-danger">{targetError}</span>
+          )}
+          {autoSwitched && (
+            <span className={hintClass}>
+              Detected a placeholder — switched to <strong>dynamic</strong> for you.
+            </span>
           )}
           {targetError === undefined && state.target.trim() !== '' && (
             <span className={hintClass}>

@@ -33,7 +33,8 @@ afterEach(() => {
 describe('Login', () => {
   it('renders the password form', () => {
     renderAt('/login')
-    expect(screen.getByText('Admin password')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Admin password' })).toBeInTheDocument()
+    expect(screen.getByLabelText(/admin password/i)).toBeInTheDocument()
   })
 
   it('shows an error on wrong password', async () => {
@@ -72,7 +73,7 @@ describe('Login', () => {
   it('redirects anonymous visitors to login for admin routes', async () => {
     renderAt('/admin')
     await waitFor(() => {
-      expect(screen.getByText('Admin password')).toBeInTheDocument()
+      expect(screen.getByLabelText(/admin password/i)).toBeInTheDocument()
     })
   })
 
@@ -113,5 +114,38 @@ describe('Login', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent(/not in an admin group/i)
     })
+  })
+
+  it('signs up a team account and lands on the dashboard', async () => {
+    const user = userEvent.setup()
+    const calls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        calls.push(`${init?.method ?? 'GET'} ${String(url)}`)
+        if (String(url).includes('/api/v1/auth/signup')) {
+          return jsonResponse(201, { id: 1, email: 'amy@x.com', name: 'Amy' })
+        }
+        if (String(url).includes('/api/v1/auth/user/login')) {
+          return jsonResponse(200, { access_token: 'jwt-user', role: 'user' })
+        }
+        if (String(url).includes('/api/v1/auth/providers')) {
+          return jsonResponse(200, [])
+        }
+        return jsonResponse(200, { data: [], meta: { total: 0 } })
+      }),
+    )
+    renderAt('/login')
+    await user.click(screen.getByRole('tab', { name: /team account/i }))
+    await user.click(screen.getByRole('button', { name: /need an account/i }))
+    await user.type(screen.getByLabelText('Display name'), 'Amy')
+    await user.type(screen.getByLabelText('Email'), 'amy@x.com')
+    await user.type(screen.getByLabelText(/password \(8\+ characters\)/i), 'password123')
+    await user.click(screen.getByRole('button', { name: /^sign up$/i }))
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Shortcuts' })).toBeInTheDocument()
+    })
+    expect(localStorage.getItem('redirector.token')).toBe('jwt-user')
+    expect(calls).toContain('POST /api/v1/auth/signup')
   })
 })

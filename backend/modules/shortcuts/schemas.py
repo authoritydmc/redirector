@@ -16,6 +16,7 @@ class ShortcutRead(BaseModel):
     visibility: Visibility = Visibility.PUBLIC
     expires_at: str | None = None
     owner_email: str | None = None
+    team_id: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -28,6 +29,7 @@ class ShortcutCreate(BaseModel):
     visibility: Visibility = Visibility.PUBLIC
     expires_at: str | None = None
     owner_email: str | None = None
+    team_id: int | None = None
 
 
 class ShortcutUpdate(BaseModel):
@@ -37,6 +39,7 @@ class ShortcutUpdate(BaseModel):
     visibility: Visibility | None = None
     expires_at: str | None = None
     owner_email: str | None = None
+    team_id: int | None = None
 
 
 class ShortcutListMeta(BaseModel):

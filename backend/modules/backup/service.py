@@ -37,8 +37,11 @@ from backend.models.entities import (
     Shortcut,
     ShortcutType,
     SsoUser,
+    Team,
+    TeamMember,
     Upstream,
     UpstreamCache,
+    User,
     UserParam,
     Visibility,
 )
@@ -51,6 +54,9 @@ TABLE_MODELS: dict[str, type[SQLModel]] = {
     "settings": Setting,
     "api_keys": ApiKey,
     "sso_users": SsoUser,
+    "users": User,
+    "teams": Team,
+    "team_members": TeamMember,
 }
 
 FILENAME_RE = re.compile(r"^redirector-backup-\d{8}T\d{6}Z(?:-[a-z0-9-]+)?(?:-\d+)?\.zip$")
@@ -284,6 +290,22 @@ def _validated_rows(table: str, rows: list[dict[str, Any]]) -> list[dict[str, An
                 raise RestoreError("corrupt sso_users row: 'role' must be admin|viewer")
             for stamp in ("created_at", "last_login_at"):
                 _parse_dt(data.get(stamp))
+        elif table == "users":
+            _nonempty_str(data, table, "email")
+            _nonempty_str(data, table, "password_hash")
+            if "disabled" in data and not isinstance(data["disabled"], bool):
+                raise RestoreError("corrupt users row: 'disabled' must be bool")
+            _parse_dt(data.get("created_at"))
+        elif table == "teams":
+            _nonempty_str(data, table, "name")
+            _parse_dt(data.get("created_at"))
+        elif table == "team_members":
+            if not isinstance(data.get("team_id"), int) or isinstance(data.get("team_id"), bool):
+                raise RestoreError("corrupt team_members row: 'team_id' must be int")
+            _nonempty_str(data, table, "email")
+            if data.get("role", "member") not in ("member", "admin"):
+                raise RestoreError("corrupt team_members row: 'role' must be member|admin")
+            _parse_dt(data.get("created_at"))
     return rows
 
 
@@ -431,6 +453,56 @@ async def _apply_table(session: AsyncSession, table: str, rows: list[dict[str, A
             else:
                 for attr, value in fields.items():
                     setattr(user, attr, value)
+            written += 1
+    elif table == "users":
+        for data in rows:
+            account = (await session.execute(
+                select(User).where(User.email == data["email"])
+            )).scalar_one_or_none()
+            fields = {
+                "name": data.get("name"),
+                "password_hash": data["password_hash"],
+                "disabled": bool(data.get("disabled", False)),
+                "created_at": _dt_or_now(data.get("created_at")),
+            }
+            if account is None:
+                session.add(User(email=data["email"], **fields))
+            else:
+                for attr, value in fields.items():
+                    setattr(account, attr, value)
+            written += 1
+    elif table == "teams":
+        for data in rows:
+            team = (await session.execute(
+                select(Team).where(Team.name == data["name"])
+            )).scalar_one_or_none()
+            fields = {
+                "created_by_email": data.get("created_by_email"),
+                "created_at": _dt_or_now(data.get("created_at")),
+            }
+            if team is None:
+                session.add(Team(name=data["name"], **fields))
+            else:
+                for attr, value in fields.items():
+                    setattr(team, attr, value)
+            written += 1
+    elif table == "team_members":
+        for data in rows:
+            member = (await session.execute(
+                select(TeamMember).where(
+                    TeamMember.team_id == data["team_id"],
+                    TeamMember.email == data["email"])
+            )).scalar_one_or_none()
+            fields = {
+                "role": data.get("role", "member"),
+                "created_at": _dt_or_now(data.get("created_at")),
+            }
+            if member is None:
+                session.add(TeamMember(
+                    team_id=data["team_id"], email=data["email"], **fields))
+            else:
+                for attr, value in fields.items():
+                    setattr(member, attr, value)
             written += 1
     await session.commit()
     return written

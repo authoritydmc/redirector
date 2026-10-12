@@ -24,7 +24,7 @@ function readFragment(hash: string): { token: string | null; error: string | nul
 }
 
 export default function Login() {
-  const { login, verifyMfa, loginWithToken } = useAuth()
+  const { login, verifyMfa, loginWithToken, loginUser, signup } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [password, setPassword] = useState('')
@@ -33,6 +33,11 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [providers, setProviders] = useState<SsoProvider[]>([])
+  const [tab, setTab] = useState<'admin' | 'account'>('admin')
+  const [accountMode, setAccountMode] = useState<'signin' | 'signup'>('signin')
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [userPassword, setUserPassword] = useState('')
 
   useEffect(() => {
     api<SsoProvider[]>('/api/v1/auth/providers').then(setProviders, () => setProviders([]))
@@ -69,6 +74,25 @@ export default function Login() {
     }
   }
 
+  async function submitAccount(event: FormEvent) {
+    event.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      if (accountMode === 'signup') {
+        await signup(email.trim(), name.trim(), userPassword)
+        await loginUser(email.trim(), userPassword)
+      } else {
+        await loginUser(email.trim(), userPassword)
+      }
+      navigate('/', { replace: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign-in failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function submitTotp(event: FormEvent) {
     event.preventDefault()
     if (pendingToken === null) {
@@ -90,11 +114,84 @@ export default function Login() {
     <main className="flex min-h-screen items-center justify-center bg-rd-bg p-4 font-sans text-rd-text">
       <div className="w-full max-w-sm rounded-2xl border border-rd-line bg-rd-surface p-6 shadow-xl">
         <h1 className="text-2xl font-bold">Redirector</h1>
-        <p className="mt-1 text-sm text-rd-muted">
-          {pendingToken === null ? 'Sign in with your admin password.' : 'Check your authenticator app.'}
-        </p>
-        {pendingToken === null ? (
+        <div className="mt-3 flex gap-2" role="tablist" aria-label="Sign-in method">
+          {(['admin', 'account'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              role="tab"
+              aria-selected={tab === mode && pendingToken === null}
+              onClick={() => { setTab(mode); setError(null) }}
+              className={`rounded border px-3 py-1 text-xs ${
+                tab === mode && pendingToken === null
+                  ? 'border-rd-accent bg-rd-accent text-rd-accent-ink'
+                  : 'border-rd-line text-rd-muted'
+              }`}
+            >
+              {mode === 'admin' ? 'Admin password' : 'Team account'}
+            </button>
+          ))}
+        </div>
+        {pendingToken === null && tab === 'account' ? (
+        <form onSubmit={submitAccount} className="mt-6 flex flex-col gap-3">
+          <p className="text-sm text-rd-muted">
+            {accountMode === 'signin'
+              ? 'Sign in with your team account.'
+              : 'Create a team account — you can join teams right away.'}
+          </p>
+          {accountMode === 'signup' && (
+            <label className="text-sm">
+              Display name
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                autoComplete="nickname"
+                className="mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-2 text-sm text-rd-text"
+              />
+            </label>
+          )}
+          <label className="text-sm">
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              className="mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-2 text-sm text-rd-text"
+            />
+          </label>
+          <label className="text-sm">
+            Password{accountMode === 'signup' ? ' (8+ characters)' : ''}
+            <input
+              type="password"
+              value={userPassword}
+              onChange={(event) => setUserPassword(event.target.value)}
+              autoComplete={accountMode === 'signup' ? 'new-password' : 'current-password'}
+              className="mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-2 text-sm text-rd-text"
+            />
+          </label>
+          {error !== null && <p role="alert" className="text-sm text-rd-danger">{error}</p>}
+          <button
+            type="submit"
+            disabled={busy || email.trim() === '' || userPassword === ''}
+            className="rounded bg-rd-accent px-3 py-2 text-sm text-rd-accent-ink disabled:opacity-50"
+          >
+            {accountMode === 'signin' ? 'Sign in' : 'Sign up'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAccountMode(accountMode === 'signin' ? 'signup' : 'signin')
+              setError(null)
+            }}
+            className="text-sm underline text-rd-muted"
+          >
+            {accountMode === 'signin' ? 'Need an account? Sign up' : 'Have an account? Sign in'}
+          </button>
+        </form>
+        ) : pendingToken === null ? (
         <form onSubmit={submitPassword} className="mt-6 flex flex-col gap-3">
+          <p className="text-sm text-rd-muted">Sign in with the admin password.</p>
           <label className="text-sm">
             Admin password
             <input

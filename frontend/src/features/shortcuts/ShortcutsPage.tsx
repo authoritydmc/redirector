@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../lib/client'
 import { useAuth } from '../../lib/auth'
 import { getSitePolicy } from '../../lib/policy'
-import { bulkDeleteShortcuts, bulkImportShortcuts, createShortcut, deleteShortcut, listShortcuts, updateShortcut } from './api'
+import { listTeams } from '../teams/api'
+import type { Team } from '../teams/api'
+import { bulkDeleteShortcuts, createShortcut, deleteShortcut, listShortcuts, updateShortcut } from './api'
 import type { Shortcut, ShortcutInput, ShortcutType } from './api'
 import ShortcutForm from './ShortcutForm'
 import ShortcutWizard from './ShortcutWizard'
@@ -20,7 +22,7 @@ function useDebounced(value: string, delayMs: number): string {
 }
 
 export default function ShortcutsPage() {
-  const { token } = useAuth()
+  const { token, role, email: myEmail } = useAuth()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('updated_at')
   const [page, setPage] = useState(1)
@@ -31,7 +33,6 @@ export default function ShortcutsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirming, setConfirming] = useState<string | null>(null)
   const [confirmingBulk, setConfirmingBulk] = useState(false)
-  const [importNotice, setImportNotice] = useState<string | null>(null)
   const [drawer, setDrawer] = useState<{ mode: 'create'; initialPattern?: string } | { mode: 'edit'; row: Shortcut } | null>(null)
   const [drawerError, setDrawerError] = useState<string | null>(null)
   const [publicCreate, setPublicCreate] = useState(false)
@@ -50,7 +51,28 @@ export default function ShortcutsPage() {
   }, [token])
 
   const canCreate = token !== null || publicCreate
-  const canManage = token !== null
+  const isAdmin = role === 'admin'
+  const [teamOptions, setTeamOptions] = useState<Team[] | null>(null)
+
+  useEffect(() => {
+    if (token === null) {
+      setTeamOptions(null)
+      return
+    }
+    listTeams().then(setTeamOptions, () => setTeamOptions(null))
+  }, [token])
+
+  function canEditRow(row: Shortcut): boolean {
+    if (isAdmin) {
+      return true
+    }
+    return (
+      myEmail !== null &&
+      row.owner_email !== null &&
+      row.owner_email !== undefined &&
+      row.owner_email === myEmail
+    )
+  }
 
   function openCreate(initialPattern?: string) {
     setPreset('static')
@@ -188,55 +210,6 @@ export default function ShortcutsPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const pageSelected = rows.length > 0 && rows.every((row) => selected.has(row.pattern))
 
-  async function exportAll() {
-    setError(null)
-    try {
-      const all: Shortcut[] = []
-      let page = 1
-      for (;;) {
-        const list = await listShortcuts({ page, pageSize: 100, q: '', sort: 'updated_at' })
-        all.push(...list.data)
-        if (all.length >= list.meta.total || list.data.length === 0) {
-          break
-        }
-        page += 1
-      }
-      const blob = new Blob([JSON.stringify({ shortcuts: all }, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = 'redirector-export.json'
-      anchor.click()
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Export failed')
-    }
-  }
-
-  async function importFile(file: File) {
-    setError(null)
-    setImportNotice(null)
-    try {
-      const parsed: unknown = JSON.parse(await file.text())
-      const list = Array.isArray(parsed)
-        ? parsed
-        : Array.isArray((parsed as { shortcuts?: unknown }).shortcuts)
-          ? (parsed as { shortcuts: ShortcutInput[] }).shortcuts
-          : null
-      if (list === null) {
-        throw new Error('Expected {"shortcuts": [...]} or a bare array')
-      }
-      const res = await bulkImportShortcuts(list)
-      setImportNotice(
-        `Imported ${res.count} (${res.inserted} new, ${res.updated} updated`
-        + (res.skipped.length > 0 ? `, skipped ${res.skipped.length}` : '') + ').',
-      )
-      await reload()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed')
-    }
-  }
-
   return (
     <section>
       <div className="flex items-center gap-3">
@@ -269,7 +242,7 @@ export default function ShortcutsPage() {
           <option value="created_at">Recently created</option>
           <option value="popular">Most visited</option>
         </select>
-        {canManage && selected.size > 0 && (
+        {isAdmin && selected.size > 0 && (
           confirmingBulk ? (
             <span className="flex gap-2">
               <button type="button" onClick={removeSelected} className="rounded bg-rd-danger px-3 py-1.5 text-sm text-rd-danger-ink">
@@ -287,7 +260,6 @@ export default function ShortcutsPage() {
         )}
       </div>
       {error !== null && <p role="alert" className="mt-3 text-sm text-rd-danger">{error}</p>}
-      {importNotice !== null && <p role="status" className="mt-3 text-sm text-rd-muted">{importNotice}</p>}
       {loading ? (
         <p className="mt-4 text-sm text-rd-muted">Loading…</p>
       ) : rows.length === 0 ? (
@@ -297,7 +269,7 @@ export default function ShortcutsPage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-rd-line">
-              {canManage && (
+              {isAdmin && (
                 <th className="py-1 pr-2">
                   <input type="checkbox" aria-label="Select page" checked={pageSelected} onChange={togglePage} />
                 </th>
@@ -306,13 +278,13 @@ export default function ShortcutsPage() {
               <th className="py-1 pr-2">Target</th>
               <th className="py-1 pr-2">Type</th>
               <th className="py-1 pr-2">Hits</th>
-              {canManage && <th className="py-1">Actions</th>}
+              {rows.some((row) => canEditRow(row)) && <th className="py-1">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.pattern} className="border-b border-rd-line">
-                {canManage && (
+                {isAdmin && (
                   <td className="py-1 pr-2">
                     <input
                       type="checkbox"
@@ -326,7 +298,7 @@ export default function ShortcutsPage() {
                 <td className="max-w-xs truncate py-1 pr-2">{row.target}</td>
                 <td className="py-1 pr-2">{row.type}</td>
                 <td className="py-1 pr-2">{row.access_count}</td>
-                {canManage && (
+                {canEditRow(row) && (
                 <td className="py-1">
                   {confirming === row.pattern ? (
                     <span className="flex gap-2">
@@ -359,33 +331,6 @@ export default function ShortcutsPage() {
         </table>
         </div>
       )}
-      <div className="mt-3 flex items-center gap-3 text-sm">
-        <button
-          type="button"
-          onClick={() => void exportAll()}
-          className="rounded border border-rd-line px-3 py-1"
-        >
-          Export JSON
-        </button>
-        {token !== null && (
-          <label className="rounded border border-rd-line px-3 py-1">
-            Import JSON
-            <input
-              type="file"
-              accept="application/json,.json"
-              className="hidden"
-              aria-label="Import JSON file"
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                event.target.value = ''
-                if (file !== undefined) {
-                  void importFile(file)
-                }
-              }}
-            />
-          </label>
-        )}
-      </div>
       <div className="mt-3 flex items-center gap-3 text-sm">
         <button
           type="button"
@@ -479,6 +424,7 @@ export default function ShortcutsPage() {
                     serverError={drawerError}
                     onSubmit={saveDrawer}
                     onCancel={() => setDrawer(null)}
+                    teamOptions={teamOptions}
                   />
                 )
               ) : (
@@ -489,6 +435,7 @@ export default function ShortcutsPage() {
                   serverError={drawerError}
                   onSubmit={saveDrawer}
                   onCancel={() => setDrawer(null)}
+                  teamOptions={teamOptions}
                 />
               )}
               {drawer.mode === 'edit' && (

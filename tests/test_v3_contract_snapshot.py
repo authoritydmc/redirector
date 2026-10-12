@@ -40,6 +40,8 @@ _PROBE_VALUES = {
     "name": "contract-probe-missing",
     "upstream": "contract-probe-missing",
     "provider_id": "contract-probe-missing",
+    "email": "contract-probe-missing@example.com",
+    "team_id": "999999999",
     "job_id": "999999999",
     "key_id": "999999999",
     "upstream_id": "999999999",

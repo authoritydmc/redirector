@@ -77,6 +77,7 @@ class SQLAlchemyShortcutRepository:
             "visibility": row.visibility.value,
             "expires_at": row.expires_at.isoformat() if row.expires_at else None,
             "owner_email": row.owner_email,
+            "team_id": row.team_id,
             "created_ip": row.created_ip,
         }
 
@@ -91,6 +92,7 @@ class SQLAlchemyShortcutRepository:
             visibility=data.get("visibility", "public"),
             expires_at=datetime.fromisoformat(data["expires_at"]) if data.get("expires_at") else None,
             owner_email=data.get("owner_email"),
+            team_id=data.get("team_id"),
             created_ip=data.get("created_ip"),
         )
 

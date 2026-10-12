@@ -68,7 +68,8 @@ def _to_read(row: Shortcut) -> ShortcutRead:
 
 
 def _visible(row: Shortcut, *, is_admin: bool,
-             client_ip: str | None, current_user: str | None) -> bool:
+               client_ip: str | None, current_user: str | None,
+               team_ids: frozenset[int] = frozenset()) -> bool:
     vis = row.visibility or Visibility.PUBLIC
     if vis in (Visibility.PUBLIC, Visibility.UNLISTED):
         return True
@@ -80,7 +81,11 @@ def _visible(row: Shortcut, *, is_admin: bool,
             return True
         return owner is None  # legacy rows without owner stay reachable
     if vis == Visibility.TEAM:
-        return bool(is_admin or (row.owner_email and row.owner_email == current_user))
+        if is_admin:
+            return True
+        if row.owner_email and row.owner_email == current_user:
+            return True
+        return row.team_id is not None and row.team_id in team_ids
     return True
 
 
@@ -96,6 +101,7 @@ async def resolve(
     client_ip: str | None = None,
     current_user: str | None = None,
     is_admin: bool = False,
+    team_ids: frozenset[int] = frozenset(),
 ) -> Resolution:
     start = time.monotonic()
 
@@ -151,7 +157,8 @@ async def resolve(
     if matched.is_expired():
         return Resolution(outcome="gone", pattern=matched_pattern, elapsed=elapsed(),
                           suggestions=await _suggestions(repo, sanitized))
-    if not _visible(matched, is_admin=is_admin, client_ip=client_ip, current_user=current_user):
+    if not _visible(matched, is_admin=is_admin, client_ip=client_ip, current_user=current_user,
+                     team_ids=team_ids):
         return Resolution(outcome="forbidden", pattern=matched_pattern, elapsed=elapsed())
 
     if matched.type == ShortcutType.STATIC:
