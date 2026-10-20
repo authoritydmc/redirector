@@ -1,0 +1,57 @@
+# RajLabs infra glue (server1): redirector v3.2.1 behind coolify Traefik (r.yaml).
+# Traefik reaches it as http://dev-redirector:80.
+# Edge is PUBLIC (no ForwardAuth): short codes at /<code> must resolve
+# login-free on every device; the app's own admin-login locks the dashboard.
+# No host ports published. Data persists in ./data (bind, per upstream rule).
+services:
+  redirector:
+    build: .
+    image: rajlabs/redirector:3.2.1
+    container_name: dev-redirector
+    environment:
+      - REDIRECTOR_DATA_DIR=/app/data
+      - REDIS_HOST=dev-redirector-redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./data:/app/data
+    expose:
+      - "80"
+    networks:
+      - backend-network
+      - coolify
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:80/health', timeout=3)\" || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      redirector-redis:
+        condition: service_healthy
+
+  redirector-redis:
+    image: redis:8.0.1-alpine
+    container_name: dev-redirector-redis
+    command: redis-server --save 20 1 --loglevel warning
+    volumes:
+      - redirector_redis_data:/data
+    networks:
+      - backend-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+networks:
+  backend-network:
+    name: dev-backend-network
+    external: true
+  coolify:
+    external: true
+
+volumes:
+  redirector_redis_data:
+    name: dev_redirector_redis_data
