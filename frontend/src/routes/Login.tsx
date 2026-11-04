@@ -242,17 +242,22 @@ export default function Login() {
             <p className="text-sm text-rd-muted">Or continue with</p>
             <div className="mt-2 flex flex-col gap-2">
               {providers.map((provider) => (
-                <a
+                <button
                   key={provider.id}
-                  href={`/api/v1/auth/oidc/${provider.id}/login`}
-                  className="flex items-center justify-center gap-2 rounded border border-rd-line bg-rd-bg px-3 py-2 text-center text-sm font-medium transition-colors hover:bg-rd-surface hover:border-rd-accent"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setBusy(true)
+                    window.location.href = `/api/v1/auth/oidc/${provider.id}/login`
+                  }}
+                  className="flex items-center justify-center gap-2 rounded border border-rd-line bg-rd-bg px-3 py-2 text-center text-sm font-medium transition-colors hover:bg-rd-surface hover:border-rd-accent disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="h-4 w-4 text-rd-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                     <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                   </svg>
-                  <span>Continue with {provider.display_name}</span>
-                </a>
+                  <span>{busy ? 'Connecting to SSO...' : `Continue with ${provider.display_name}`}</span>
+                </button>
               ))}
             </div>
           </div>
