@@ -72,7 +72,7 @@ def build_login_url(
     client = AsyncOAuth2Client(
         client_id=provider.config.client_id,
         redirect_uri=redirect_uri,
-        scope="openid email profile",
+        scope="openid email profile groups",
     )
     url, _ = client.create_authorization_url(
         authorization_endpoint,
@@ -99,7 +99,7 @@ async def exchange_code(
         client_id=provider.config.client_id,
         client_secret=provider.client_secret,
         redirect_uri=redirect_uri,
-        scope="openid email profile",
+        scope="openid email profile groups",
     )
     token = await client.fetch_token(
         token_endpoint,
@@ -152,6 +152,27 @@ async def parse_token(
     )
     if claims.get("nonce") != nonce:
         raise ValueError("ID token nonce mismatch")
+
+    # If the ID token doesn't include the groups claim, query userinfo_endpoint if present
+    groups_claim = provider.config.groups_claim
+    userinfo_endpoint = metadata.get("userinfo_endpoint")
+    access_token = token.get("access_token") if isinstance(token, dict) else None
+    if groups_claim not in claims and userinfo_endpoint and access_token:
+        try:
+            async with httpx.AsyncClient(timeout=TOKEN_TIMEOUT_SECONDS) as http:
+                u_resp = await http.get(
+                    userinfo_endpoint,
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+                if u_resp.is_success:
+                    userinfo = u_resp.json()
+                    if isinstance(userinfo, dict):
+                        for k, v in userinfo.items():
+                            if k not in claims:
+                                claims[k] = v
+        except Exception:
+            pass
+
     return dict(claims)
 
 
