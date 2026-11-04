@@ -1,35 +1,74 @@
-# RajLabs infra glue (server1): redirector v3.2.1 behind coolify Traefik (r.yaml).
-# Traefik reaches it as http://dev-redirector:80.
-# Edge is PUBLIC (no ForwardAuth): short codes at /<code> must resolve
-# login-free on every device; the app's own admin-login locks the dashboard.
-# No host ports published. Data persists in ./data (bind, per upstream rule).
+# RajLabs production stack: Redirector v4.0.0 (FastAPI + React SPA + arq)
+# Traefik routes http://dev-redirector:80 directly to dev-redirector (Nginx web gateway).
+# Redis acts as the caching and job queue broker.
+name: redirector
+
 services:
-  redirector:
-    build: .
-    image: rajlabs/redirector:3.2.1
-    container_name: dev-redirector
-    environment:
-      - REDIRECTOR_DATA_DIR=/app/data
-      - REDIS_HOST=dev-redirector-redis
-      - REDIS_PORT=6379
+  # 1. API: FastAPI backend
+  api:
+    image: rajlabs/redirector:latest
+    container_name: dev-redirector-api
+    restart: unless-stopped
     volumes:
       - ./data:/app/data
+    environment:
+      - REDIRECTOR_DATA_DIR=/app/data
+      - REDIRECTOR_DATABASE_URL=sqlite+aiosqlite:////app/data/v3.db
+      - REDIRECTOR_JOB_BACKEND=arq
+      - REDIRECTOR_REDIS_URL=redis://dev-redirector-redis:6379/0
+      - REDIRECTOR_ADMIN_PASSWORD=${REDIRECTOR_ADMIN_PASSWORD:-RajLabs_Redirector_Admin_83921#Sec!}
+      - REDIRECTOR_JWT_SECRET=${REDIRECTOR_JWT_SECRET:-RajLabs_Redirector_JWT_98374921#Sec!}
+      - SKIP_MIGRATIONS=1
+    networks:
+      - backend-network
+    depends_on:
+      redirector-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8123/healthz', timeout=3)\" || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # 2. Worker: arq background task worker
+  worker:
+    image: rajlabs/redirector:latest
+    container_name: dev-redirector-worker
+    command: ["python", "-m", "arq", "backend.workers.settings.WorkerSettings"]
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+    environment:
+      - REDIRECTOR_DATA_DIR=/app/data
+      - REDIRECTOR_DATABASE_URL=sqlite+aiosqlite:////app/data/v3.db
+      - REDIRECTOR_REDIS_URL=redis://dev-redirector-redis:6379/0
+      - SKIP_MIGRATIONS=1
+    networks:
+      - backend-network
+    depends_on:
+      api:
+        condition: service_healthy
+      redirector-redis:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+
+  # 3. Web: Nginx reverse-proxy & React SPA front-end (replaces dev-redirector)
+  web:
+    image: rajlabs/redirector-web:latest
+    container_name: dev-redirector
+    restart: unless-stopped
     expose:
       - "80"
     networks:
       - backend-network
       - coolify
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:80/health', timeout=3)\" || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
     depends_on:
-      redirector-redis:
+      api:
         condition: service_healthy
 
+  # 4. Redis: Cache & job queue broker
   redirector-redis:
     image: redis:8.0.1-alpine
     container_name: dev-redirector-redis
