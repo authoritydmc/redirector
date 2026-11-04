@@ -187,3 +187,6 @@ frontend/coverage/
 
 .idea/
 
+.env.oidc
+certs/
+data_backup_*/

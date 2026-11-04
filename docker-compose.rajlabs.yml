@@ -9,6 +9,8 @@ services:
     image: rajlabs/redirector:latest
     container_name: dev-redirector-api
     restart: unless-stopped
+    env_file:
+      - .env.oidc
     volumes:
       - ./data:/app/data
     environment:
@@ -18,6 +20,7 @@ services:
       - REDIRECTOR_REDIS_URL=redis://dev-redirector-redis:6379/0
       - REDIRECTOR_ADMIN_PASSWORD=${REDIRECTOR_ADMIN_PASSWORD:-RajLabs_Redirector_Admin_83921#Sec!}
       - REDIRECTOR_JWT_SECRET=${REDIRECTOR_JWT_SECRET:-RajLabs_Redirector_JWT_98374921#Sec!}
+      - FORWARDED_ALLOW_IPS=*
       - SKIP_MIGRATIONS=1
     networks:
       - backend-network
@@ -37,6 +40,8 @@ services:
     container_name: dev-redirector-worker
     command: ["python", "-m", "arq", "backend.workers.settings.WorkerSettings"]
     restart: unless-stopped
+    env_file:
+      - .env.oidc
     volumes:
       - ./data:/app/data
     environment:
@@ -59,6 +64,8 @@ services:
     image: rajlabs/redirector-web:latest
     container_name: dev-redirector
     restart: unless-stopped
+    volumes:
+      - ./docker/nginx.web.conf:/etc/nginx/conf.d/default.conf:ro
     expose:
       - "80"
     networks:
