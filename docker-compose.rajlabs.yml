@@ -10,7 +10,7 @@ services:
     container_name: dev-redirector-api
     restart: unless-stopped
     env_file:
-      - .env.oidc
+      - /home/ubuntu/server-setups/.env
     volumes:
       - ./data:/app/data
     environment:
@@ -41,7 +41,7 @@ services:
     command: ["python", "-m", "arq", "backend.workers.settings.WorkerSettings"]
     restart: unless-stopped
     env_file:
-      - .env.oidc
+      - /home/ubuntu/server-setups/.env
     volumes:
       - ./data:/app/data
     environment:
