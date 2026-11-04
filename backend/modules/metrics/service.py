@@ -133,8 +133,8 @@ class MetricsService:
 
         proc_info: dict[str, Any] = {
             "version": settings.app_version,
-            "python": platform.python_version(),
-            "platform": platform.platform(),
+            "python": "",
+            "platform": "",
             "timestamp": utcnow().isoformat(),
         }
 

@@ -71,7 +71,7 @@ export default function MetricsPage() {
         <Card label="Memory" value={num(live.process.memory_mb, ' MB')} />
       </div>
       <p className="mt-3 text-sm text-rd-muted">
-        Status: {live.status} · {live.process.platform} · {live.process.python}
+        Status: {live.status}
       </p>
     </section>
   )
