@@ -33,7 +33,7 @@ from backend.modules.sso.providers import (
     get_configured_provider,
 )
 from backend.modules.sso.repository import OidcStateRepository, SsoUserRepository
-from backend.modules.sso.service import ADMIN_ROLE, resolve_role
+from backend.modules.sso.service import ADMIN_ROLE, USER_ROLE, VIEWER_ROLE, resolve_role
 
 router = APIRouter(prefix="/api/v1/auth", tags=["sso"])
 
@@ -155,19 +155,24 @@ async def oidc_callback(
     if not subject or not isinstance(subject, str):
         return _deny("bad-claims")
     role = resolve_role(claims, provider.config)
+    email_val = _claim_str(claims.get("email"))
     users = SsoUserRepository(session)
     user = await users.upsert_login(
         provider.id, subject,
-        _claim_str(claims.get("email")), _claim_str(claims.get("name")), role)
-    if role != ADMIN_ROLE:
+        email_val, _claim_str(claims.get("name")), role)
+    if role not in (ADMIN_ROLE, USER_ROLE):
         await log_auth_event(session, "sso.denied", _ip(request),
                              {"provider": provider.id, "user_id": user.id})
         return _deny("not-authorized")
     await log_auth_event(session, "sso.login", _ip(request),
-                         {"provider": provider.id, "user_id": user.id})
+                         {"provider": provider.id, "user_id": user.id, "role": role})
     ttl, _ = await resolve_setting(session, "jwt_access_token_expire_minutes")
-    jwt = create_access_token(data={"sub": f"sso:{provider.id}:{subject}", "role": "admin"},
-                              ttl_minutes=int(ttl))
+    # For admin, sub is sso:<provider>:<subject>; for user role, sub is user's email for team/link ownership
+    sub_val = f"sso:{provider.id}:{subject}" if role == ADMIN_ROLE else (email_val or f"sso:{provider.id}:{subject}")
+    jwt = create_access_token(
+        data={"sub": sub_val, "role": role, "email": email_val, "scopes": ["*"] if role == ADMIN_ROLE else []},
+        ttl_minutes=int(ttl),
+    )
     return RedirectResponse(url=_login_url_with(token=jwt),
                             status_code=status.HTTP_302_FOUND)
 

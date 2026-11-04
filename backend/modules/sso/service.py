@@ -16,6 +16,7 @@ from typing import Any
 from backend.modules.sso.providers import OidcProviderConfig
 
 ADMIN_ROLE = "admin"
+USER_ROLE = "user"
 VIEWER_ROLE = "viewer"
 
 
@@ -44,11 +45,15 @@ def user_groups(claims: Mapping[str, Any], provider: OidcProviderConfig) -> list
 
 
 def resolve_role(claims: Mapping[str, Any], provider: OidcProviderConfig) -> str:
-    """`"admin"` when mapped, else `"viewer"` (deny at mint time)."""
+    """`"admin"` when in admin_groups, `"user"` for any valid SSO account (teams/private links),
+    else `"viewer"` if email is unverified."""
     verified = claims.get("email_verified")
     if verified is False:
         return VIEWER_ROLE
     wanted = set(provider.admin_groups)
     if wanted and wanted.intersection(user_groups(claims, provider)):
         return ADMIN_ROLE
+    # Any authenticated SSO user with a valid email gets the normal "user" role
+    if claims.get("email"):
+        return USER_ROLE
     return VIEWER_ROLE
