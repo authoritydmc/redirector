@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import httpx
+import jwt
+from jwt import PyJWKSet
 from authlib.integrations.httpx_client import AsyncOAuth2Client
 
 from backend.modules.sso.providers import ConfiguredProvider
@@ -119,22 +121,37 @@ async def parse_token(
     jwks_uri = metadata.get("jwks_uri")
     if not jwks_uri:
         raise ValueError("discovery document lacks jwks_uri")
-    client = AsyncOAuth2Client(
-        client_id=provider.config.client_id,
-        client_secret=provider.client_secret,
-    )
+    raw_id_token = token.get("id_token") if isinstance(token, dict) else token
+    if not raw_id_token or not isinstance(raw_id_token, str):
+        raise ValueError("token response lacks valid id_token")
+    header = jwt.get_unverified_header(raw_id_token)
+    alg = header.get("alg", "RS256")
     async with httpx.AsyncClient(timeout=DISCOVERY_TIMEOUT_SECONDS) as http:
         resp = await http.get(jwks_uri)
         resp.raise_for_status()
         jwks = resp.json()
-    claims = client.parse_id_token(
-        token,
-        nonce=nonce,
-        jwks=jwks,
+    jwk_set = PyJWKSet.from_dict(jwks)
+    kid = header.get("kid")
+    key = None
+    if kid:
+        try:
+            key = jwk_set[kid].key
+        except Exception:
+            pass
+    if key is None and jwk_set.keys:
+        key = jwk_set.keys[0].key
+    if key is None:
+        raise ValueError("unable to find signing key in jwks")
+    claims = jwt.decode(
+        raw_id_token,
+        key=key,
+        algorithms=[alg],
+        audience=provider.config.client_id,
+        issuer=metadata.get("issuer"),
         leeway=CLOCK_SKEW_LEEWAY_SECONDS,
     )
-    if claims.get("iss") != metadata.get("issuer"):
-        raise ValueError("ID token issuer mismatch")
+    if claims.get("nonce") != nonce:
+        raise ValueError("ID token nonce mismatch")
     return dict(claims)
 
 
