@@ -65,7 +65,11 @@ export default function MetricsPage() {
         <Card label="Most popular" value={kpi.overview.most_popular?.pattern ?? '—'} />
         <Card
           label="Cache hit rate"
-          value={live.cache.hit_rate === null || live.cache.hit_rate === undefined ? '—' : `${live.cache.hit_rate}%`}
+          value={
+            live.cache.hit_rate === null || live.cache.hit_rate === undefined
+              ? '—'
+              : `${(live.cache.hit_rate > 1 ? live.cache.hit_rate : live.cache.hit_rate * 100).toFixed(1)}% (${live.cache.hits ?? 0}h / ${live.cache.misses ?? 0}m)`
+          }
         />
         <Card label="CPU" value={num(live.process.cpu_percent, '%')} />
         <Card label="Memory" value={num(live.process.memory_mb, ' MB')} />

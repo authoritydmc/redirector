@@ -53,6 +53,6 @@ describe('MetricsPage', () => {
     await waitFor(() => expect(screen.getByText('Total hits')).toBeInTheDocument())
     expect(screen.getByText('15')).toBeInTheDocument()
     expect(screen.getByText('docs')).toBeInTheDocument()
-    expect(screen.getByText('66.7%')).toBeInTheDocument()
+    expect(screen.getByText(/66\.7%/)).toBeInTheDocument()
   })
 })
