@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     auth_rate_limit_sso: int = 20
     log_level: str = "INFO"
     auto_redirect_delay: int = 1  # seconds before redirect; 0 = instant 302
+    admin_username: str = "admin"
     admin_password: str = "admin"
     jwt_secret: str = "redirector-insecure-dev-secret-change-in-production"
     jwt_algorithm: str = "HS256"
@@ -129,6 +130,7 @@ EDITABLE_SCHEMA: dict[str, dict[str, Any]] = {
 
 # Shown by name only (never valued): secrets and restart-only infra.
 ENV_MANAGED_SETTINGS: list[dict[str, str]] = [
+    {"key": "admin_username", "title": "Admin username", "description": "Set REDIRECTOR_ADMIN_USERNAME and restart."},
     {"key": "admin_password", "title": "Admin password", "description": "Set REDIRECTOR_ADMIN_PASSWORD and restart."},
     {"key": "jwt_secret", "title": "JWT secret", "description": "Set REDIRECTOR_JWT_SECRET and restart."},
     {"key": "database_url", "title": "Database", "description": "Set REDIRECTOR_DATABASE_URL and restart."},

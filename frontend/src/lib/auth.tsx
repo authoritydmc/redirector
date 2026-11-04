@@ -10,7 +10,7 @@ interface AuthState {
   token: string | null
   role: string | null
   email: string | null
-  login: (password: string) => Promise<{ pending_token: string } | null>
+  login: (password: string, username?: string) => Promise<{ pending_token: string } | null>
   verifyMfa: (pendingToken: string, totp: string) => Promise<void>
   loginUser: (email: string, password: string) => Promise<void>
   signup: (email: string, name: string, password: string) => Promise<void>
@@ -62,11 +62,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null)
   }, [])
 
-  const login = useCallback(async (password: string) => {
+  const login = useCallback(async (password: string, username?: string) => {
     type LoginResult = TokenResponse | { mfa_required: true; pending_token: string }
-    const { status, data } = await postJson<LoginResult>('/api/v1/auth/login', { password })
+    const { status, data } = await postJson<LoginResult>('/api/v1/auth/login', {
+      username: username ?? 'admin',
+      password,
+    })
     if (status === 401) {
-      throw new Error('Incorrect password')
+      throw new Error('Incorrect username or password')
     }
     if (status === 429) {
       throw new Error('Too many attempts — try again later')

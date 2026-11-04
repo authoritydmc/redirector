@@ -78,6 +78,7 @@ async def _token_ttl(session: AsyncSession) -> int:
 
 
 class LoginRequest(BaseModel):
+    username: str = "admin"
     password: str
 
 
@@ -117,13 +118,16 @@ async def login(
             detail="Too many failed logins; try again later",
             code="auth:locked-out",
         )
-    if not verify_password(body.password, settings.admin_password):
+    # Verify username against configured admin username (default "admin")
+    expected_username = settings.admin_username.strip().lower()
+    provided_username = (body.username or "").strip().lower()
+    if provided_username != expected_username or not verify_password(body.password, settings.admin_password):
         await record_failed_login(session, ip)
         await log_auth_event(session, "login.failed", ip)
         raise AppError(
             "Invalid credentials",
             status=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect password",
+            detail="Incorrect username or password",
             code="auth:bad-credentials",
         )
     await log_auth_event(session, "login.success", ip)

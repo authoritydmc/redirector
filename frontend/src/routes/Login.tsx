@@ -27,13 +27,14 @@ export default function Login() {
   const { login, verifyMfa, loginWithToken, loginUser, signup } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const [adminUsername, setAdminUsername] = useState('admin')
   const [password, setPassword] = useState('')
   const [pendingToken, setPendingToken] = useState<string | null>(null)
   const [totp, setTotp] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [providers, setProviders] = useState<SsoProvider[]>([])
-  const [tab, setTab] = useState<'admin' | 'account'>('admin')
+  const [tab, setTab] = useState<'admin' | 'account'>('account')
   const [accountMode, setAccountMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
@@ -61,7 +62,7 @@ export default function Login() {
     setBusy(true)
     setError(null)
     try {
-      const challenge = await login(password)
+      const challenge = await login(password, adminUsername.trim())
       if (challenge !== null) {
         setPendingToken(challenge.pending_token)
       } else {
@@ -128,16 +129,48 @@ export default function Login() {
                   : 'border-rd-line text-rd-muted'
               }`}
             >
-              {mode === 'admin' ? 'Admin password' : 'Team account'}
+              {mode === 'admin' ? 'Admin login' : 'Account login / sign up'}
             </button>
           ))}
         </div>
-        {pendingToken === null && tab === 'account' ? (
+        {pendingToken === null && tab === 'admin' ? (
+        <form onSubmit={submitPassword} className="mt-6 flex flex-col gap-3">
+          <p className="text-sm text-rd-muted">Sign in with administrator credentials.</p>
+          <label className="text-sm">
+            Admin username
+            <input
+              type="text"
+              autoComplete="username"
+              value={adminUsername}
+              onChange={(event) => setAdminUsername(event.target.value)}
+              className="mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-2 text-sm text-rd-text"
+            />
+          </label>
+          <label className="text-sm">
+            Admin password
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-2 text-sm text-rd-text"
+            />
+          </label>
+          {error !== null && <p role="alert" className="text-sm text-rd-danger">{error}</p>}
+          <button
+            type="submit"
+            disabled={busy || adminUsername.trim().length === 0 || password.length === 0}
+            className="rounded bg-rd-accent px-3 py-2 text-sm text-rd-accent-ink disabled:opacity-50"
+          >
+            Sign in
+          </button>
+        </form>
+        ) : pendingToken === null ? (
         <form onSubmit={submitAccount} className="mt-6 flex flex-col gap-3">
           <p className="text-sm text-rd-muted">
             {accountMode === 'signin'
-              ? 'Sign in with your team account.'
-              : 'Create a team account — you can join teams right away.'}
+              ? 'Sign in with your team or personal account.'
+              : 'Create a team account — you can join teams and manage links right away.'}
           </p>
           {accountMode === 'signup' && (
             <label className="text-sm">
@@ -187,28 +220,6 @@ export default function Login() {
             className="text-sm underline text-rd-muted"
           >
             {accountMode === 'signin' ? 'Need an account? Sign up' : 'Have an account? Sign in'}
-          </button>
-        </form>
-        ) : pendingToken === null ? (
-        <form onSubmit={submitPassword} className="mt-6 flex flex-col gap-3">
-          <p className="text-sm text-rd-muted">Sign in with the admin password.</p>
-          <label className="text-sm">
-            Admin password
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-1 w-full rounded border border-rd-line bg-rd-input px-3 py-2 text-sm text-rd-text"
-            />
-          </label>
-          {error !== null && <p role="alert" className="text-sm text-rd-danger">{error}</p>}
-          <button
-            type="submit"
-            disabled={busy || password.length === 0}
-            className="rounded bg-rd-accent px-3 py-2 text-sm text-rd-accent-ink disabled:opacity-50"
-          >
-            Sign in
           </button>
         </form>
       ) : (

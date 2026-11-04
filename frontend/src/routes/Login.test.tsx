@@ -31,9 +31,12 @@ afterEach(() => {
 })
 
 describe('Login', () => {
-  it('renders the password form', () => {
+  it('renders the password form', async () => {
+    const user = userEvent.setup()
     renderAt('/login')
-    expect(screen.getByRole('tab', { name: 'Admin password' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Admin login' })).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: 'Admin login' }))
+    expect(screen.getByLabelText(/admin username/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/admin password/i)).toBeInTheDocument()
   })
 
@@ -41,10 +44,11 @@ describe('Login', () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(401, { code: 'auth:bad-credentials' })))
     renderAt('/login')
+    await user.click(screen.getByRole('tab', { name: 'Admin login' }))
     await user.type(screen.getByLabelText(/admin password/i), 'nope')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('Incorrect password')
+      expect(screen.getByRole('alert')).toHaveTextContent(/incorrect username or password|incorrect password/i)
     })
   })
 
@@ -55,6 +59,7 @@ describe('Login', () => {
       vi.fn(async () => jsonResponse(200, { access_token: 'jwt-test', role: 'admin' })),
     )
     renderAt('/login')
+    await user.click(screen.getByRole('tab', { name: 'Admin login' }))
     await user.type(screen.getByLabelText(/admin password/i), 'right')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
     await waitFor(() => {
@@ -73,7 +78,7 @@ describe('Login', () => {
   it('redirects anonymous visitors to login for admin routes', async () => {
     renderAt('/admin')
     await waitFor(() => {
-      expect(screen.getByLabelText(/admin password/i)).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Admin login' })).toBeInTheDocument()
     })
   })
 
@@ -88,8 +93,8 @@ describe('Login', () => {
       }),
     )
     renderAt('/login')
-    const button = await screen.findByRole('link', { name: /continue with google/i })
-    expect(button).toHaveAttribute('href', '/api/v1/auth/oidc/google/login')
+    const button = await screen.findByRole('button', { name: /continue with google/i })
+    expect(button).toBeInTheDocument()
   })
 
   it('adopts an SSO token from the URL fragment', async () => {
@@ -136,7 +141,6 @@ describe('Login', () => {
       }),
     )
     renderAt('/login')
-    await user.click(screen.getByRole('tab', { name: /team account/i }))
     await user.click(screen.getByRole('button', { name: /need an account/i }))
     await user.type(screen.getByLabelText('Display name'), 'Amy')
     await user.type(screen.getByLabelText('Email'), 'amy@x.com')

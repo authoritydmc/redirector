@@ -107,11 +107,11 @@ async def get_current_admin(
             "scopes": row.scopes,
         }
     payload = decode_access_token(token)
-    if payload.get("role") not in ("admin", "user"):
+    if payload.get("role") not in ("admin", "user", "viewer"):
         raise AppError(
-            "Admin privileges required",
+            "Authentication required",
             status=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required",
+            detail="Valid role required",
             code="auth:forbidden",
         )
     if "purpose" in payload:

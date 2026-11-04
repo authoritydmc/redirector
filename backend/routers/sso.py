@@ -160,14 +160,10 @@ async def oidc_callback(
     user = await users.upsert_login(
         provider.id, subject,
         email_val, _claim_str(claims.get("name")), role)
-    if role not in (ADMIN_ROLE, USER_ROLE):
-        await log_auth_event(session, "sso.denied", _ip(request),
-                             {"provider": provider.id, "user_id": user.id})
-        return _deny("not-authorized")
     await log_auth_event(session, "sso.login", _ip(request),
                          {"provider": provider.id, "user_id": user.id, "role": role})
     ttl, _ = await resolve_setting(session, "jwt_access_token_expire_minutes")
-    # For admin, sub is sso:<provider>:<subject>; for user role, sub is user's email for team/link ownership
+    # For admin, sub is sso:<provider>:<subject>; for user/viewer role, sub is user's email or subject
     sub_val = f"sso:{provider.id}:{subject}" if role == ADMIN_ROLE else (email_val or f"sso:{provider.id}:{subject}")
     jwt = create_access_token(
         data={"sub": sub_val, "role": role, "email": email_val, "scopes": ["*"] if role == ADMIN_ROLE else []},

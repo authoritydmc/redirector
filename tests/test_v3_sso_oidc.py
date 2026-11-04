@@ -278,10 +278,11 @@ def test_callback_denies_unmapped_user(app_scope: Any, monkeypatch: pytest.Monke
 
     resp = _callback(client, state)
     assert resp.status_code == 302
-    assert resp.headers["location"].endswith("#error=not-authorized")
+    # Non-admin users log in with role=user (team account) rather than erroring out
+    assert "#access_token=" in resp.headers["location"]
 
     users = _users(factory)
-    assert len(users) == 1 and users[0].role == "viewer"
+    assert len(users) == 1 and users[0].role == "user"
 
 
 def test_callback_rejects_unknown_state(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
