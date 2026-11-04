@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     # window that trigger a 429 lockout.
     auth_lockout_max_attempts: int = 10
     auth_lockout_window_minutes: int = 15
+    auth_rate_limit_login: int = 5
+    auth_rate_limit_sso: int = 20
     log_level: str = "INFO"
     auto_redirect_delay: int = 1  # seconds before redirect; 0 = instant 302
     admin_password: str = "admin"
@@ -108,6 +110,20 @@ EDITABLE_SCHEMA: dict[str, dict[str, Any]] = {
         "type": "int",
         "min": 1,
         "max": 1440,
+    },
+    "auth_rate_limit_login": {
+        "title": "Login rate limit (per minute)",
+        "description": "Max password/MFA login attempts allowed per minute per IP.",
+        "type": "int",
+        "min": 1,
+        "max": 120,
+    },
+    "auth_rate_limit_sso": {
+        "title": "SSO rate limit (per minute)",
+        "description": "Max SSO OAuth/OIDC login initiations allowed per minute per IP.",
+        "type": "int",
+        "min": 1,
+        "max": 300,
     },
 }
 

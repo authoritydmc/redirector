@@ -39,7 +39,7 @@ router = APIRouter(prefix="/api/v1/auth", tags=["sso"])
 
 # Own bucket (not the password-login one): IdP round-trips are user-paced,
 # and a shared bucket would let SSO starts starve password logins.
-sso_limiter = RateLimit("20/minute")
+sso_limiter = RateLimit("20/minute", dynamic_setting_key="auth_rate_limit_sso")
 
 
 class SsoProviderRead(BaseModel):

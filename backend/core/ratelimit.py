@@ -53,14 +53,16 @@ class RateLimit:
     """Sliding-window gate used as a FastAPI dependency.
 
     Usage: `_rl: Annotated[None, Depends(RateLimit("5/minute"))]`.
+    If dynamic_setting_key is provided, hits per minute are looked up dynamically
+    from resolve_setting(session, key).
     Counters live on `app.state.rate_limit_store` (created in lifespan,
-    defensively created here), keyed by route path + client IP. In-memory
-    by design — see module docstring for the Redis graduation path.
+    defensively created here), keyed by route path + client IP.
     """
 
-    def __init__(self, spec: str) -> None:
+    def __init__(self, spec: str, dynamic_setting_key: str | None = None) -> None:
         self.max_hits, self.window_s = _parse_spec(spec)
         self.spec = spec
+        self.dynamic_setting_key = dynamic_setting_key
 
     def _store(self, request: Request) -> dict[str, deque[float]]:
         store: dict[str, deque[float]] | None = getattr(
@@ -71,6 +73,17 @@ class RateLimit:
         return store
 
     async def __call__(self, request: Request) -> None:
+        max_hits = self.max_hits
+        if self.dynamic_setting_key:
+            from backend.core.config import resolve_setting
+            from backend.core.db import SessionFactory
+            try:
+                async with SessionFactory() as session:
+                    val, _ = await resolve_setting(session, self.dynamic_setting_key)
+                    max_hits = int(val)
+            except Exception:
+                pass
+
         store = self._store(request)
         key = f"{request.url.path}:{_client_key(request)}"
         now = time.monotonic()
@@ -79,11 +92,11 @@ class RateLimit:
             hits = store[key] = deque()
         while hits and hits[0] <= now - self.window_s:
             hits.popleft()
-        if len(hits) >= self.max_hits:
+        if len(hits) >= max_hits:
             raise AppError(
                 "Rate limit exceeded",
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Too many requests ({self.spec}); retry later",
+                detail=f"Too many requests ({max_hits}/min); retry later",
                 code="auth:rate-limited",
             )
         if hits:

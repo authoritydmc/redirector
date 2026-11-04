@@ -57,9 +57,9 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 # Team-account endpoints share their own bucket (separate credential
 # surface from the admin password — attackers get no double budget
 # either way, and each surface keeps the full 5/min for legit use).
-login_limiter = RateLimit("5/minute")
-user_limiter = RateLimit("5/minute")
-verify_limiter = RateLimit("5/minute")
+login_limiter = RateLimit("5/minute", dynamic_setting_key="auth_rate_limit_login")
+user_limiter = RateLimit("5/minute", dynamic_setting_key="auth_rate_limit_login")
+verify_limiter = RateLimit("5/minute", dynamic_setting_key="auth_rate_limit_login")
 
 
 async def _lockout_window(session: AsyncSession) -> int:
